@@ -1,0 +1,196 @@
+{
+  "testedSha": "2ca3c05527b6e00bf7670fdba6f51542d34c3af8",
+  "baseline": "8f1e471c0f6232a059ad92a66d17fb552739bb6f",
+  "sourceChange": "Attribute advanced-settings readability and clickable Product Type library actions",
+  "branchId": "br-silent-math-b4le4ctk",
+  "branchName": "pr335-save-all-isolated-20261019",
+  "database": "pr334_acceptance",
+  "transport": "Official Neon WebSocket pg protocol through configured HTTPS proxy; PrismaPg and source service unchanged",
+  "prefix": "PR335_MVF2LSXB",
+  "results": [
+    {
+      "name": "Isolated target identity and PostgreSQL 16",
+      "status": "PASS",
+      "detail": {
+        "version": "PostgreSQL 16.15 (2a05339) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit",
+        "database": "pr334_acceptance"
+      }
+    },
+    {
+      "name": "HTTP atomic Save All, one serializable transaction, one audit and reload",
+      "status": "PASS",
+      "detail": {
+        "http": 200,
+        "assignments": 2,
+        "audits": 1,
+        "serializable": true,
+        "reload": true
+      }
+    },
+    {
+      "name": "HTTP stale second row rolls back entire batch and audit",
+      "status": "PASS",
+      "detail": {
+        "http": 409,
+        "unchanged": true,
+        "error": {
+          "code": "PRODUCT_TYPE_ATTRIBUTE_VERSION_CONFLICT",
+          "message": "The assignment changed; reload it before trying again"
+        }
+      }
+    },
+    {
+      "name": "HTTP invalid second row DTO rejects entire batch and audit",
+      "status": "PASS",
+      "detail": {
+        "http": 400,
+        "unchanged": true
+      }
+    },
+    {
+      "name": "HTTP invalid second conditional assignment rolls back at service validation",
+      "status": "PASS",
+      "detail": {
+        "http": 400,
+        "unchanged": true,
+        "error": {
+          "code": "PRODUCT_TYPE_ATTRIBUTE_CONDITION_REQUIRED",
+          "message": "A conditional assignment requires a conditional rule object"
+        }
+      }
+    },
+    {
+      "name": "HTTP duplicate IDs and unknown assignment reject without partial writes",
+      "status": "PASS",
+      "detail": {
+        "duplicate": 400,
+        "unknown": 404,
+        "unchanged": true
+      }
+    },
+    {
+      "name": "HTTP unauthenticated batch is rejected without changes",
+      "status": "PASS",
+      "detail": {
+        "http": 401
+      }
+    },
+    {
+      "name": "HTTP audit insertion failure rolls back updates already executed",
+      "status": "PASS",
+      "detail": {
+        "http": 500,
+        "rolledBack": [
+          "two row updates",
+          "versions",
+          "audit"
+        ]
+      }
+    },
+    {
+      "name": "HTTP publication safeguard rolls back on audit failure",
+      "status": "PASS",
+      "detail": {
+        "http": 500,
+        "rolledBack": [
+          "schema",
+          "Product Type",
+          "assignments"
+        ]
+      }
+    },
+    {
+      "name": "Live 1440: independent edits, no per-click writes, one Save All, reload, publish ACTIVE, reload",
+      "status": "PASS",
+      "detail": {
+        "width": 1440,
+        "mutationsBeforeSave": 0,
+        "saveBatches": 1,
+        "rows": 2,
+        "assignmentVersionAfterSave": 2,
+        "assignmentVersionAfterPublish": 3,
+        "schemaId": "4ee5e206-7623-4ccc-a2e2-88c632a2fe55",
+        "schemaHash": "11f8fcd8bcdd5b2886f7f0328b4e8ddc544097e1f09db70e761265bc54190d1c",
+        "status": "ACTIVE",
+        "reload": true,
+        "overflow": {
+          "width": 1440,
+          "scroll": 1440
+        }
+      }
+    },
+    {
+      "name": "Live 1920: independent edits, no per-click writes, one Save All, reload, publish ACTIVE, reload",
+      "status": "PASS",
+      "detail": {
+        "width": 1920,
+        "mutationsBeforeSave": 0,
+        "saveBatches": 1,
+        "rows": 2,
+        "assignmentVersionAfterSave": 2,
+        "assignmentVersionAfterPublish": 3,
+        "schemaId": "5c500371-80c1-438e-8c2d-49cda447c599",
+        "schemaHash": "e271a963959f4c9c04959b195074dd19eb5f7524c0427daa87cb86886557b452",
+        "status": "ACTIVE",
+        "reload": true,
+        "overflow": {
+          "width": 1920,
+          "scroll": 1920
+        }
+      }
+    },
+    {
+      "name": "Live discard and Product Type navigation warning preserve unsaved settings",
+      "status": "PASS",
+      "detail": {
+        "discard": true,
+        "navigationWarning": "Unsaved Product Type Attribute settings will be discarded. Continue?",
+        "unchanged": true
+      }
+    },
+    {
+      "name": "Live failed Save All retains edits and blocks publish",
+      "status": "PASS",
+      "detail": {
+        "retained": 2,
+        "publishBlocked": true,
+        "unchanged": true
+      }
+    },
+    {
+      "name": "Live incomplete successful batch readback retains edits and blocks publish",
+      "status": "PASS",
+      "detail": {
+        "invalidSuccessDetected": true,
+        "retained": 2,
+        "publishBlocked": true
+      }
+    }
+  ],
+  "runtime": {
+    "node": "v24.19.0",
+    "npm": "11.9.0",
+    "chromium": "153.0.8010.0",
+    "postgres": "16.15"
+  },
+  "automatedChecks": {
+    "apiCatalog": {
+      "passed": 191,
+      "files": 14
+    },
+    "adminFocused": {
+      "passed": 48,
+      "files": 5
+    },
+    "adminFull": {
+      "passed": 486,
+      "files": 65
+    },
+    "adminTypecheck": "PASS",
+    "apiProductionTypecheck": "PASS",
+    "apiBuild": "PASS",
+    "adminBuild": "PASS",
+    "apiFullTypecheck": "FAIL: six unchanged main diagnostics",
+    "ci": "BLOCKED: no job steps, runner_name empty"
+  }
+}

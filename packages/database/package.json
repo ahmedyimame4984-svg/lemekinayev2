@@ -1,0 +1,16 @@
+{
+  "name": "@lemekinaye/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "prisma generate",
+    "validate": "prisma validate",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev"
+  },
+  "devDependencies": {
+    "prisma": "^7.10.0",
+    "typescript": "^6.0.2"
+  }
+}

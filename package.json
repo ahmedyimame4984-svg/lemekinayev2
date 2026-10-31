@@ -1,0 +1,41 @@
+{
+  "name": "lemekinaye-platform",
+  "version": "0.1.0",
+  "description": "Lemekinaye automotive marketplace platform",
+  "scripts": {
+    "build": "npm run build -w api && npm run build -w admin && npm run build -w seller",
+    "dev:api": "npm run start:dev -w api",
+    "dev:admin": "npm run dev -w admin",
+    "lint": "npm run lint -w api && npm run lint -w admin && npm run lint -w seller",
+    "test": "npm run test -w api && npm run test -w admin && npm run test -w seller",
+    "test:e2e": "npm run test:e2e -w api",
+    "admin:provision": "npm run build -w api --silent && node apps/api/dist/scripts/provision-admin.js",
+    "pretypecheck": "npm run db:generate",
+    "typecheck": "tsc --noEmit -p apps/api/tsconfig.json && npm run typecheck -w admin && npm run typecheck -w seller",
+    "db:generate": "npm run generate -w @lemekinaye/database",
+    "db:validate": "npm run validate -w @lemekinaye/database",
+    "db:migrate": "npm run migrate:deploy -w @lemekinaye/database",
+    "admin:seed-demo": "npm run build -w api --silent && node apps/api/dist/scripts/seed-admin-demo.js",
+    "admin:seed-master": "npm run build -w api --silent && node apps/api/dist/scripts/seed-master-reference.js",
+    "dev:seller": "npm run dev -w seller",
+    "test:admin-acceptance": "npm run test:acceptance -w admin",
+    "admin:vehicles:audit": "npm run build -w api --silent && node apps/api/dist/scripts/audit-vehicle-reconstruction.js",
+    "admin:vehicles:validate": "npm run build -w api --silent && node apps/api/dist/scripts/validate-vehicle-manifest.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "npm@11.19.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.1",
+    "mysql2": "3.23.1"
+  }
+}

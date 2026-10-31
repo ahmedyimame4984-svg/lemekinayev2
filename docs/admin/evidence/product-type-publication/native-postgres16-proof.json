@@ -1,0 +1,151 @@
+{
+  "captureExecutableSha": "288d4e7a300fba1cd86adfdac4c92563657dd296",
+  "finalExecutableSha": "94c7f4547a521ec4502a4f6cf7b3c9f308a87975",
+  "note": "Captured SQL from unchanged CatalogSchemaService and Prisma schema, replayed on native PostgreSQL 16.15; running browser/API acceptance used embedded PostgreSQL 17.5.",
+  "migrationSqlFiles": 67,
+  "migrationSqlBatches": 9,
+  "fixtureInsertStatements": 56,
+  "transactionStatements": 21,
+  "rollback": {
+    "injectedError": "PR334 injected audit persistence failure",
+    "schemaCount": 0,
+    "changedProductTypes": 0,
+    "changedAssignments": 0,
+    "changedCategories": 0,
+    "changedPartGroups": 0
+  },
+  "persistedPublication": {
+    "name": "PR334 Publish 1440",
+    "status": "ACTIVE",
+    "version": 2,
+    "schema_id": "7380d7bb-a8b6-4fc5-9856-9d04f7edc1e7",
+    "schema_version": 1,
+    "schema_hash": "a61b06f4c415b1ee4dfddd5e1fd41c70633dc07acde436aa0e2f440a81041a65",
+    "snapshot": {
+      "attributes": [
+        {
+          "code": "PR334_ATTRIBUTE_0",
+          "name": "PR334 Material",
+          "unit": null,
+          "group": {
+            "id": "1d2fbd33-e4fd-4a4b-b07d-000638dd0fd0",
+            "code": "PR334_DIMENSIONS",
+            "name": "PR334 Dimensions"
+          },
+          "scope": "PRODUCT",
+          "aliases": [],
+          "dataType": "TEXT",
+          "optionSet": null,
+          "comparable": false,
+          "filterable": false,
+          "repeatable": false,
+          "searchable": true,
+          "attributeId": "861ec07f-cd91-4bac-895c-85877db45588",
+          "description": null,
+          "displayMode": "VISIBLE",
+          "requirement": "MANDATORY",
+          "valueSource": "NONE",
+          "assignmentId": "050bc469-98b4-40f7-a923-15b6368af5f3",
+          "displayOrder": 0,
+          "exampleValue": null,
+          "translatable": false,
+          "unitDimension": null,
+          "sellerEditable": true,
+          "validationRule": null,
+          "conditionalRule": null,
+          "variantDefining": false,
+          "controlledValues": [],
+          "marketplaceVisible": true,
+          "attributeDefaultUnit": null,
+          "assignmentDefaultUnit": null,
+          "attributeValidationRule": null
+        },
+        {
+          "code": "PR334_ATTRIBUTE_1",
+          "name": "PR334 Finish",
+          "unit": null,
+          "group": {
+            "id": "1d2fbd33-e4fd-4a4b-b07d-000638dd0fd0",
+            "code": "PR334_DIMENSIONS",
+            "name": "PR334 Dimensions"
+          },
+          "scope": "PRODUCT",
+          "aliases": [],
+          "dataType": "TEXT",
+          "optionSet": null,
+          "comparable": false,
+          "filterable": true,
+          "repeatable": false,
+          "searchable": false,
+          "attributeId": "6a995641-fdf3-4333-96da-f35ca97ef633",
+          "description": null,
+          "displayMode": "VISIBLE",
+          "requirement": "OPTIONAL",
+          "valueSource": "NONE",
+          "assignmentId": "353e92f6-609d-44b4-9c1d-bc0424a78bca",
+          "displayOrder": 1,
+          "exampleValue": null,
+          "translatable": false,
+          "unitDimension": null,
+          "sellerEditable": true,
+          "validationRule": null,
+          "conditionalRule": null,
+          "variantDefining": false,
+          "controlledValues": [],
+          "marketplaceVisible": true,
+          "attributeDefaultUnit": null,
+          "assignmentDefaultUnit": null,
+          "attributeValidationRule": null
+        }
+      ],
+      "schemaKind": "PRODUCT_TYPE_SCHEMA",
+      "productType": {
+        "id": "66c1d384-485f-41f6-b732-efcb12ccfb7c",
+        "code": "PR334_TYPE_4",
+        "name": "PR334 Publish 1440",
+        "slug": "pr334-type-4",
+        "categoryId": "920460c7-bc1c-4997-a294-5d6b841a779d",
+        "productFamilyId": "1bc2e856-457c-4a35-8215-725a6537c695"
+      },
+      "contractVersion": 2,
+      "offerRequirements": {
+        "price": "REQUIRED",
+        "stock": "REQUIRED",
+        "warranty": "OPTIONAL",
+        "condition": "REQUIRED"
+      },
+      "articleRequirements": {
+        "gtin": "OPTIONAL",
+        "brand": "OPTIONAL",
+        "image": "REQUIRED",
+        "fitment": "REQUIRED",
+        "document": "OPTIONAL",
+        "identifier": "ANY_PART_NUMBER",
+        "oeReference": "OPTIONAL",
+        "crossReference": "OPTIONAL",
+        "minimumImageCount": 1,
+        "minimumDocumentCount": 0
+      },
+      "comparableAttributeCodes": [],
+      "filterableAttributeCodes": [
+        "PR334_ATTRIBUTE_1"
+      ],
+      "searchableAttributeCodes": [
+        "PR334_ATTRIBUTE_0"
+      ]
+    },
+    "category_status": "ACTIVE",
+    "part_group_status": "ACTIVE",
+    "assignments": [
+      {
+        "status": "ACTIVE",
+        "version": 2
+      },
+      {
+        "status": "ACTIVE",
+        "version": 2
+      }
+    ],
+    "audit_count": "1"
+  }
+}

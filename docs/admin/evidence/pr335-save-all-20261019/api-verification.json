@@ -1,0 +1,744 @@
+{
+  "recordedAt": "2026-10-19T17:01:46.808485+00:00",
+  "testedCommit": "e68a67ad0207660706307098b3602f9e086891bc",
+  "node": "v24.19.0",
+  "npm": "11.9.0",
+  "databaseAccess": "none; unreachable loopback DATABASE_URL for unit tests and compilation",
+  "checks": {
+    "fullApiVitest": {
+      "status": "PASS",
+      "code": 0,
+      "signal": null,
+      "command": [
+        "npm",
+        "exec",
+        "-w",
+        "api",
+        "--",
+        "vitest",
+        "run",
+        "--reporter=json",
+        "--outputFile=/workspace/scratch/e074ce2afcfd/evidence/api-full-suite-corrected.json"
+      ],
+      "node": "v24.19.0",
+      "tests": 880,
+      "passed": 880,
+      "failed": 0,
+      "files": 86,
+      "fileResults": [
+        {
+          "path": "apps/api/src/app.controller.spec.ts",
+          "status": "passed",
+          "tests": 1,
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/admin-imports/admin-imports.service.spec.ts",
+          "status": "passed",
+          "tests": 3,
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/admin-preferences/admin-saved-view.service.spec.ts",
+          "status": "passed",
+          "tests": 7,
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/audit/audit.service.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/auth/admin-auth.crypto.spec.ts",
+          "status": "passed",
+          "tests": 5,
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/auth/admin-auth.service.spec.ts",
+          "status": "passed",
+          "tests": 10,
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/auth/auth-throttle.service.spec.ts",
+          "status": "passed",
+          "tests": 3,
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/auth/authentication.guard.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/auth/permissions.guard.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/auth/seller-account-registration.service.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/auth/seller-auth.service.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/auth/session.service.spec.ts",
+          "status": "passed",
+          "tests": 11,
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog-health/catalog-health.service.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/compatibility/compatibility.service.spec.ts",
+          "status": "passed",
+          "tests": 18,
+          "passed": 18,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/config/environment.spec.ts",
+          "status": "passed",
+          "tests": 10,
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/health/health.controller.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/health/health.service.spec.ts",
+          "status": "passed",
+          "tests": 2,
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/inventory.service.spec.ts",
+          "status": "passed",
+          "tests": 8,
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/listing.service.spec.ts",
+          "status": "passed",
+          "tests": 9,
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-application-draft.service.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-application-email.spec.ts",
+          "status": "passed",
+          "tests": 7,
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-application-review.service.spec.ts",
+          "status": "passed",
+          "tests": 3,
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-application-workspace.controller.spec.ts",
+          "status": "passed",
+          "tests": 3,
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-article-browse.controller.spec.ts",
+          "status": "passed",
+          "tests": 2,
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-article.service.spec.ts",
+          "status": "passed",
+          "tests": 25,
+          "passed": 25,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-email-origin.spec.ts",
+          "status": "passed",
+          "tests": 8,
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-product-vehicle-article.service.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-product.service.spec.ts",
+          "status": "passed",
+          "tests": 8,
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-registration-document-storage.service.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-registration.service.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller-stock-transfer.service.spec.ts",
+          "status": "passed",
+          "tests": 5,
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/marketplace/seller.service.spec.ts",
+          "status": "passed",
+          "tests": 10,
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/master-data-lifecycle/master-data-lifecycle.service.spec.ts",
+          "status": "passed",
+          "tests": 21,
+          "passed": 21,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/admin-article-inspector.service.spec.ts",
+          "status": "passed",
+          "tests": 2,
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/admin-article-relation-governance.service.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/admin-article-review.service.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/admin-oe-reference-review.service.spec.ts",
+          "status": "passed",
+          "tests": 3,
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/article-commerce-boundary.spec.ts",
+          "status": "passed",
+          "tests": 3,
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/article-identifier.service.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/article-identifier.spec.ts",
+          "status": "passed",
+          "tests": 3,
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/article-relation.service.spec.ts",
+          "status": "passed",
+          "tests": 15,
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/article-requirement-snapshot.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/article-validation.service.spec.ts",
+          "status": "passed",
+          "tests": 14,
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/catalog-article-import-file.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/product-asset.service.spec.ts",
+          "status": "passed",
+          "tests": 2,
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/product-identity.service.spec.ts",
+          "status": "passed",
+          "tests": 15,
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/product/product.service.spec.ts",
+          "status": "passed",
+          "tests": 31,
+          "passed": 31,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/reference-data/admin-reference-data.controller.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/reference-data/master-reference-bootstrap.service.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/reference-data/master-reference.service.spec.ts",
+          "status": "passed",
+          "tests": 13,
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/reference-data/strategic-vehicle-coverage.service.spec.ts",
+          "status": "passed",
+          "tests": 1,
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/scripts/master-attribute-library.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/scripts/master-reference-data.spec.ts",
+          "status": "passed",
+          "tests": 17,
+          "passed": 17,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/search/global-catalog-search.service.spec.ts",
+          "status": "passed",
+          "tests": 10,
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/sourcing/sourcing.service.spec.ts",
+          "status": "passed",
+          "tests": 8,
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/attribute-csv.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-attribute-assignment.service.spec.ts",
+          "status": "passed",
+          "tests": 34,
+          "passed": 34,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-attribute-master-v2.service.spec.ts",
+          "status": "passed",
+          "tests": 9,
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-attribute-policy.spec.ts",
+          "status": "passed",
+          "tests": 5,
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-attribute.service.spec.ts",
+          "status": "passed",
+          "tests": 24,
+          "passed": 24,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-canonical-criteria-library.service.spec.ts",
+          "status": "passed",
+          "tests": 5,
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-canonical-product-library.service.spec.ts",
+          "status": "passed",
+          "tests": 27,
+          "passed": 27,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-criteria-template.service.spec.ts",
+          "status": "passed",
+          "tests": 12,
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-foundation.service.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-professional-baseline.service.spec.ts",
+          "status": "passed",
+          "tests": 4,
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-schema-validation.service.spec.ts",
+          "status": "passed",
+          "tests": 13,
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog-schema.service.spec.ts",
+          "status": "passed",
+          "tests": 14,
+          "passed": 14,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/catalog/catalog.service.spec.ts",
+          "status": "passed",
+          "tests": 32,
+          "passed": 32,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/generation-family-foundation.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/generation-family-governance.spec.ts",
+          "status": "passed",
+          "tests": 7,
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/generation-family.service.spec.ts",
+          "status": "passed",
+          "tests": 22,
+          "passed": 22,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/nhtsa-vin-decoder.provider.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle-configuration-identity.spec.ts",
+          "status": "passed",
+          "tests": 2,
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle-configuration.service.spec.ts",
+          "status": "passed",
+          "tests": 49,
+          "passed": 49,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle-identification.service.spec.ts",
+          "status": "passed",
+          "tests": 10,
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle-market.service.spec.ts",
+          "status": "passed",
+          "tests": 20,
+          "passed": 20,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle-powertrain-policy.spec.ts",
+          "status": "passed",
+          "tests": 70,
+          "passed": 70,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle-profile.service.spec.ts",
+          "status": "passed",
+          "tests": 8,
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle-reconstruction-audit.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle-reconstruction-standard.spec.ts",
+          "status": "passed",
+          "tests": 23,
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vehicle.service.spec.ts",
+          "status": "passed",
+          "tests": 11,
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/vehicle/vin.service.spec.ts",
+          "status": "passed",
+          "tests": 13,
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/common/email/email-delivery-diagnostics.spec.ts",
+          "status": "passed",
+          "tests": 3,
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/common/email/email.service.spec.ts",
+          "status": "passed",
+          "tests": 12,
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/common/email/smtp-email.config.spec.ts",
+          "status": "passed",
+          "tests": 6,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "apps/api/src/common/email/smtp-email.transport.spec.ts",
+          "status": "passed",
+          "tests": 9,
+          "passed": 9,
+          "failed": 0
+        }
+      ]
+    },
+    "fullApiTypecheck": {
+      "status": "PASS",
+      "code": 0,
+      "signal": null,
+      "command": [
+        "./node_modules/.bin/tsc",
+        "--noEmit",
+        "-p",
+        "apps/api/tsconfig.json"
+      ],
+      "node": "v24.19.0",
+      "diagnostics": ""
+    },
+    "apiBuild": {
+      "status": "PASS",
+      "code": 0,
+      "signal": null,
+      "command": [
+        "npm",
+        "run",
+        "build",
+        "-w",
+        "api"
+      ],
+      "node": "v24.19.0"
+    }
+  },
+  "specBlobsVerifiedAgainstRemoteTree": {
+    "apps/api/src/common/email/smtp-email.transport.spec.ts": "f8225f54cc7232b3d393ef869c4bf53900a88f67",
+    "apps/api/src/marketplace/seller-application-review.service.spec.ts": "5ebccd4bd2978110dca3c4463bf3b627d1873e48",
+    "apps/api/src/marketplace/seller-product-vehicle-article.service.spec.ts": "11b24d0f5d6278e34d19ef6a76b527358572bbd9",
+    "apps/api/src/marketplace/seller-stock-transfer.service.spec.ts": "5c928810c260c3e86ec651e1760434304e39c275",
+    "apps/api/src/config/environment.spec.ts": "5016d32a1ce43ccdfa9d4a7649307a2c4530ea67",
+    "apps/api/src/common/email/email.service.spec.ts": "ad0984229c8a0ee4c8ecf8d90166883741d3c4d4",
+    "apps/api/src/marketplace/inventory.service.spec.ts": "5cb512a49978e14d16fd2e517f82e95b226fa8cc",
+    "apps/api/src/marketplace/listing.service.spec.ts": "d81f742811381019e948f0c9bb6725600c0e979b",
+    "apps/api/src/marketplace/seller.service.spec.ts": "81ff98ccb3f10726dbc715684e6cb6b16fd74995"
+  },
+  "applicationSourceEquivalence": {
+    "applicationBaseline": "2ca3c05527b6e00bf7670fdba6f51542d34c3af8",
+    "testedCommit": "e68a67ad0207660706307098b3602f9e086891bc",
+    "runtimeAndSchemaBlobsCompared": 659,
+    "differences": []
+  },
+  "compiledApiEquivalence": {
+    "filesCompared": 723,
+    "changedRuntimeOutputs": [],
+    "identical": true
+  },
+  "carriedForwardChecks": {
+    "executedCommit": "2ca3c05527b6e00bf7670fdba6f51542d34c3af8",
+    "rerunAfterTestOnlyFixes": false,
+    "adminFocusedTests": 48,
+    "adminFullTests": 486,
+    "adminTestFiles": 65,
+    "adminTypecheck": "PASS",
+    "adminBuild": "PASS",
+    "apiProductionTypecheck": "PASS",
+    "isolatedPostgresBrowserChecks": 14,
+    "isolatedBranchId": "br-silent-math-b4le4ctk",
+    "postgresVersion": "16.15",
+    "viewportWidths": [
+      1440,
+      1920
+    ],
+    "liveEvidence": "acceptance.json"
+  },
+  "hostedCi": {
+    "status": "BLOCKED",
+    "reason": "both workflows failed before assigning a runner or recording any steps; cause not established by available API evidence",
+    "runs": [
+      {
+        "runId": 39290361979,
+        "name": "Validate",
+        "headSha": "e68a67ad0207660706307098b3602f9e086891bc",
+        "url": "https://github.com/ahmedyimame4984-svg/lemekinaye/actions/runs/39290361979",
+        "status": "completed",
+        "conclusion": "failure",
+        "jobs": [
+          {
+            "id": 118189134568,
+            "name": "Typecheck, test, lint, and build",
+            "status": "completed",
+            "conclusion": "failure",
+            "runnerName": "",
+            "steps": []
+          }
+        ]
+      },
+      {
+        "runId": 39290361535,
+        "name": "Master lifecycle database",
+        "headSha": "e68a67ad0207660706307098b3602f9e086891bc",
+        "url": "https://github.com/ahmedyimame4984-svg/lemekinaye/actions/runs/39290361535",
+        "status": "completed",
+        "conclusion": "failure",
+        "jobs": [
+          {
+            "id": 118189132900,
+            "name": "lifecycle",
+            "status": "completed",
+            "conclusion": "failure",
+            "runnerName": "",
+            "steps": []
+          }
+        ]
+      }
+    ]
+  },
+  "mergeAuthorized": false,
+  "prStatus": "Draft, open, unmerged"
+}

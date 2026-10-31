@@ -1,0 +1,2703 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountType {
+  CUSTOMER
+  SELLER
+  BUSINESS
+  ADMIN
+}
+
+enum AccountStatus {
+  PROVISIONED
+  ACTIVE
+  RESTRICTED
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum MasterDataStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+  SUPERSEDED
+  INACTIVE
+  ARCHIVED
+}
+
+enum AttributeDataType {
+  TEXT
+  LONG_TEXT
+  INTEGER
+  DECIMAL
+  BOOLEAN
+  DATE
+  DATETIME
+  MONEY
+  SELECT
+  MULTI_SELECT
+  REFERENCE
+  MULTI_REFERENCE
+  COUNTRY
+  MEASUREMENT
+  IMAGE
+  MULTI_IMAGE
+  VIDEO
+  FILE
+  UUID
+}
+
+enum AttributeScope {
+  PRODUCT
+  VEHICLE
+  COMPATIBILITY
+  SELLER
+  SYSTEM
+}
+
+enum AttributeValueSource {
+  NONE
+  STATIC
+  REFERENCE
+  DYNAMIC
+}
+
+enum ProductTypeAttributeRequirement {
+  MANDATORY
+  OPTIONAL
+  CONDITIONAL
+}
+
+enum ProductTypeAttributeDisplayMode {
+  VISIBLE
+  HIDDEN
+  READ_ONLY
+}
+
+enum ProductTypeAttributeAssignmentOrigin {
+  MANUAL
+  CANONICAL
+}
+
+enum ProductTypeRequirementLevel {
+  REQUIRED
+  OPTIONAL
+  NOT_APPLICABLE
+}
+
+enum ProductTypeIdentifierRequirement {
+  MANUFACTURER_PART_NUMBER
+  ANY_PART_NUMBER
+  OPTIONAL
+  NOT_APPLICABLE
+}
+
+enum ArticleSource {
+  SELLER_SUBMISSION
+  MANUFACTURER_SUBMISSION
+  APPROVED_CATALOG_IMPORT
+  PLATFORM_MIGRATION
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  DEPRECATED
+  ARCHIVED
+}
+
+enum ArticleRelationType {
+  SUPERSEDES
+  INTERCHANGEABLE
+  ACCESSORY
+  REPAIR_KIT
+  CONTAINS
+  CONTAINED_IN
+  PAIRED_WITH
+  RELATED
+}
+
+enum SellerType {
+  IMPORTER
+  DISTRIBUTOR
+  WHOLESALER
+  RETAILER
+  HYBRID
+  OTHER
+}
+
+enum SellerVerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum SellerApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SellerStatus {
+  APPLICATION
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+  BLOCKED
+}
+
+enum SellerApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  CHANGES_REQUESTED
+  RESUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum SellerApplicationDocumentType {
+  COMMERCIAL_REGISTRATION
+  TRADE_LICENSE
+  TIN_CERTIFICATE
+  VAT_REGISTRATION
+}
+
+enum SellerApplicationDocumentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum SellerListingStatus {
+  DRAFT
+  SUBMITTED
+  ACTIVE
+  REJECTED
+  PAUSED
+  SUSPENDED
+  OUT_OF_STOCK
+  INACTIVE
+  ARCHIVED
+}
+
+enum ProductCondition {
+  NEW
+  USED
+  REFURBISHED
+  OTHER
+}
+
+enum SupplierType {
+  MANUFACTURER
+  AUTHORIZED_DISTRIBUTOR
+  DISTRIBUTOR
+  WHOLESALER
+  EXPORTER
+  TRADING_COMPANY
+  OTHER
+}
+
+enum SourcingIncoterm {
+  EXW
+  FCA
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+  FAS
+  FOB
+  CFR
+  CIF
+}
+
+enum InventoryLocationType {
+  BRANCH
+  WAREHOUSE
+  OTHER
+}
+
+enum InventoryAvailabilityStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+enum SellerStockTransferStatus {
+  IN_TRANSIT
+  COMPLETED
+}
+
+enum InventoryMovementType {
+  RECEIPT
+  ADJUSTMENT
+  RESERVATION
+  RELEASE
+  SALE
+  RETURN
+  TRANSFER_IN
+  TRANSFER_OUT
+  DAMAGE
+  CORRECTION
+}
+
+enum ProductAssetType {
+  IMAGE
+  DOCUMENT
+}
+
+enum ProductAssetVisibility {
+  PUBLIC
+  SELLER_ONLY
+  ADMIN_ONLY
+  HIDDEN
+}
+
+enum PartNumberType {
+  OE
+  MANUFACTURER
+  AFTERMARKET
+  SUPPLIER
+  CROSS_REFERENCE
+  OTHER
+}
+
+enum ArticleIdentifierType {
+  GTIN_8
+  GTIN_12
+  GTIN_13
+  GTIN_14
+  TRADE_NUMBER
+}
+
+enum CompatibilityFitmentType {
+  EXACT
+  RANGE
+  CONDITIONAL
+  BROAD
+  EXCLUSION
+}
+
+enum CompatibilitySource {
+  MANUFACTURER
+  OEM_CATALOG
+  APPROVED_EXTERNAL_PROVIDER
+  PLATFORM_VERIFIED
+  SELLER
+  ADMIN
+  IMPORTED_CATALOG
+}
+
+enum CompatibilityVerificationStatus {
+  VERIFIED
+  APPROVED
+  SELLER_SUBMITTED
+  UNVERIFIED
+  REJECTED
+  DEPRECATED
+}
+
+enum CompatibilityCriterionType {
+  ENGINE_CODE
+  TRANSMISSION_CODE
+  AXLE
+  INSTALLATION_POSITION
+  PRODUCTION_DATE
+  VIN_RANGE
+  CHASSIS_RANGE
+}
+
+enum CompatibilityAxlePosition {
+  FRONT
+  REAR
+  FRONT_AND_REAR
+}
+
+enum CompatibilityInstallationPosition {
+  LEFT
+  RIGHT
+  FRONT_LEFT
+  FRONT_RIGHT
+  REAR_LEFT
+  REAR_RIGHT
+  INNER
+  OUTER
+  UPPER
+  LOWER
+  CENTER
+}
+
+enum VehicleMarketKind {
+  COUNTRY
+  REGION
+  SPECIFICATION
+}
+
+enum VehicleMarketApplicabilityRole {
+  TARGET
+  SOURCE
+}
+
+enum MasterDataSourceKind {
+  OEM
+  OFFICIAL_DISTRIBUTOR
+  HOMOLOGATION
+  SECONDARY
+}
+
+enum VehiclePowertrainType {
+  ICE
+  BEV
+  HEV
+  PHEV
+  MHEV
+  EREV
+}
+
+enum VehiclePropulsionTopology {
+  ICE_MECHANICAL
+  ELECTRIC_ONLY
+  SERIES
+  PARALLEL
+  POWER_SPLIT
+  SERIES_PARALLEL
+}
+
+enum VehicleCombustionEngineRole {
+  MECHANICAL_PROPULSION
+  GENERATOR_ONLY
+  PROPULSION_AND_GENERATION
+}
+
+enum VehicleElectricMachineFunction {
+  TRACTION
+  PROPULSION_ASSIST
+  ENGINE_START
+  GENERATION
+}
+
+enum VehicleDriveUnitIntegrationKind {
+  REDUCTION_ONLY
+  INTEGRATED_E_DRIVE
+  INTEGRATED_HYBRID_TRANSMISSION
+  INTEGRATED_HYBRID_MACHINE
+}
+
+enum VehicleEnergyStorageKind {
+  BATTERY
+  SUPERCAPACITOR
+}
+
+enum VehicleEnergyStorageRole {
+  PROPULSION
+  HYBRID_SUPPORT
+}
+
+enum VehicleExternalChargingCapability {
+  NONE
+  PLUG_IN
+  BATTERY_SWAP
+  PLUG_IN_AND_SWAP
+}
+
+enum VehicleElectricMotorPosition {
+  UNKNOWN
+  FRONT_AXLE
+  REAR_AXLE
+  FRONT_LEFT
+  FRONT_RIGHT
+  REAR_LEFT
+  REAR_RIGHT
+  CENTER
+  OTHER
+}
+
+enum VehicleSteeringSide {
+  LHD
+  RHD
+}
+
+enum VehicleIdentificationMethod {
+  MANUAL
+  VIN
+  CHASSIS
+  FRAME
+  OTHER
+}
+
+enum VehicleProductionEndStatus {
+  ENDED
+  CURRENT
+  UNKNOWN
+}
+
+enum ProvenanceVerificationState {
+  UNVERIFIED
+  REVIEWED
+  VERIFIED
+  REJECTED
+}
+
+enum AdminAuthChallengeType {
+  MFA_ENROLLMENT
+  LOGIN
+}
+
+model User {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  phone                String?                  @unique @db.VarChar(32)
+  email                String?                  @unique
+  name                 String?
+  accountType          AccountType              @default(CUSTOMER) @map("account_type")
+  emailVerifiedAt      DateTime?                @map("email_verified_at")
+  status               AccountStatus            @default(PROVISIONED)
+  listingRevisionsCreated SellerListingRevision[] @relation("ListingRevisionCreator")
+  listingRevisionsReviewed SellerListingRevision[] @relation("ListingRevisionReviewer")
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
+  auditLogs            AuditLog[]               @relation("AuditLogActor")
+  userRoles            UserRole[]               @relation("UserRoleUser")
+  assignedUserRoles    UserRole[]               @relation("UserRoleAssigner")
+  sessions             Session[]
+  adminSavedViews      AdminSavedView[]
+  categoriesCreated    Category[]               @relation("CategoryCreatedBy")
+  categoriesUpdated    Category[]               @relation("CategoryUpdatedBy")
+  productTypesCreated  ProductType[]            @relation("ProductTypeCreatedBy")
+  productTypesUpdated  ProductType[]            @relation("ProductTypeUpdatedBy")
+  attributesCreated    AttributeDefinition[]     @relation("AttributeDefinitionCreatedBy")
+  attributesUpdated    AttributeDefinition[]     @relation("AttributeDefinitionUpdatedBy")
+  attributeGroupsCreated AttributeGroup[]         @relation("AttributeGroupCreatedBy")
+  attributeGroupsUpdated AttributeGroup[]         @relation("AttributeGroupUpdatedBy")
+  attributeAliasesCreated AttributeAlias[]        @relation("AttributeAliasCreatedBy")
+  attributeAliasesUpdated AttributeAlias[]        @relation("AttributeAliasUpdatedBy")
+  optionSetsCreated     AttributeOptionSet[]       @relation("AttributeOptionSetCreatedBy")
+  optionSetsUpdated     AttributeOptionSet[]       @relation("AttributeOptionSetUpdatedBy")
+  optionValuesCreated   AttributeOptionValue[]     @relation("AttributeOptionValueCreatedBy")
+  optionValuesUpdated   AttributeOptionValue[]     @relation("AttributeOptionValueUpdatedBy")
+  unitDimensionsCreated UnitDimension[]            @relation("UnitDimensionCreatedBy")
+  unitDimensionsUpdated UnitDimension[]            @relation("UnitDimensionUpdatedBy")
+  attributeUnitsCreated AttributeUnit[]            @relation("AttributeUnitCreatedBy")
+  attributeUnitsUpdated AttributeUnit[]            @relation("AttributeUnitUpdatedBy")
+  attributeValuesCreated AttributeAllowedValue[] @relation("AttributeAllowedValueCreatedBy")
+  attributeValuesUpdated AttributeAllowedValue[] @relation("AttributeAllowedValueUpdatedBy")
+  attributeAssignmentsCreated ProductTypeAttributeAssignment[] @relation("ProductTypeAttributeAssignmentCreatedBy")
+  attributeAssignmentsUpdated ProductTypeAttributeAssignment[] @relation("ProductTypeAttributeAssignmentUpdatedBy")
+  criteriaTemplatesCreated ProductTypeCriteriaTemplate[] @relation("ProductTypeCriteriaTemplateCreatedBy")
+  criteriaTemplatesUpdated ProductTypeCriteriaTemplate[] @relation("ProductTypeCriteriaTemplateUpdatedBy")
+  criteriaTemplateItemsCreated ProductTypeCriteriaTemplateItem[] @relation("ProductTypeCriteriaTemplateItemCreatedBy")
+  criteriaTemplateItemsUpdated ProductTypeCriteriaTemplateItem[] @relation("ProductTypeCriteriaTemplateItemUpdatedBy")
+  productTypeSchemasPublished ProductTypeSchemaVersion[] @relation("ProductTypeSchemaPublishedBy")
+  productsCreated       Product[]                @relation("ProductCreatedBy")
+  productsUpdated       Product[]                @relation("ProductUpdatedBy")
+  articleRelationsCreated ArticleRelation[]       @relation("ArticleRelationCreatedBy")
+  articleRelationsUpdated ArticleRelation[]       @relation("ArticleRelationUpdatedBy")
+  catalogArticleImportJobs CatalogArticleImportJob[] @relation("CatalogArticleImportJobCreatedBy")
+  adminImportJobs       AdminImportJob[]          @relation("AdminImportJobCreatedBy")
+  productFamiliesCreated ProductFamily[]          @relation("ProductFamilyCreatedBy")
+  productFamiliesUpdated ProductFamily[]          @relation("ProductFamilyUpdatedBy")
+  unitsOfMeasureCreated UnitOfMeasure[]           @relation("UnitOfMeasureCreatedBy")
+  unitsOfMeasureUpdated UnitOfMeasure[]           @relation("UnitOfMeasureUpdatedBy")
+  productAssetsCreated  ProductAsset[]            @relation("ProductAssetCreatedBy")
+  productAssetsUpdated  ProductAsset[]            @relation("ProductAssetUpdatedBy")
+  brandsCreated         Brand[]                  @relation("BrandCreatedBy")
+  brandsUpdated         Brand[]                  @relation("BrandUpdatedBy")
+  partNumbersCreated    PartNumber[]             @relation("PartNumberCreatedBy")
+  partNumbersUpdated    PartNumber[]             @relation("PartNumberUpdatedBy")
+  articleIdentifiersCreated ArticleIdentifier[]  @relation("ArticleIdentifierCreatedBy")
+  articleIdentifiersUpdated ArticleIdentifier[]  @relation("ArticleIdentifierUpdatedBy")
+  compatibilitiesCreated VehicleCompatibility[]   @relation("VehicleCompatibilityCreatedBy")
+  compatibilitiesUpdated VehicleCompatibility[]   @relation("VehicleCompatibilityUpdatedBy")
+  vehicleMakesCreated  VehicleMake[]            @relation("VehicleMakeCreatedBy")
+  vehicleMakesUpdated  VehicleMake[]            @relation("VehicleMakeUpdatedBy")
+  vehicleModelsCreated VehicleModel[]           @relation("VehicleModelCreatedBy")
+  vehicleModelsUpdated VehicleModel[]           @relation("VehicleModelUpdatedBy")
+  vehicleModelDerivativesCreated VehicleModelDerivative[] @relation("VehicleModelDerivativeCreatedBy")
+  vehicleModelDerivativesUpdated VehicleModelDerivative[] @relation("VehicleModelDerivativeUpdatedBy")
+  vehicleGenerationFamiliesCreated VehicleGenerationFamily[] @relation("VehicleGenerationFamilyCreatedBy")
+  vehicleGenerationFamiliesUpdated VehicleGenerationFamily[] @relation("VehicleGenerationFamilyUpdatedBy")
+  vehicleGenerationsCreated VehicleGeneration[] @relation("VehicleGenerationCreatedBy")
+  vehicleGenerationsUpdated VehicleGeneration[] @relation("VehicleGenerationUpdatedBy")
+  vehicleTrimsCreated VehicleTrim[]              @relation("VehicleTrimCreatedBy")
+  vehicleTrimsUpdated VehicleTrim[]              @relation("VehicleTrimUpdatedBy")
+  vehicleEnginesCreated VehicleEngine[]          @relation("VehicleEngineCreatedBy")
+  vehicleEnginesUpdated VehicleEngine[]          @relation("VehicleEngineUpdatedBy")
+  vehicleTransmissionsCreated VehicleTransmission[] @relation("VehicleTransmissionCreatedBy")
+  vehicleTransmissionsUpdated VehicleTransmission[] @relation("VehicleTransmissionUpdatedBy")
+  vehicleElectricMotorsCreated VehicleElectricMotor[] @relation("VehicleElectricMotorCreatedBy")
+  vehicleElectricMotorsUpdated VehicleElectricMotor[] @relation("VehicleElectricMotorUpdatedBy")
+  vehicleBatteryPacksCreated VehicleBatteryPack[] @relation("VehicleBatteryPackCreatedBy")
+  vehicleBatteryPacksUpdated VehicleBatteryPack[] @relation("VehicleBatteryPackUpdatedBy")
+  vehicleDriveUnitsCreated VehicleDriveUnit[] @relation("VehicleDriveUnitCreatedBy")
+  vehicleDriveUnitsUpdated VehicleDriveUnit[] @relation("VehicleDriveUnitUpdatedBy")
+  vehicleChargingSystemsCreated VehicleChargingSystem[] @relation("VehicleChargingSystemCreatedBy")
+  vehicleChargingSystemsUpdated VehicleChargingSystem[] @relation("VehicleChargingSystemUpdatedBy")
+  vehicleBodyTypesCreated VehicleBodyType[]      @relation("VehicleBodyTypeCreatedBy")
+  vehicleBodyTypesUpdated VehicleBodyType[]      @relation("VehicleBodyTypeUpdatedBy")
+  vehicleMarketsCreated VehicleMarket[]          @relation("VehicleMarketCreatedBy")
+  vehicleMarketsUpdated VehicleMarket[]          @relation("VehicleMarketUpdatedBy")
+  vehicleMarketApplicabilitiesCreated VehicleConfigurationMarketApplicability[] @relation("VehicleMarketApplicabilityCreatedBy")
+  vehicleMarketApplicabilitiesUpdated VehicleConfigurationMarketApplicability[] @relation("VehicleMarketApplicabilityUpdatedBy")
+  vehicleConfigurationsCreated VehicleConfiguration[] @relation("VehicleConfigurationCreatedBy")
+  vehicleConfigurationsUpdated VehicleConfiguration[] @relation("VehicleConfigurationUpdatedBy")
+  vehicleIdentifierMappingsCreated VehicleIdentifierMapping[] @relation("VehicleIdentifierMappingCreatedBy")
+  vehicleIdentifierMappingsUpdated VehicleIdentifierMapping[] @relation("VehicleIdentifierMappingUpdatedBy")
+  provenanceRecordsCreated MasterDataProvenance[] @relation("MasterDataProvenanceCreatedBy")
+  provenanceRecordsUpdated MasterDataProvenance[] @relation("MasterDataProvenanceUpdatedBy")
+  externalMappingsCreated ExternalStandardMapping[] @relation("ExternalStandardMappingCreatedBy")
+  externalMappingsUpdated ExternalStandardMapping[] @relation("ExternalStandardMappingUpdatedBy")
+  localizedRecordsCreated MasterDataLocalization[] @relation("MasterDataLocalizationCreatedBy")
+  localizedRecordsUpdated MasterDataLocalization[] @relation("MasterDataLocalizationUpdatedBy")
+  vehicleProfiles      VehicleProfile[]
+  sellerProfile        Seller?                    @relation("SellerPrimaryUser")
+  sellersCreated       Seller[]                   @relation("SellerCreatedBy")
+  sellersUpdated       Seller[]                   @relation("SellerUpdatedBy")
+  suppliersCreated     Supplier[]                 @relation("SupplierCreatedBy")
+  suppliersUpdated     Supplier[]                 @relation("SupplierUpdatedBy")
+  supplierOffersCreated SupplierOffer[]            @relation("SupplierOfferCreatedBy")
+  supplierOffersUpdated SupplierOffer[]            @relation("SupplierOfferUpdatedBy")
+  sellerListingsCreated SellerListing[]           @relation("SellerListingCreatedBy")
+  sellerListingsUpdated SellerListing[]           @relation("SellerListingUpdatedBy")
+  inventoryLocationsCreated InventoryLocation[]   @relation("InventoryLocationCreatedBy")
+  inventoryLocationsUpdated InventoryLocation[]   @relation("InventoryLocationUpdatedBy")
+  inventoriesUpdated   Inventory[]                @relation("InventoryUpdatedBy")
+  inventoryMovements   InventoryMovement[]        @relation("InventoryMovementActor")
+  sellerCredential     SellerCredential?
+  sellerProvisionings  SellerProvisioningToken[]
+  sellerEmailVerifications SellerEmailVerificationToken[]
+  sellerApplications  SellerApplication[]       @relation("SellerApplicationOwner")
+  adminCredential      AdminCredential?
+  adminProvisionings   AdminProvisioningToken[]
+  adminAuthChallenges  AdminAuthChallenge[]
+
+  sellerProductsCreated SellerProduct[] @relation("SellerProductCreatedBy")
+  sellerProductsUpdated SellerProduct[] @relation("SellerProductUpdatedBy")
+
+  transfersCreated SellerStockTransfer[] @relation("StockTransferCreator")
+  transferReceipts SellerStockTransferReceipt[] @relation("StockTransferReceiptActor")
+
+  sellerApplicationDraft SellerApplicationDraft?
+
+  @@index([accountType, status, name])
+  @@map("users")
+}
+
+model Role {
+  id              String           @id @default(uuid()) @db.Uuid
+  key             String           @unique @db.VarChar(100)
+  name            String
+  description     String?
+  isSystem        Boolean          @default(false) @map("is_system")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(uuid()) @db.Uuid
+  key             String           @unique @db.VarChar(150)
+  description     String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId       String   @map("user_id") @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  assignedById String?  @map("assigned_by_id") @db.Uuid
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+  user         User     @relation("UserRoleUser", fields: [userId], references: [id], onDelete: Cascade)
+  role         Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedBy   User?    @relation("UserRoleAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@index([assignedById])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  tokenHash        String    @unique @map("token_hash") @db.Char(64)
+  refreshTokenHash String?   @unique @map("refresh_token_hash") @db.Char(64)
+  expiresAt        DateTime  @map("expires_at")
+  refreshExpiresAt DateTime? @map("refresh_expires_at")
+  mfaVerifiedAt    DateTime? @map("mfa_verified_at")
+  sourceIpHash     String?   @map("source_ip_hash") @db.Char(64)
+  userAgent        String?   @map("user_agent") @db.VarChar(300)
+  revokedAt        DateTime? @map("revoked_at")
+  lastSeenAt       DateTime? @map("last_seen_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model AdminCredential {
+  userId              String    @id @map("user_id") @db.Uuid
+  passwordHash        String    @map("password_hash")
+  mfaSecretCiphertext String    @map("mfa_secret_ciphertext")
+  mfaSecretNonce      String    @map("mfa_secret_nonce") @db.VarChar(24)
+  mfaSecretAuthTag    String    @map("mfa_secret_auth_tag") @db.VarChar(24)
+  mfaEnrolledAt       DateTime? @map("mfa_enrolled_at")
+  lastTotpCounter     BigInt?   @map("last_totp_counter")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  failedMfaAttempts   Int       @default(0) @map("failed_mfa_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  passwordChangedAt   DateTime  @default(now()) @map("password_changed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lockedUntil])
+  @@map("admin_credentials")
+}
+
+model SellerCredential {
+  userId              String    @id @map("user_id") @db.Uuid
+  passwordHash        String    @map("password_hash")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  passwordChangedAt   DateTime  @default(now()) @map("password_changed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lockedUntil])
+  @@map("seller_credentials")
+}
+
+model SellerEmailVerificationToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.Char(64)
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt])
+  @@index([expiresAt])
+  @@map("seller_email_verification_tokens")
+}
+
+model SellerProvisioningToken {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash") @db.Char(64)
+  expiresAt      DateTime  @map("expires_at")
+  consumedAt     DateTime? @map("consumed_at")
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt])
+  @@index([expiresAt])
+  @@map("seller_provisioning_tokens")
+}
+
+model AdminProvisioningToken {
+  id             String               @id @default(uuid()) @db.Uuid
+  userId         String               @map("user_id") @db.Uuid
+  tokenHash      String               @unique @map("token_hash") @db.Char(64)
+  expiresAt      DateTime             @map("expires_at")
+  consumedAt     DateTime?            @map("consumed_at")
+  failedAttempts Int                  @default(0) @map("failed_attempts")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenges     AdminAuthChallenge[]
+
+  @@index([userId, consumedAt])
+  @@index([expiresAt])
+  @@map("admin_provisioning_tokens")
+}
+
+model AdminAuthChallenge {
+  id                  String                  @id @default(uuid()) @db.Uuid
+  userId              String                  @map("user_id") @db.Uuid
+  provisioningTokenId String?                 @map("provisioning_token_id") @db.Uuid
+  type                AdminAuthChallengeType
+  tokenHash           String                  @unique @map("token_hash") @db.Char(64)
+  expiresAt           DateTime                @map("expires_at")
+  consumedAt          DateTime?               @map("consumed_at")
+  failedAttempts      Int                     @default(0) @map("failed_attempts")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provisioningToken   AdminProvisioningToken? @relation(fields: [provisioningTokenId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, consumedAt])
+  @@index([expiresAt])
+  @@map("admin_auth_challenges")
+}
+
+model AuthThrottle {
+  keyHash         String    @id @map("key_hash") @db.Char(64)
+  action          String    @db.VarChar(50)
+  attempts        Int       @default(0)
+  windowStartedAt DateTime  @map("window_started_at")
+  blockedUntil    DateTime? @map("blocked_until")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([action, updatedAt])
+  @@index([blockedUntil])
+  @@map("auth_throttles")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([entityType, entityId, createdAt])
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, createdAt])
+  @@map("audit_logs")
+}
+
+model AdminSavedView {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  scope     String   @db.VarChar(80)
+  name      String   @db.VarChar(100)
+  state     Json
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, scope, name])
+  @@index([ownerId, scope, updatedAt])
+  @@map("admin_saved_views")
+}
+
+model Category {
+  id          String           @id @default(uuid()) @db.Uuid
+  parentId    String?          @map("parent_id") @db.Uuid
+  code        String           @unique @db.VarChar(50)
+  name        String           @db.VarChar(120)
+  slug        String           @unique @db.VarChar(140)
+  description String?
+  sortOrder   Int              @default(0) @map("sort_order")
+  level       Int
+  isLeaf      Boolean          @default(true) @map("is_leaf")
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  parent      Category?        @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children    Category[]       @relation("CategoryHierarchy")
+  createdBy   User             @relation("CategoryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("CategoryUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  productFamilies ProductFamily[]
+  productTypes ProductType[]
+  products     Product[]
+
+  @@index([parentId, sortOrder])
+  @@index([status, sortOrder])
+  @@map("categories")
+}
+
+model ProductFamily {
+  id          String           @id @default(uuid()) @db.Uuid
+  categoryId  String           @map("category_id") @db.Uuid
+  code        String           @unique @db.VarChar(60)
+  name        String           @db.VarChar(140)
+  description String?
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  category    Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy   User             @relation("ProductFamilyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("ProductFamilyUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  productTypes ProductType[]
+  criteriaTemplates ProductTypeCriteriaTemplate[]
+  products    Product[]
+
+  @@index([categoryId, status, name])
+  @@map("product_families")
+}
+
+model ProductType {
+  id          String           @id @default(uuid()) @db.Uuid
+  categoryId  String           @map("category_id") @db.Uuid
+  productFamilyId String?      @map("product_family_id") @db.Uuid
+  parentId    String?          @map("parent_id") @db.Uuid
+  code        String           @unique @db.VarChar(50)
+  name        String           @db.VarChar(120)
+  slug        String           @unique @db.VarChar(140)
+  description String?
+  sortOrder   Int              @default(0) @map("sort_order")
+  brandRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("brand_requirement")
+  identifierRequirement ProductTypeIdentifierRequirement @default(ANY_PART_NUMBER) @map("identifier_requirement")
+  gtinRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("gtin_requirement")
+  oemReferenceRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("oem_reference_requirement")
+  crossReferenceRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("cross_reference_requirement")
+  fitmentRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("fitment_requirement")
+  imageRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("image_requirement")
+  minimumImageCount Int @default(1) @map("minimum_image_count")
+  maximumImageCount Int @default(20) @map("maximum_image_count")
+  documentRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("document_requirement")
+  minimumDocumentCount Int @default(0) @map("minimum_document_count")
+  priceRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("price_requirement")
+  stockRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("stock_requirement")
+  conditionRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("condition_requirement")
+  warrantyRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("warranty_requirement")
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  currentSchemaVersionId String? @unique @map("current_schema_version_id") @db.Uuid
+  category    Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  productFamily ProductFamily? @relation(fields: [productFamilyId], references: [id], onDelete: Restrict)
+  parent      ProductType?     @relation("ProductTypeHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children    ProductType[]    @relation("ProductTypeHierarchy")
+  createdBy   User             @relation("ProductTypeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("ProductTypeUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  attributeAssignments ProductTypeAttributeAssignment[]
+  criteriaTemplateTargets ProductTypeCriteriaTemplateTarget[]
+  schemaVersions ProductTypeSchemaVersion[] @relation("ProductTypeSchemaVersions")
+  currentSchemaVersion ProductTypeSchemaVersion? @relation("ProductTypeCurrentSchema", fields: [currentSchemaVersionId], references: [id], onDelete: Restrict)
+  products Product[]
+
+  @@index([categoryId, status, sortOrder])
+  @@index([productFamilyId, status, sortOrder])
+  @@index([parentId, sortOrder])
+  @@map("product_types")
+}
+
+model AttributeGroup {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique @db.VarChar(60)
+  name        String           @db.VarChar(120)
+  description String?
+  sortOrder   Int              @default(0) @map("sort_order")
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdBy   User             @relation("AttributeGroupCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("AttributeGroupUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  attributes  AttributeDefinition[]
+
+  @@index([status, sortOrder, name])
+  @@map("attribute_groups")
+}
+
+model UnitDimension {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique @db.VarChar(60)
+  name        String           @db.VarChar(120)
+  description String?
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdBy   User             @relation("UnitDimensionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("UnitDimensionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  units       AttributeUnit[]
+  attributes  AttributeDefinition[]
+
+  @@index([status, name])
+  @@map("unit_dimensions")
+}
+
+model AttributeUnit {
+  id           String           @id @default(uuid()) @db.Uuid
+  dimensionId  String           @map("dimension_id") @db.Uuid
+  code         String           @unique @db.VarChar(40)
+  name         String           @db.VarChar(100)
+  symbol       String           @db.VarChar(20)
+  isBase       Boolean          @default(false) @map("is_base")
+  factorToBase Decimal          @default(1) @map("factor_to_base") @db.Decimal(24, 12)
+  offsetToBase Decimal          @default(0) @map("offset_to_base") @db.Decimal(24, 12)
+  sortOrder    Int              @default(0) @map("sort_order")
+  status       MasterDataStatus @default(DRAFT)
+  version      Int              @default(1)
+  createdById  String           @map("created_by_id") @db.Uuid
+  updatedById  String           @map("updated_by_id") @db.Uuid
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  dimension    UnitDimension    @relation(fields: [dimensionId], references: [id], onDelete: Restrict)
+  createdBy    User             @relation("AttributeUnitCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User             @relation("AttributeUnitUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  defaultForAttributes AttributeDefinition[] @relation("AttributeDefaultUnit")
+  defaultForAssignments ProductTypeAttributeAssignment[] @relation("ProductTypeAttributeDefaultUnit")
+  defaultForCriteriaTemplateItems ProductTypeCriteriaTemplateItem[] @relation("CriteriaTemplateItemDefaultUnit")
+  productValues ProductAttributeValue[]
+
+  @@index([dimensionId, status, sortOrder])
+  @@map("attribute_units")
+}
+
+model AttributeOptionSet {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique @db.VarChar(60)
+  name        String           @db.VarChar(120)
+  description String?
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdBy   User             @relation("AttributeOptionSetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("AttributeOptionSetUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  values      AttributeOptionValue[]
+  attributes  AttributeDefinition[]
+
+  @@index([status, name])
+  @@map("attribute_option_sets")
+}
+
+model AttributeOptionValue {
+  id          String             @id @default(uuid()) @db.Uuid
+  optionSetId String             @map("option_set_id") @db.Uuid
+  code        String             @db.VarChar(80)
+  label       String             @db.VarChar(160)
+  description String?
+  sortOrder   Int                @default(0) @map("sort_order")
+  status      MasterDataStatus   @default(DRAFT)
+  version     Int                @default(1)
+  createdById String             @map("created_by_id") @db.Uuid
+  updatedById String             @map("updated_by_id") @db.Uuid
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  optionSet   AttributeOptionSet @relation(fields: [optionSetId], references: [id], onDelete: Restrict)
+  createdBy   User               @relation("AttributeOptionValueCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User               @relation("AttributeOptionValueUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([optionSetId, code])
+  @@index([optionSetId, status, sortOrder])
+  @@map("attribute_option_values")
+}
+
+model AttributeAlias {
+  id              String              @id @default(uuid()) @db.Uuid
+  attributeId     String              @map("attribute_id") @db.Uuid
+  alias           String              @db.VarChar(160)
+  normalizedAlias String              @map("normalized_alias") @db.VarChar(160)
+  locale          String              @default("en") @db.VarChar(12)
+  status          MasterDataStatus    @default(ACTIVE)
+  version         Int                 @default(1)
+  createdById     String              @map("created_by_id") @db.Uuid
+  updatedById     String              @map("updated_by_id") @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  attribute       AttributeDefinition @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  createdBy       User                @relation("AttributeAliasCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User                @relation("AttributeAliasUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([attributeId, normalizedAlias, locale])
+  @@index([normalizedAlias, locale, status])
+  @@map("attribute_aliases")
+}
+
+model AttributeDefinition {
+  id              String               @id @default(uuid()) @db.Uuid
+  groupId         String?              @map("group_id") @db.Uuid
+  optionSetId     String?              @map("option_set_id") @db.Uuid
+  unitDimensionId String?              @map("unit_dimension_id") @db.Uuid
+  defaultUnitId   String?              @map("default_unit_id") @db.Uuid
+  code            String               @unique @db.VarChar(75)
+  name            String               @db.VarChar(120)
+  dataType        AttributeDataType    @map("data_type")
+  scope           AttributeScope
+  valueSource     AttributeValueSource @default(NONE) @map("value_source")
+  unit            String?              @db.VarChar(50)
+  description     String?
+  exampleValue    String?              @map("example_value") @db.VarChar(300)
+  validationRule  Json?                @map("validation_rule")
+  repeatable      Boolean              @default(false)
+  translatable    Boolean              @default(false)
+  status          MasterDataStatus     @default(DRAFT)
+  version         Int                  @default(1)
+  createdById     String               @map("created_by_id") @db.Uuid
+  updatedById     String               @map("updated_by_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  group           AttributeGroup?      @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  optionSet       AttributeOptionSet?  @relation(fields: [optionSetId], references: [id], onDelete: Restrict)
+  unitDimension   UnitDimension?       @relation(fields: [unitDimensionId], references: [id], onDelete: Restrict)
+  defaultUnit     AttributeUnit?       @relation("AttributeDefaultUnit", fields: [defaultUnitId], references: [id], onDelete: Restrict)
+  createdBy       User                 @relation("AttributeDefinitionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User                 @relation("AttributeDefinitionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  aliases         AttributeAlias[]
+  allowedValues   AttributeAllowedValue[]
+  productTypeAssignments ProductTypeAttributeAssignment[]
+  criteriaTemplateItems ProductTypeCriteriaTemplateItem[]
+  productValues   ProductAttributeValue[]
+
+  @@index([status, scope, name])
+  @@index([groupId, status, name])
+  @@index([optionSetId, status])
+  @@index([unitDimensionId, status])
+  @@index([dataType, valueSource])
+  @@map("attribute_definitions")
+}
+model AttributeAllowedValue {
+  id          String              @id @default(uuid()) @db.Uuid
+  attributeId String              @map("attribute_id") @db.Uuid
+  code        String              @db.VarChar(80)
+  label       String              @db.VarChar(160)
+  description String?
+  sortOrder   Int                 @default(0) @map("sort_order")
+  status      MasterDataStatus    @default(DRAFT)
+  version     Int                 @default(1)
+  createdById String              @map("created_by_id") @db.Uuid
+  updatedById String              @map("updated_by_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  attribute   AttributeDefinition @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+  createdBy   User                @relation("AttributeAllowedValueCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User                @relation("AttributeAllowedValueUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([attributeId, code])
+  @@index([attributeId, status, sortOrder])
+  @@map("attribute_allowed_values")
+}
+
+model ProductTypeAttributeAssignment {
+  id              String                          @id @default(uuid()) @db.Uuid
+  productTypeId   String                          @map("product_type_id") @db.Uuid
+  attributeId     String                          @map("attribute_id") @db.Uuid
+  requirement     ProductTypeAttributeRequirement @default(OPTIONAL)
+  displayMode     ProductTypeAttributeDisplayMode @default(VISIBLE) @map("display_mode")
+  displayOrder    Int                             @default(0) @map("display_order")
+  validationRule  Json?                           @map("validation_rule")
+  conditionalRule Json?                           @map("conditional_rule")
+  defaultUnitId   String?                         @map("default_unit_id") @db.Uuid
+  searchable      Boolean                         @default(false)
+  filterable      Boolean                         @default(false)
+  comparable      Boolean                         @default(false)
+  variantDefining Boolean                         @default(false) @map("variant_defining")
+  marketplaceVisible Boolean                      @default(true) @map("marketplace_visible")
+  sellerEditable Boolean                          @default(true) @map("seller_editable")
+  origin          ProductTypeAttributeAssignmentOrigin @default(MANUAL)
+  status          MasterDataStatus                @default(DRAFT)
+  version         Int                             @default(1)
+  createdById     String                          @map("created_by_id") @db.Uuid
+  updatedById     String                          @map("updated_by_id") @db.Uuid
+  createdAt       DateTime                        @default(now()) @map("created_at")
+  updatedAt       DateTime                        @updatedAt @map("updated_at")
+  productType     ProductType                     @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
+  attribute       AttributeDefinition             @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+  defaultUnit     AttributeUnit?                  @relation("ProductTypeAttributeDefaultUnit", fields: [defaultUnitId], references: [id], onDelete: Restrict)
+  createdBy       User                            @relation("ProductTypeAttributeAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User                            @relation("ProductTypeAttributeAssignmentUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([productTypeId, attributeId])
+  @@index([productTypeId, status, displayOrder])
+  @@index([attributeId, status])
+  @@index([origin, productTypeId])
+  @@index([defaultUnitId])
+  @@map("product_type_attribute_assignments")
+}
+
+model ProductTypeCriteriaTemplate {
+  id              String           @id @default(uuid()) @db.Uuid
+  productFamilyId String?          @map("product_family_id") @db.Uuid
+  code            String           @unique @db.VarChar(80)
+  name            String           @db.VarChar(140)
+  description     String?
+  status          MasterDataStatus @default(DRAFT)
+  version         Int              @default(1)
+  createdById     String           @map("created_by_id") @db.Uuid
+  updatedById     String           @map("updated_by_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  productFamily   ProductFamily?   @relation(fields: [productFamilyId], references: [id], onDelete: Restrict)
+  items           ProductTypeCriteriaTemplateItem[]
+  targets         ProductTypeCriteriaTemplateTarget[]
+  createdBy       User             @relation("ProductTypeCriteriaTemplateCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User             @relation("ProductTypeCriteriaTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([productFamilyId, status, name])
+  @@index([status, name])
+  @@map("product_type_criteria_templates")
+}
+
+model ProductTypeCriteriaTemplateTarget {
+  templateId   String                      @map("template_id") @db.Uuid
+  productTypeId String                     @map("product_type_id") @db.Uuid
+  createdAt    DateTime                    @default(now()) @map("created_at")
+  template     ProductTypeCriteriaTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  productType  ProductType                 @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
+
+  @@id([templateId, productTypeId])
+  @@index([productTypeId, templateId])
+  @@map("product_type_criteria_template_targets")
+}
+
+model ProductTypeCriteriaTemplateItem {
+  id                 String                          @id @default(uuid()) @db.Uuid
+  templateId         String                          @map("template_id") @db.Uuid
+  attributeId        String                          @map("attribute_id") @db.Uuid
+  requirement        ProductTypeAttributeRequirement @default(OPTIONAL)
+  displayMode        ProductTypeAttributeDisplayMode @default(VISIBLE) @map("display_mode")
+  displayOrder       Int                             @default(0) @map("display_order")
+  validationRule     Json?                           @map("validation_rule")
+  conditionalRule    Json?                           @map("conditional_rule")
+  defaultUnitId      String?                         @map("default_unit_id") @db.Uuid
+  searchable         Boolean                         @default(false)
+  filterable         Boolean                         @default(false)
+  comparable         Boolean                         @default(false)
+  variantDefining    Boolean                         @default(false) @map("variant_defining")
+  marketplaceVisible Boolean                        @default(true) @map("marketplace_visible")
+  sellerEditable     Boolean                         @default(true) @map("seller_editable")
+  status             MasterDataStatus                @default(DRAFT)
+  version            Int                             @default(1)
+  createdById        String                          @map("created_by_id") @db.Uuid
+  updatedById        String                          @map("updated_by_id") @db.Uuid
+  createdAt          DateTime                        @default(now()) @map("created_at")
+  updatedAt          DateTime                        @updatedAt @map("updated_at")
+  template           ProductTypeCriteriaTemplate     @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  attribute          AttributeDefinition             @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+  defaultUnit        AttributeUnit?                  @relation("CriteriaTemplateItemDefaultUnit", fields: [defaultUnitId], references: [id], onDelete: Restrict)
+  createdBy          User                            @relation("ProductTypeCriteriaTemplateItemCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy          User                            @relation("ProductTypeCriteriaTemplateItemUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, attributeId])
+  @@index([templateId, status, displayOrder])
+  @@index([attributeId, status])
+  @@index([defaultUnitId])
+  @@map("product_type_criteria_template_items")
+}
+
+model ProductTypeSchemaVersion {
+  id            String      @id @default(uuid()) @db.Uuid
+  productTypeId String      @map("product_type_id") @db.Uuid
+  schemaVersion Int         @map("schema_version")
+  schemaHash    String      @map("schema_hash") @db.Char(64)
+  snapshot      Json
+  publishedById String      @map("published_by_id") @db.Uuid
+  publishedAt   DateTime    @default(now()) @map("published_at")
+  productType   ProductType @relation("ProductTypeSchemaVersions", fields: [productTypeId], references: [id], onDelete: Restrict)
+  currentForProductType ProductType? @relation("ProductTypeCurrentSchema")
+  publishedBy   User        @relation("ProductTypeSchemaPublishedBy", fields: [publishedById], references: [id], onDelete: Restrict)
+  products       Product[]
+
+  @@unique([productTypeId, schemaVersion])
+  @@index([productTypeId, publishedAt])
+  @@index([schemaHash])
+  @@map("product_type_schema_versions")
+}
+
+model UnitOfMeasure {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique @db.VarChar(40)
+  name        String           @db.VarChar(100)
+  symbol      String?          @db.VarChar(20)
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdBy   User             @relation("UnitOfMeasureCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("UnitOfMeasureUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  products    Product[]
+
+  @@index([status, name])
+  @@map("units_of_measure")
+}
+
+model Product {
+  id              String                   @id @default(uuid()) @db.Uuid
+  categoryId      String                   @map("category_id") @db.Uuid
+  productFamilyId String?                  @map("product_family_id") @db.Uuid
+  productTypeId   String                   @map("product_type_id") @db.Uuid
+  schemaVersionId String                   @map("schema_version_id") @db.Uuid
+  identityFingerprint String?                  @unique @map("identity_fingerprint") @db.VarChar(64)
+  // Frozen Product Type policy at Article creation. The bound schema version
+  // remains the source of truth; later Product Type edits never mutate this row.
+  brandRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("brand_requirement")
+  identifierRequirement ProductTypeIdentifierRequirement @default(ANY_PART_NUMBER) @map("identifier_requirement")
+  gtinRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("gtin_requirement")
+  oemReferenceRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("oem_reference_requirement")
+  crossReferenceRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("cross_reference_requirement")
+  fitmentRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("fitment_requirement")
+  imageRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("image_requirement")
+  minimumImageCount Int @default(1) @map("minimum_image_count")
+  maximumImageCount Int @default(20) @map("maximum_image_count")
+  documentRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("document_requirement")
+  minimumDocumentCount Int @default(0) @map("minimum_document_count")
+  priceRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("price_requirement")
+  stockRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("stock_requirement")
+  conditionRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("condition_requirement")
+  warrantyRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("warranty_requirement")
+  brandId         String?                  @map("brand_id") @db.Uuid
+  unitOfMeasureId String?                  @map("unit_of_measure_id") @db.Uuid
+  packQuantity    Decimal?                 @map("pack_quantity") @db.Decimal(18, 4)
+  name            String                   @db.VarChar(180)
+  shortDescription String?                 @map("short_description") @db.VarChar(500)
+  description     String?
+  manufacturerNotes String?                @map("manufacturer_notes")
+  articleSource   ArticleSource            @default(PLATFORM_MIGRATION) @map("article_source")
+  sourceSellerId  String?                  @map("source_seller_id") @db.Uuid
+  sourceReference String?                  @map("source_reference") @db.VarChar(200)
+  submittedAt     DateTime                 @default(now()) @map("submitted_at")
+  catalogReviewSubmittedAt DateTime?       @map("catalog_review_submitted_at")
+  publishedAt     DateTime?                @map("published_at")
+  status          ProductStatus            @default(DRAFT)
+  version         Int                      @default(1)
+  createdById     String                   @map("created_by_id") @db.Uuid
+  updatedById     String                   @map("updated_by_id") @db.Uuid
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+  category        Category                 @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  productFamily   ProductFamily?           @relation(fields: [productFamilyId], references: [id], onDelete: Restrict)
+  productType     ProductType              @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
+  schemaVersion   ProductTypeSchemaVersion @relation(fields: [schemaVersionId], references: [id], onDelete: Restrict)
+  brand           Brand?                   @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  sourceSeller    Seller?                  @relation("ProductSourceSeller", fields: [sourceSellerId], references: [id], onDelete: Restrict)
+  unitOfMeasure   UnitOfMeasure?           @relation(fields: [unitOfMeasureId], references: [id], onDelete: Restrict)
+  createdBy       User                     @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User                     @relation("ProductUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  attributeValues ProductAttributeValue[]
+  partNumbers     PartNumber[]
+  articleIdentifiers ArticleIdentifier[]
+  compatibilities VehicleCompatibility[]
+  vehicleArticles ProductVehicleArticle[]
+  assets          ProductAsset[]
+  supplierOffers  SupplierOffer[]
+  sellerListings  SellerListing[]
+  proposedListingRevisions SellerListingRevision[] @relation("ProposedListingArticle")
+  sellerProducts  SellerProduct[]
+  outgoingArticleRelations ArticleRelation[] @relation("ArticleRelationSource")
+  incomingArticleRelations ArticleRelation[] @relation("ArticleRelationTarget")
+
+  @@index([productTypeId, status, name])
+  @@index([productFamilyId, status, name])
+  @@index([brandId, status, name])
+  @@index([articleSource, status, updatedAt])
+  @@index([sourceSellerId, status, updatedAt])
+  @@index([sourceSellerId, catalogReviewSubmittedAt, updatedAt], map: "products_seller_review_submitted_idx")
+  @@index([unitOfMeasureId, status])
+  @@index([categoryId, status])
+  @@index([schemaVersionId])
+  @@map("products")
+}
+
+model Seller {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  userId             String                   @unique @map("user_id") @db.Uuid
+  sellerCode         String                   @unique @map("seller_code") @db.VarChar(50)
+  businessName       String                   @map("business_name") @db.VarChar(180)
+  displayName        String                   @map("display_name") @db.VarChar(160)
+  sellerType         SellerType               @map("seller_type")
+  verificationStatus SellerVerificationStatus @default(PENDING) @map("verification_status")
+  approvalStatus     SellerApprovalStatus     @default(PENDING) @map("approval_status")
+  status             SellerStatus             @default(APPLICATION)
+  version            Int                      @default(1)
+  createdById        String                   @map("created_by_id") @db.Uuid
+  updatedById        String                   @map("updated_by_id") @db.Uuid
+  approvedAt         DateTime?                @map("approved_at")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+  user               User                     @relation("SellerPrimaryUser", fields: [userId], references: [id], onDelete: Restrict)
+  createdBy          User                     @relation("SellerCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy          User                     @relation("SellerUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  listings           SellerListing[]
+  sellerProducts     SellerProduct[]
+  submittedProducts  Product[]                 @relation("ProductSourceSeller")
+  inventoryLocations InventoryLocation[]
+  stockTransfers SellerStockTransfer[]
+
+  @@index([status, approvalStatus, displayName])
+  @@index([verificationStatus])
+  @@map("sellers")
+}
+
+model SellerApplicationDraft {
+  userId    String   @id @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  step      Int      @default(0)
+  values    Json     @default("{}")
+  version   Int      @default(1)
+  documents SellerApplicationDraftDocument[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("seller_application_drafts")
+}
+
+model SellerApplicationDraftDocument {
+  id           String                        @id @default(uuid()) @db.Uuid
+  userId       String                        @map("user_id") @db.Uuid
+  documentType SellerApplicationDocumentType @map("document_type")
+  storageKey   String                        @map("storage_key") @db.VarChar(500)
+  originalName String                        @map("original_name") @db.VarChar(255)
+  mimeType     String                        @map("mime_type") @db.VarChar(100)
+  sizeBytes    Int                           @map("size_bytes")
+  uploadedAt   DateTime                      @default(now()) @map("uploaded_at")
+  draft        SellerApplicationDraft        @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, documentType])
+  @@map("seller_application_draft_documents")
+}
+
+model SellerApplication {
+  id                           String                  @id @default(uuid()) @db.Uuid
+  referenceCode                String                  @unique @map("reference_code") @db.VarChar(40)
+  contactName                  String                  @map("contact_name") @db.VarChar(160)
+  contactEmail                 String                  @map("contact_email") @db.VarChar(254)
+  contactPhone                 String                  @map("contact_phone") @db.VarChar(32)
+  businessName                 String                  @map("business_name") @db.VarChar(180)
+  displayName                  String                  @map("display_name") @db.VarChar(160)
+  sellerType                   SellerType              @map("seller_type")
+  businessEmail                String                  @map("business_email") @db.VarChar(254)
+  businessPhone                String                  @map("business_phone") @db.VarChar(32)
+  region                       String                  @db.VarChar(120)
+  city                         String                  @db.VarChar(120)
+  address                      String                  @db.VarChar(500)
+  commercialRegistrationNumber String                  @map("commercial_registration_number") @db.VarChar(100)
+  tradeLicenseNumber           String                  @map("trade_license_number") @db.VarChar(100)
+  tinNumber                    String                  @map("tin_number") @db.VarChar(100)
+  vatRegistrationNumber        String                  @map("vat_registration_number") @db.VarChar(100)
+  status                       SellerApplicationStatus @default(SUBMITTED)
+  version                      Int                     @default(1)
+  correctionReason             String?                 @map("correction_reason") @db.VarChar(1000)
+  approvedAt                   DateTime?               @map("approved_at")
+  provisionedSellerId          String?                 @map("provisioned_seller_id") @db.Uuid
+  ownerUserId                  String?                 @map("owner_user_id") @db.Uuid
+  owner                        User?                   @relation("SellerApplicationOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  reviewEvents                 SellerApplicationReviewEvent[]
+  notifications                SellerApplicationNotification[]
+  accessChallenges             SellerApplicationAccessChallenge[]
+  accessSessions               SellerApplicationAccessSession[]
+  submittedAt                  DateTime                @default(now()) @map("submitted_at")
+  reviewedAt                   DateTime?               @map("reviewed_at")
+  createdAt                    DateTime                @default(now()) @map("created_at")
+  updatedAt                    DateTime                @updatedAt @map("updated_at")
+  documents                    SellerApplicationDocument[]
+
+  @@index([status, submittedAt])
+  @@index([contactEmail])
+  @@index([ownerUserId, status])
+  @@index([contactPhone])
+  @@index([businessName])
+  @@index([tinNumber])
+  @@index([vatRegistrationNumber])
+  @@map("seller_applications")
+}
+
+model SellerApplicationDocument {
+  id              String                           @id @default(uuid()) @db.Uuid
+  applicationId   String                           @map("application_id") @db.Uuid
+  documentType    SellerApplicationDocumentType    @map("document_type")
+  storageKey      String                           @map("storage_key") @db.VarChar(500)
+  originalName    String                           @map("original_name") @db.VarChar(255)
+  mimeType        String                           @map("mime_type") @db.VarChar(100)
+  sizeBytes       Int                              @map("size_bytes")
+  status          SellerApplicationDocumentStatus  @default(PENDING)
+  isCurrent       Boolean                          @default(true) @map("is_current")
+  uploadedAt      DateTime                         @default(now()) @map("uploaded_at")
+  reviewedAt      DateTime?                        @map("reviewed_at")
+  reviewNote      String?                          @map("review_note") @db.VarChar(1000)
+  application     SellerApplication                @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, documentType, isCurrent])
+  @@index([status, uploadedAt])
+  @@map("seller_application_documents")
+}
+
+
+model SellerApplicationAccessChallenge {
+  id            String            @id @default(uuid()) @db.Uuid
+  applicationId String            @map("application_id") @db.Uuid
+  codeHash      String            @map("code_hash") @db.Char(64)
+  purpose       String            @default("ACCESS") @db.VarChar(30)
+  targetEmail   String?           @map("target_email") @db.VarChar(254)
+  expiresAt     DateTime          @map("expires_at")
+  consumedAt    DateTime?         @map("consumed_at")
+  attempts      Int               @default(0)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  application   SellerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, expiresAt])
+  @@map("seller_application_access_challenges")
+}
+
+model SellerApplicationAccessSession {
+  id            String            @id @default(uuid()) @db.Uuid
+  applicationId String            @map("application_id") @db.Uuid
+  tokenHash     String            @unique @map("token_hash") @db.Char(64)
+  expiresAt     DateTime          @map("expires_at")
+  revokedAt     DateTime?         @map("revoked_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  application   SellerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, expiresAt])
+  @@map("seller_application_access_sessions")
+}
+
+model SellerApplicationReviewEvent {
+  id            String                  @id @default(uuid()) @db.Uuid
+  applicationId String                  @map("application_id") @db.Uuid
+  actorId       String                  @map("actor_id") @db.Uuid
+  action        String                  @db.VarChar(40)
+  fromStatus    SellerApplicationStatus @map("from_status")
+  toStatus      SellerApplicationStatus @map("to_status")
+  version       Int
+  reason        String?                 @db.VarChar(1000)
+  createdAt     DateTime                @default(now()) @map("created_at")
+  application   SellerApplication       @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+  @@map("seller_application_review_events")
+}
+
+model SellerApplicationNotification {
+  id                String            @id @default(uuid()) @db.Uuid
+  applicationId     String            @map("application_id") @db.Uuid
+  eventKey          String            @unique @map("event_key") @db.VarChar(120)
+  kind              String            @db.VarChar(40)
+  recipient         String            @db.VarChar(254)
+  encryptedPayload  String            @map("encrypted_payload") @db.Text
+  attempts          Int               @default(0)
+  nextAttemptAt     DateTime          @default(now()) @map("next_attempt_at")
+  lockedUntil       DateTime?         @map("locked_until")
+  sentAt            DateTime?         @map("sent_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  application       SellerApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([sentAt, nextAttemptAt])
+  @@map("seller_application_notifications")
+}
+
+model SellerProduct {
+  id              String           @id @default(uuid()) @db.Uuid
+  sellerId        String           @map("seller_id") @db.Uuid
+  productId       String?          @map("product_id") @db.Uuid
+  sku             String           @db.VarChar(100)
+  name            String           @db.VarChar(180)
+  condition       ProductCondition?
+  packageQuantity Int              @default(1) @map("package_quantity")
+  packageUnit     String           @default("PIECE") @map("package_unit") @db.VarChar(30)
+  status          MasterDataStatus @default(ACTIVE)
+  createdById     String           @map("created_by_id") @db.Uuid
+  updatedById     String           @map("updated_by_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  seller          Seller           @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  product         Product?         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  listing         SellerListing?
+  inventories     Inventory[]
+  stockTransfers  SellerStockTransfer[]
+  createdBy       User             @relation("SellerProductCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy       User             @relation("SellerProductUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, sku])
+  @@index([sellerId, status, name])
+  @@index([productId])
+  @@map("seller_products")
+}
+
+model SellerStockTransfer {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  sellerId             String                    @map("seller_id") @db.Uuid
+  sellerProductId      String                    @map("seller_product_id") @db.Uuid
+  sourceLocationId     String                    @map("source_location_id") @db.Uuid
+  destinationLocationId String                   @map("destination_location_id") @db.Uuid
+  quantity             Int
+  receivedQuantity     Int                       @default(0) @map("received_quantity")
+  idempotencyKey       String                    @map("idempotency_key") @db.VarChar(80)
+  status               SellerStockTransferStatus @default(IN_TRANSIT)
+  reason               String                    @db.VarChar(500)
+  version              Int                       @default(1)
+  createdById          String                    @map("created_by_id") @db.Uuid
+  createdAt            DateTime                  @default(now()) @map("created_at")
+  completedAt          DateTime?                 @map("completed_at")
+  seller               Seller                    @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  sellerProduct        SellerProduct             @relation(fields: [sellerProductId], references: [id], onDelete: Restrict)
+  sourceLocation       InventoryLocation         @relation("StockTransferSource", fields: [sourceLocationId], references: [id], onDelete: Restrict)
+  destinationLocation  InventoryLocation         @relation("StockTransferDestination", fields: [destinationLocationId], references: [id], onDelete: Restrict)
+  createdBy            User                      @relation("StockTransferCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  receipts             SellerStockTransferReceipt[]
+
+  @@unique([sellerId, idempotencyKey])
+  @@index([sellerProductId, status, createdAt])
+  @@map("seller_stock_transfers")
+}
+
+model SellerStockTransferReceipt {
+  id             String              @id @default(uuid()) @db.Uuid
+  transferId     String              @map("transfer_id") @db.Uuid
+  idempotencyKey String              @map("idempotency_key") @db.VarChar(80)
+  quantity       Int
+  actorId        String              @map("actor_id") @db.Uuid
+  receivedAt     DateTime            @default(now()) @map("received_at")
+  transfer       SellerStockTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  actor          User                @relation("StockTransferReceiptActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([transferId, idempotencyKey])
+  @@map("seller_stock_transfer_receipts")
+}
+
+model SellerListingAsset {
+  id          String           @id @default(uuid()) @db.Uuid
+  listingId   String           @map("listing_id") @db.Uuid
+  type        ProductAssetType
+  storageKey  String           @unique @map("storage_key") @db.VarChar(500)
+  mimeType    String           @map("mime_type") @db.VarChar(100)
+  sizeBytes   Int              @map("size_bytes")
+  originalName String          @map("original_name") @db.VarChar(180)
+  sortOrder   Int              @default(0) @map("sort_order")
+  isPrimary   Boolean          @default(false) @map("is_primary")
+  // Legacy assets stay published. Live Listing uploads remain staged until review.
+  isPublished Boolean          @default(true) @map("is_published")
+  stagedForRevisionId String?   @map("staged_for_revision_id") @db.Uuid
+  status      MasterDataStatus @default(DRAFT)
+  createdById String           @map("created_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  listing     SellerListing    @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  stagedForRevision SellerListingRevision? @relation("SellerRevisionStagedAssets", fields: [stagedForRevisionId], references: [id], onDelete: Restrict)
+
+  @@index([listingId, isPublished, status, sortOrder], map: "seller_listing_assets_published_status_order_idx")
+  @@index([stagedForRevisionId, status])
+  @@index([listingId, type, status, sortOrder])
+  @@map("seller_listing_assets")
+}
+
+model SellerListing {
+  id                 String              @id @default(uuid()) @db.Uuid
+  sellerId           String              @map("seller_id") @db.Uuid
+  sellerProductId    String?             @unique @map("seller_product_id") @db.Uuid
+  productId          String              @map("product_id") @db.Uuid
+  sellerSku          String              @map("seller_sku") @db.VarChar(100)
+  condition          ProductCondition?
+  sellerTitle        String?             @map("seller_title") @db.VarChar(180)
+  sellerDescription  String?             @map("seller_description")
+  warrantyInformation String?            @map("warranty_information")
+  deliveryInformation String?            @map("delivery_information")
+  commercialTerms    String?             @map("commercial_terms")
+  status             SellerListingStatus @default(DRAFT)
+  reviewIntent       Boolean             @default(false) @map("review_intent")
+  rejectionReason    String?             @map("rejection_reason")
+  version            Int                 @default(1)
+  createdById        String              @map("created_by_id") @db.Uuid
+  updatedById        String              @map("updated_by_id") @db.Uuid
+  approvedAt         DateTime?           @map("approved_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  seller             Seller              @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  sellerProduct      SellerProduct?      @relation(fields: [sellerProductId], references: [id], onDelete: Restrict)
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy          User                @relation("SellerListingCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy          User                @relation("SellerListingUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  price              ListingPrice?
+  inventories        Inventory[]
+  assets             SellerListingAsset[]
+  revisions          SellerListingRevision[]
+
+  @@unique([sellerId, sellerSku])
+  @@index([productId, status])
+  @@index([sellerId, productId, status])
+  @@index([sellerId, status, updatedAt])
+  @@map("seller_listings")
+}
+
+enum SellerListingRevisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model SellerListingRevision {
+  id              String                       @id @default(uuid()) @db.Uuid
+  listingId       String                       @map("listing_id") @db.Uuid
+  sourceVersion   Int                          @map("source_version")
+  proposedProductId String?                    @map("proposed_product_id") @db.Uuid
+  changes         Json
+  proposedMedia   Json?                        @map("proposed_media")
+  status          SellerListingRevisionStatus  @default(PENDING)
+  reviewReason    String?                      @map("review_reason") @db.VarChar(1000)
+  createdById     String                       @map("created_by_id") @db.Uuid
+  reviewedById    String?                      @map("reviewed_by_id") @db.Uuid
+  createdAt       DateTime                     @default(now()) @map("created_at")
+  reviewedAt      DateTime?                    @map("reviewed_at")
+  listing         SellerListing                @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  proposedProduct Product?                     @relation("ProposedListingArticle", fields: [proposedProductId], references: [id], onDelete: Restrict)
+  createdBy       User                         @relation("ListingRevisionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  reviewedBy      User?                        @relation("ListingRevisionReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  stagedAssets    SellerListingAsset[]          @relation("SellerRevisionStagedAssets")
+
+  @@index([listingId, createdAt])
+  @@index([status, createdAt])
+  @@map("seller_listing_revisions")
+}
+
+model ListingPrice {
+  id                String           @id @default(uuid()) @db.Uuid
+  listingId         String           @unique @map("listing_id") @db.Uuid
+  basePrice         Decimal          @map("base_price") @db.Decimal(18, 2)
+  sellingPrice      Decimal          @map("selling_price") @db.Decimal(18, 2)
+  promotionalPrice Decimal?         @map("promotional_price") @db.Decimal(18, 2)
+  currency          String           @db.Char(3)
+  minOrderQuantity  Int              @default(1) @map("min_order_quantity")
+  effectiveFrom     DateTime?        @map("effective_from")
+  effectiveTo       DateTime?        @map("effective_to")
+  status            MasterDataStatus @default(ACTIVE)
+  version           Int              @default(1)
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  listing           SellerListing    @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([status, currency, sellingPrice])
+  @@map("listing_prices")
+}
+
+
+model Supplier {
+  id           String           @id @default(uuid()) @db.Uuid
+  code         String           @unique @db.VarChar(60)
+  name         String           @db.VarChar(180)
+  supplierType SupplierType     @map("supplier_type")
+  countryCode  String           @map("country_code") @db.Char(2)
+  contactEmail String?          @map("contact_email") @db.VarChar(254)
+  website      String?          @db.VarChar(500)
+  notes        String?
+  status       MasterDataStatus @default(DRAFT)
+  version      Int              @default(1)
+  createdById  String           @map("created_by_id") @db.Uuid
+  updatedById  String           @map("updated_by_id") @db.Uuid
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  createdBy    User             @relation("SupplierCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User             @relation("SupplierUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  offers       SupplierOffer[]
+
+  @@index([status, name])
+  @@index([countryCode, status])
+  @@map("suppliers")
+}
+
+model SupplierOffer {
+  id                 String            @id @default(uuid()) @db.Uuid
+  supplierId         String            @map("supplier_id") @db.Uuid
+  productId          String            @map("product_id") @db.Uuid
+  supplierSku        String?           @map("supplier_sku") @db.VarChar(120)
+  unitCost           Decimal           @map("unit_cost") @db.Decimal(18, 4)
+  currency           String            @db.Char(3)
+  minOrderQuantity   Int               @default(1) @map("min_order_quantity")
+  orderMultiple      Int               @default(1) @map("order_multiple")
+  availableQuantity  Int?              @map("available_quantity")
+  leadTimeDaysMin    Int?              @map("lead_time_days_min")
+  leadTimeDaysMax    Int?              @map("lead_time_days_max")
+  incoterm           SourcingIncoterm?
+  originCountryCode  String?           @map("origin_country_code") @db.Char(2)
+  validFrom          DateTime?         @map("valid_from")
+  validTo            DateTime?         @map("valid_to")
+  notes              String?
+  status             MasterDataStatus  @default(DRAFT)
+  version            Int               @default(1)
+  createdById        String            @map("created_by_id") @db.Uuid
+  updatedById        String            @map("updated_by_id") @db.Uuid
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  supplier           Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  product            Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy          User              @relation("SupplierOfferCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy          User              @relation("SupplierOfferUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([productId, status, unitCost])
+  @@index([supplierId, status, updatedAt])
+  @@index([currency, status])
+  @@index([validTo, status])
+  @@map("supplier_offers")
+}
+
+model InventoryLocation {
+  id          String                @id @default(uuid()) @db.Uuid
+  sellerId    String                @map("seller_id") @db.Uuid
+  code        String                @db.VarChar(60)
+  name        String                @db.VarChar(140)
+  type        InventoryLocationType
+  addressText String?               @map("address_text") @db.VarChar(500)
+  isDefault   Boolean               @default(false) @map("is_default")
+  onlineFulfillmentEnabled Boolean @default(false) @map("online_fulfillment_enabled")
+  status      MasterDataStatus      @default(ACTIVE)
+  version     Int                   @default(1)
+  createdById String                @map("created_by_id") @db.Uuid
+  updatedById String                @map("updated_by_id") @db.Uuid
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+  seller      Seller                @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  createdBy   User                  @relation("InventoryLocationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User                  @relation("InventoryLocationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  inventories Inventory[]
+  outgoingTransfers SellerStockTransfer[] @relation("StockTransferSource")
+  incomingTransfers SellerStockTransfer[] @relation("StockTransferDestination")
+
+  @@unique([sellerId, code])
+  @@index([sellerId, status, name])
+  @@map("inventory_locations")
+}
+
+model Inventory {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  listingId             String?                     @map("listing_id") @db.Uuid
+  sellerProductId       String                      @map("seller_product_id") @db.Uuid
+  locationId            String                      @map("location_id") @db.Uuid
+  quantityOnHand        Int                         @default(0) @map("quantity_on_hand")
+  quantityReserved      Int                         @default(0) @map("quantity_reserved")
+  safetyStock           Int                         @default(0) @map("safety_stock")
+  lowStockThreshold     Int                         @default(0) @map("low_stock_threshold")
+  availabilityStatus    InventoryAvailabilityStatus @default(OUT_OF_STOCK) @map("availability_status")
+  version               Int                         @default(1)
+  updatedById           String                      @map("updated_by_id") @db.Uuid
+  createdAt             DateTime                    @default(now()) @map("created_at")
+  updatedAt             DateTime                    @updatedAt @map("updated_at")
+  listing               SellerListing?              @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  sellerProduct          SellerProduct               @relation(fields: [sellerProductId], references: [id], onDelete: Restrict)
+  location              InventoryLocation           @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  updatedBy             User                        @relation("InventoryUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  movements             InventoryMovement[]
+
+  @@unique([listingId, locationId])
+  @@unique([sellerProductId, locationId])
+  @@index([locationId, availabilityStatus])
+  @@index([listingId, availabilityStatus])
+  @@map("inventory")
+}
+
+model InventoryMovement {
+  id             String                @id @default(uuid()) @db.Uuid
+  inventoryId    String                @map("inventory_id") @db.Uuid
+  type           InventoryMovementType
+  quantityDelta  Int                   @map("quantity_delta")
+  reservedDelta  Int                   @default(0) @map("reserved_delta")
+  quantityBefore Int                   @map("quantity_before")
+  quantityAfter  Int                   @map("quantity_after")
+  reservedBefore Int                   @default(0) @map("reserved_before")
+  reservedAfter  Int                   @default(0) @map("reserved_after")
+  reason         String                @db.VarChar(500)
+  referenceType  String?               @map("reference_type") @db.VarChar(80)
+  referenceId    String?               @map("reference_id") @db.VarChar(120)
+  actorId        String                @map("actor_id") @db.Uuid
+  createdAt      DateTime              @default(now()) @map("created_at")
+  inventory      Inventory             @relation(fields: [inventoryId], references: [id], onDelete: Restrict)
+  actor          User                  @relation("InventoryMovementActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([inventoryId, createdAt])
+  @@index([referenceType, referenceId])
+  @@map("inventory_movements")
+}
+
+model Brand {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique @db.VarChar(60)
+  name        String           @db.VarChar(160)
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdBy   User             @relation("BrandCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("BrandUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  products    Product[]
+  partNumbers PartNumber[]
+
+  @@index([status, name])
+  @@map("brands")
+}
+
+model ArticleRelation {
+  id                String              @id @default(uuid()) @db.Uuid
+  sourceArticleId   String              @map("source_product_id") @db.Uuid
+  targetArticleId   String              @map("target_product_id") @db.Uuid
+  type              ArticleRelationType @map("relation_type")
+  relationKey       String              @unique @map("relation_key") @db.VarChar(180)
+  note              String?             @db.VarChar(500)
+  componentQuantity Decimal?            @map("component_quantity") @db.Decimal(10, 3)
+  componentRole     String?             @map("component_role") @db.VarChar(120)
+  componentOrder    Int?                @map("component_order")
+  status            MasterDataStatus    @default(DRAFT)
+  version           Int                 @default(1)
+  createdById       String              @map("created_by_id") @db.Uuid
+  updatedById       String              @map("updated_by_id") @db.Uuid
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  sourceArticle     Product             @relation("ArticleRelationSource", fields: [sourceArticleId], references: [id], onDelete: Restrict)
+  targetArticle     Product             @relation("ArticleRelationTarget", fields: [targetArticleId], references: [id], onDelete: Restrict)
+  createdBy         User                @relation("ArticleRelationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                @relation("ArticleRelationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([sourceArticleId, type, status])
+  @@index([targetArticleId, type, status])
+  @@map("article_relations")
+}
+
+model CatalogArticleImportJob {
+  id                 String   @id @default(uuid()) @db.Uuid
+  datasetReference   String   @unique @map("dataset_reference") @db.VarChar(200)
+  fileName           String   @map("file_name") @db.VarChar(255)
+  fileFormat         String   @map("file_format") @db.VarChar(8)
+  previewFingerprint String   @map("preview_fingerprint") @db.Char(64)
+  totalRows          Int      @map("total_rows")
+  includedRows       Int      @map("included_rows")
+  excludedRows       Int      @map("excluded_rows")
+  warningRows        Int      @map("warning_rows")
+  createdCount       Int      @map("created_count")
+  report             Json
+  createdById        String   @map("created_by_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at")
+  createdBy          User     @relation("CatalogArticleImportJobCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([createdById, createdAt])
+  @@index([createdAt])
+  @@map("catalog_article_import_jobs")
+}
+
+
+model AdminImportJob {
+  id               String   @id @default(uuid()) @db.Uuid
+  workflow         String   @db.VarChar(40)
+  datasetReference String?  @map("dataset_reference") @db.VarChar(200)
+  fileName         String?  @map("file_name") @db.VarChar(255)
+  fileFormat       String   @map("file_format") @db.VarChar(16)
+  status           String   @default("COMPLETED") @db.VarChar(20)
+  totalRows        Int      @map("total_rows")
+  includedRows     Int      @map("included_rows")
+  excludedRows     Int      @default(0) @map("excluded_rows")
+  warningRows      Int      @default(0) @map("warning_rows")
+  createdCount     Int      @map("created_count")
+  metadata         Json?
+  createdById      String   @map("created_by_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  createdBy        User     @relation("AdminImportJobCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([workflow, createdAt])
+  @@index([createdById, createdAt])
+  @@index([createdAt])
+  @@map("admin_import_jobs")
+}
+
+model PartNumber {
+  id                   String           @id @default(uuid()) @db.Uuid
+  productId            String           @map("product_id") @db.Uuid
+  issuerBrandId        String?          @map("brand_id") @db.Uuid
+  partNumber           String           @map("part_number") @db.VarChar(160)
+  rawPartNumber        String?          @map("raw_part_number") @db.VarChar(200)
+  normalizedPartNumber String           @map("normalized_part_number") @db.VarChar(160)
+  articleIdentityKey   String?          @unique @map("article_identity_key") @db.VarChar(240)
+  type                 PartNumberType   @map("part_number_type")
+  isPrimary            Boolean          @default(false) @map("is_primary")
+  status               MasterDataStatus @default(DRAFT)
+  version              Int              @default(1)
+  createdById          String           @map("created_by_id") @db.Uuid
+  updatedById          String           @map("updated_by_id") @db.Uuid
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  product              Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  issuerBrand           Brand?           @relation(fields: [issuerBrandId], references: [id], onDelete: Restrict)
+  createdBy            User             @relation("PartNumberCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy            User             @relation("PartNumberUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([productId, type, normalizedPartNumber])
+  @@index([normalizedPartNumber, type, status])
+  @@index([issuerBrandId, type, status])
+  @@index([productId, isPrimary, status])
+  @@map("part_numbers")
+}
+
+model ArticleIdentifier {
+  id                String                @id @default(uuid()) @db.Uuid
+  productId         String                @map("product_id") @db.Uuid
+  type              ArticleIdentifierType @map("identifier_type")
+  value             String                @db.VarChar(160)
+  rawValue          String?               @map("raw_value") @db.VarChar(200)
+  normalizedValue   String                @map("normalized_value") @db.VarChar(160)
+  globalIdentityKey String?               @unique @map("global_identity_key") @db.VarChar(180)
+  status            MasterDataStatus      @default(DRAFT)
+  version           Int                   @default(1)
+  createdById       String                @map("created_by_id") @db.Uuid
+  updatedById       String                @map("updated_by_id") @db.Uuid
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  product           Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy         User                  @relation("ArticleIdentifierCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                  @relation("ArticleIdentifierUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([productId, type, normalizedValue])
+  @@index([normalizedValue, type, status])
+  @@index([productId, type, status])
+  @@map("article_identifiers")
+}
+
+model ProductAsset {
+  id               String                 @id @default(uuid()) @db.Uuid
+  productId        String                 @map("product_id") @db.Uuid
+  type             ProductAssetType
+  title            String                 @db.VarChar(180)
+  storageReference String                 @map("storage_reference") @db.VarChar(1000)
+  mimeType         String?                @map("mime_type") @db.VarChar(120)
+  visibility       ProductAssetVisibility @default(PUBLIC)
+  sortOrder        Int                    @default(0) @map("sort_order")
+  status           MasterDataStatus       @default(DRAFT)
+  version          Int                    @default(1)
+  createdById      String                 @map("created_by_id") @db.Uuid
+  updatedById      String                 @map("updated_by_id") @db.Uuid
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  product          Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy        User                   @relation("ProductAssetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy        User                   @relation("ProductAssetUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([productId, storageReference])
+  @@index([productId, type, status, sortOrder])
+  @@map("product_assets")
+}
+
+model ProductAttributeValue {
+  id               String              @id @default(uuid()) @db.Uuid
+  productId        String              @map("product_id") @db.Uuid
+  attributeId      String              @map("attribute_id") @db.Uuid
+  valueString      String?             @map("value_string")
+  valueNumeric     Decimal?            @map("value_numeric") @db.Decimal(24, 8)
+  valueBoolean     Boolean?            @map("value_boolean")
+  valueReferenceId String?             @map("value_reference_id") @db.Uuid
+  valueJson        Json?               @map("value_json")
+  unit             String?             @db.VarChar(50)
+  unitId           String?             @map("unit_id") @db.Uuid
+  normalizedValue  String?             @map("normalized_value")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  product          Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute        AttributeDefinition @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+  unitDefinition   AttributeUnit?      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, attributeId])
+  @@index([attributeId])
+  @@index([unitId])
+  @@index([valueReferenceId])
+  @@map("product_attribute_values")
+}
+
+model MasterDataProvenance {
+  id                String                      @id @default(uuid()) @db.Uuid
+  entityType        String                      @map("entity_type") @db.VarChar(80)
+  entityId          String                      @map("entity_id") @db.Uuid
+  sourceName        String                      @map("source_name") @db.VarChar(160)
+  sourceReference   String?                     @map("source_reference") @db.VarChar(255)
+  sourceUrl         String?                     @map("source_url") @db.VarChar(1000)
+  observedAt        DateTime?                   @map("observed_at")
+  publishedAt       DateTime?                   @map("published_at")
+  sourceKind        MasterDataSourceKind?       @map("source_kind")
+  verificationReference String?                 @map("verification_reference") @db.VarChar(255)
+  verificationState ProvenanceVerificationState @default(UNVERIFIED) @map("verification_state")
+  notes             String?
+  version           Int                         @default(1)
+  createdById       String                      @map("created_by_id") @db.Uuid
+  updatedById       String                      @map("updated_by_id") @db.Uuid
+  createdAt         DateTime                    @default(now()) @map("created_at")
+  updatedAt         DateTime                    @updatedAt @map("updated_at")
+  createdBy         User                        @relation("MasterDataProvenanceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                        @relation("MasterDataProvenanceUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, verificationState])
+  @@index([sourceName])
+  @@index([updatedAt])
+  @@map("master_data_provenance")
+}
+
+model ExternalStandardMapping {
+  id                 String   @id @default(uuid()) @db.Uuid
+  entityType         String   @map("entity_type") @db.VarChar(80)
+  entityId           String   @map("entity_id") @db.Uuid
+  provider           String   @db.VarChar(100)
+  standard           String   @db.VarChar(100)
+  externalEntityType String   @map("external_entity_type") @db.VarChar(100)
+  externalIdentifier String   @map("external_identifier") @db.VarChar(180)
+  externalVersion    String?  @map("external_version") @db.VarChar(80)
+  notes              String?
+  version            Int      @default(1)
+  createdById        String   @map("created_by_id") @db.Uuid
+  updatedById        String   @map("updated_by_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  createdBy          User     @relation("ExternalStandardMappingCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy          User     @relation("ExternalStandardMappingUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([entityType, provider, standard, externalEntityType, externalIdentifier])
+  @@index([entityType, entityId])
+  @@index([provider, standard, externalEntityType, externalIdentifier])
+  @@map("external_standard_mappings")
+}
+
+model MasterDataLocalization {
+  id          String   @id @default(uuid()) @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(80)
+  entityId    String   @map("entity_id") @db.Uuid
+  locale      String   @db.VarChar(35)
+  name        String   @db.VarChar(200)
+  description String?
+  version     Int      @default(1)
+  createdById String   @map("created_by_id") @db.Uuid
+  updatedById String   @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   User     @relation("MasterDataLocalizationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User     @relation("MasterDataLocalizationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([entityType, entityId, locale])
+  @@index([entityType, locale, name])
+  @@index([updatedAt])
+  @@map("master_data_localizations")
+}
+
+model VehicleMake {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique @db.VarChar(50)
+  name        String           @db.VarChar(120)
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdBy   User             @relation("VehicleMakeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("VehicleMakeUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  models      VehicleModel[]
+  configurations VehicleConfiguration[]
+  compatibilities VehicleCompatibility[]
+
+  @@index([status, name])
+  @@map("vehicle_makes")
+}
+
+model VehicleModel {
+  id          String           @id @default(uuid()) @db.Uuid
+  makeId      String           @map("make_id") @db.Uuid
+  code        String           @db.VarChar(50)
+  name        String           @db.VarChar(120)
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  make        VehicleMake      @relation(fields: [makeId], references: [id], onDelete: Restrict)
+  createdBy   User             @relation("VehicleModelCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("VehicleModelUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  derivatives VehicleModelDerivative[]
+  generationFamilies VehicleGenerationFamily[]
+  generations VehicleGeneration[]
+  configurations VehicleConfiguration[]
+  compatibilities VehicleCompatibility[]
+
+  @@unique([makeId, code])
+  @@index([makeId, status, name])
+  @@map("vehicle_models")
+}
+
+model VehicleModelDerivative {
+  id          String           @id @default(uuid()) @db.Uuid
+  modelId     String           @map("model_id") @db.Uuid
+  code        String           @db.VarChar(50)
+  name        String           @db.VarChar(120)
+  status      MasterDataStatus @default(DRAFT)
+  version     Int              @default(1)
+  createdById String           @map("created_by_id") @db.Uuid
+  updatedById String           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  model       VehicleModel     @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  createdBy   User             @relation("VehicleModelDerivativeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User             @relation("VehicleModelDerivativeUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  generations VehicleGeneration[]
+
+  @@unique([modelId, code])
+  @@index([modelId, status, name])
+  @@map("vehicle_model_derivatives")
+}
+
+// Optional, reviewed shared identity for a model generation. Does not replace
+// derivative-scoped Generation identities or confer production approval.
+model VehicleGenerationFamily {
+  id           String                     @id @default(uuid()) @db.Uuid
+  modelId      String                     @map("model_id") @db.Uuid
+  code         String                     @db.VarChar(50)
+  name         String                     @db.VarChar(120)
+  startYear    Int?                       @map("start_year")
+  endYear      Int?                       @map("end_year")
+  endStatus    VehicleProductionEndStatus @default(UNKNOWN) @map("end_status")
+  status       MasterDataStatus           @default(DRAFT)
+  version      Int                        @default(1)
+  createdById  String                     @map("created_by_id") @db.Uuid
+  updatedById  String                     @map("updated_by_id") @db.Uuid
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  updatedAt    DateTime                   @updatedAt @map("updated_at")
+  model        VehicleModel               @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  createdBy    User                       @relation("VehicleGenerationFamilyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User                       @relation("VehicleGenerationFamilyUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  generations  VehicleGeneration[]
+
+  @@unique([modelId, code])
+  // Composite reference prevents linking a Generation across Model boundaries.
+  @@unique([id, modelId])
+  @@index([modelId, status, name])
+  @@map("vehicle_generation_families")
+}
+
+model VehicleGeneration {
+  id           String                  @id @default(uuid()) @db.Uuid
+  modelId      String                  @map("model_id") @db.Uuid
+  familyId     String?                 @map("family_id") @db.Uuid
+  derivativeId String?                 @map("derivative_id") @db.Uuid
+  code         String?                 @db.VarChar(50)
+  name         String                  @db.VarChar(120)
+  startYear    Int?                    @map("start_year")
+  endYear      Int?                    @map("end_year")
+  endStatus    VehicleProductionEndStatus @default(UNKNOWN) @map("end_status")
+  status       MasterDataStatus        @default(DRAFT)
+  version      Int                     @default(1)
+  createdById  String                  @map("created_by_id") @db.Uuid
+  updatedById  String                  @map("updated_by_id") @db.Uuid
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
+  model        VehicleModel            @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  family       VehicleGenerationFamily? @relation(fields: [familyId, modelId], references: [id, modelId], onDelete: Restrict, onUpdate: Restrict)
+  derivative   VehicleModelDerivative? @relation(fields: [derivativeId], references: [id], onDelete: Restrict)
+  createdBy    User                    @relation("VehicleGenerationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User                    @relation("VehicleGenerationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  trims        VehicleTrim[]
+  configurations VehicleConfiguration[]
+  compatibilities VehicleCompatibility[]
+
+  @@unique([modelId, derivativeId, code])
+  @@index([modelId, derivativeId, status, startYear])
+  @@index([familyId, modelId])
+  @@index([derivativeId])
+  @@map("vehicle_generations")
+}
+
+model VehicleTrim {
+  id             String           @id @default(uuid()) @db.Uuid
+  generationId   String           @map("generation_id") @db.Uuid
+  code           String?          @db.VarChar(50)
+  name           String           @db.VarChar(120)
+  equipmentLevel String?          @map("equipment_level") @db.VarChar(120)
+  startYear      Int?             @map("start_year")
+  endYear        Int?             @map("end_year")
+  status         MasterDataStatus @default(DRAFT)
+  version        Int              @default(1)
+  createdById    String           @map("created_by_id") @db.Uuid
+  updatedById    String           @map("updated_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  generation     VehicleGeneration @relation(fields: [generationId], references: [id], onDelete: Restrict)
+  createdBy      User             @relation("VehicleTrimCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy      User             @relation("VehicleTrimUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations VehicleConfiguration[]
+  compatibilities VehicleCompatibility[]
+
+  @@unique([generationId, code])
+  @@index([generationId, status, name])
+  @@map("vehicle_trims")
+}
+
+model VehicleEngine {
+  id             String           @id @default(uuid()) @db.Uuid
+  code           String?          @db.VarChar(50)
+  name           String           @db.VarChar(120)
+  family         String?          @db.VarChar(120)
+  displacementCc Int?             @map("displacement_cc")
+  fuelType       String?          @map("fuel_type") @db.VarChar(40)
+  cylinderCount  Int?             @map("cylinder_count")
+  aspiration     String?          @db.VarChar(60)
+  powerKw        Decimal?         @map("power_kw") @db.Decimal(10, 2)
+  torqueNm       Decimal?         @map("torque_nm") @db.Decimal(10, 2)
+  startYear      Int?             @map("start_year")
+  endYear        Int?             @map("end_year")
+  status         MasterDataStatus @default(DRAFT)
+  version        Int              @default(1)
+  createdById    String           @map("created_by_id") @db.Uuid
+  updatedById    String           @map("updated_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  createdBy      User             @relation("VehicleEngineCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy      User             @relation("VehicleEngineUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations VehicleConfiguration[]
+  compatibilities VehicleCompatibility[]
+
+  @@index([code])
+  @@index([status, name])
+  @@map("vehicle_engines")
+}
+
+model VehicleTransmission {
+  id               String           @id @default(uuid()) @db.Uuid
+  code             String?          @db.VarChar(50)
+  transmissionType String           @map("transmission_type") @db.VarChar(40)
+  gearCount        Int?             @map("gear_count")
+  driveType        String?          @map("drive_type") @db.VarChar(40)
+  startYear        Int?             @map("start_year")
+  endYear          Int?             @map("end_year")
+  status           MasterDataStatus @default(DRAFT)
+  version          Int              @default(1)
+  createdById      String           @map("created_by_id") @db.Uuid
+  updatedById      String           @map("updated_by_id") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  createdBy        User             @relation("VehicleTransmissionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy        User             @relation("VehicleTransmissionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations   VehicleConfiguration[]
+  compatibilities   VehicleCompatibility[]
+
+  @@index([code])
+  @@index([status, transmissionType])
+  @@map("vehicle_transmissions")
+}
+
+// Stage 01: EV reusable technical masters and multi-motor configuration links.
+model VehicleElectricMotor {
+  id                String                 @id @default(uuid()) @db.Uuid
+  code              String?                @db.VarChar(50)
+  name              String                 @db.VarChar(120)
+  family            String?                @db.VarChar(120)
+  technology        String?                @db.VarChar(60)
+  ratedPowerKw      Decimal?               @map("rated_power_kw") @db.Decimal(10, 2)
+  peakPowerKw       Decimal?               @map("peak_power_kw") @db.Decimal(10, 2)
+  torqueNm          Decimal?               @map("torque_nm") @db.Decimal(10, 2)
+  status            MasterDataStatus       @default(DRAFT)
+  version           Int                    @default(1)
+  createdById       String                 @map("created_by_id") @db.Uuid
+  updatedById       String                 @map("updated_by_id") @db.Uuid
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  createdBy         User                   @relation("VehicleElectricMotorCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                   @relation("VehicleElectricMotorUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations    VehicleConfigurationElectricMotor[]
+
+  @@index([code])
+  @@index([status, name])
+  @@map("vehicle_electric_motors")
+}
+
+model VehicleBatteryPack {
+  storageKind       VehicleEnergyStorageKind? @map("storage_kind")
+  id                String                 @id @default(uuid()) @db.Uuid
+  code              String?                @db.VarChar(50)
+  name              String                 @db.VarChar(120)
+  chemistry         String?                @db.VarChar(60)
+  grossCapacityKwh  Decimal?               @map("gross_capacity_kwh") @db.Decimal(10, 2)
+  usableCapacityKwh Decimal?               @map("usable_capacity_kwh") @db.Decimal(10, 2)
+  nominalVoltageV   Decimal?               @map("nominal_voltage_v") @db.Decimal(10, 2)
+  coolingType       String?                @map("cooling_type") @db.VarChar(60)
+  status            MasterDataStatus       @default(DRAFT)
+  version           Int                    @default(1)
+  createdById       String                 @map("created_by_id") @db.Uuid
+  updatedById       String                 @map("updated_by_id") @db.Uuid
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  createdBy         User                   @relation("VehicleBatteryPackCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                   @relation("VehicleBatteryPackUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations    VehicleConfiguration[]
+
+  @@index([code])
+  @@index([status, name])
+  @@map("vehicle_battery_packs")
+}
+
+model VehicleDriveUnit {
+  integrationKind   VehicleDriveUnitIntegrationKind? @map("integration_kind")
+  id                String                 @id @default(uuid()) @db.Uuid
+  code              String?                @db.VarChar(50)
+  name              String                 @db.VarChar(120)
+  gearType          String?                @map("gear_type") @db.VarChar(60)
+  gearCount         Int?                   @map("gear_count")
+  reductionRatio    Decimal?               @map("reduction_ratio") @db.Decimal(12, 4)
+  status            MasterDataStatus       @default(DRAFT)
+  version           Int                    @default(1)
+  createdById       String                 @map("created_by_id") @db.Uuid
+  updatedById       String                 @map("updated_by_id") @db.Uuid
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  createdBy         User                   @relation("VehicleDriveUnitCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                   @relation("VehicleDriveUnitUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations    VehicleConfigurationDriveUnit[]
+
+  @@index([code])
+  @@index([status, name])
+  @@map("vehicle_drive_units")
+}
+
+model VehicleChargingSystem {
+  id                String                 @id @default(uuid()) @db.Uuid
+  code              String?                @db.VarChar(50)
+  name              String                 @db.VarChar(120)
+  acConnector       String?                @map("ac_connector") @db.VarChar(60)
+  dcConnector       String?                @map("dc_connector") @db.VarChar(60)
+  maxAcPowerKw      Decimal?               @map("max_ac_power_kw") @db.Decimal(10, 2)
+  maxDcPowerKw      Decimal?               @map("max_dc_power_kw") @db.Decimal(10, 2)
+  status            MasterDataStatus       @default(DRAFT)
+  version           Int                    @default(1)
+  createdById       String                 @map("created_by_id") @db.Uuid
+  updatedById       String                 @map("updated_by_id") @db.Uuid
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  createdBy         User                   @relation("VehicleChargingSystemCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User                   @relation("VehicleChargingSystemUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations    VehicleConfiguration[]
+
+  @@index([code])
+  @@index([status, name])
+  @@map("vehicle_charging_systems")
+}
+
+model VehicleConfigurationElectricMotor {
+  functionRoles       VehicleElectricMachineFunction[] @default([]) @map("function_roles")
+  quantity            Int @default(1)
+  id                  String                        @id @default(uuid()) @db.Uuid
+  configurationId     String                        @map("configuration_id") @db.Uuid
+  electricMotorId     String                        @map("electric_motor_id") @db.Uuid
+  position            VehicleElectricMotorPosition @default(UNKNOWN)
+  createdAt           DateTime                      @default(now()) @map("created_at")
+  configuration       VehicleConfiguration          @relation(fields: [configurationId], references: [id], onDelete: Restrict)
+  electricMotor       VehicleElectricMotor          @relation(fields: [electricMotorId], references: [id], onDelete: Restrict)
+
+  @@unique([configurationId, electricMotorId, position], map: "vehicle_config_electric_motors_identity_key")
+  @@index([electricMotorId], map: "vehicle_config_electric_motors_motor_idx")
+  @@map("vehicle_configuration_electric_motors")
+}
+
+model VehicleConfigurationDriveUnit {
+  functionRoles       VehicleElectricMachineFunction[] @default([]) @map("function_roles")
+  quantity            Int @default(1)
+  id                  String                        @id @default(uuid()) @db.Uuid
+  configurationId     String                        @map("configuration_id") @db.Uuid
+  driveUnitId         String                        @map("drive_unit_id") @db.Uuid
+  position            VehicleElectricMotorPosition @default(UNKNOWN)
+  createdAt           DateTime                      @default(now()) @map("created_at")
+  configuration       VehicleConfiguration          @relation(fields: [configurationId], references: [id], onDelete: Restrict)
+  driveUnit           VehicleDriveUnit              @relation(fields: [driveUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([configurationId, driveUnitId, position], map: "vehicle_config_drive_units_identity_key")
+  @@index([driveUnitId], map: "vehicle_config_drive_units_drive_unit_idx")
+  @@map("vehicle_configuration_drive_units")
+}
+
+model VehicleBodyType {
+  id             String           @id @default(uuid()) @db.Uuid
+  code           String           @unique @db.VarChar(50)
+  name           String           @db.VarChar(120)
+  status         MasterDataStatus @default(DRAFT)
+  version        Int              @default(1)
+  createdById    String           @map("created_by_id") @db.Uuid
+  updatedById    String           @map("updated_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  createdBy      User             @relation("VehicleBodyTypeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy      User             @relation("VehicleBodyTypeUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations VehicleConfiguration[]
+  compatibilities VehicleCompatibility[]
+
+  @@index([status, name])
+  @@map("vehicle_body_types")
+}
+
+model VehicleMarket {
+  id             String           @id @default(uuid()) @db.Uuid
+  code           String           @unique @db.VarChar(50)
+  name           String           @db.VarChar(120)
+  kind           VehicleMarketKind?
+  countryCode    String?          @map("country_code") @db.Char(2)
+  regionCode     String?          @map("region_code") @db.VarChar(50)
+  specificationReference String?  @map("specification_reference") @db.VarChar(255)
+  applicability  VehicleConfigurationMarketApplicability[]
+  status         MasterDataStatus @default(DRAFT)
+  version        Int              @default(1)
+  createdById    String           @map("created_by_id") @db.Uuid
+  updatedById    String           @map("updated_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  createdBy      User             @relation("VehicleMarketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy      User             @relation("VehicleMarketUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  configurations VehicleConfiguration[]
+  compatibilities VehicleCompatibility[]
+
+  @@index([status, name])
+  @@map("vehicle_markets")
+}
+
+model VehicleConfiguration {
+  id                  String               @id @default(uuid()) @db.Uuid
+  identityCode        String               @unique @map("identity_code") @db.VarChar(35)
+  code                String?              @unique @db.VarChar(80)
+  makeId              String               @map("make_id") @db.Uuid
+  modelId             String               @map("model_id") @db.Uuid
+  generationId        String?              @map("generation_id") @db.Uuid
+  trimId              String?              @map("trim_id") @db.Uuid
+  engineId            String?              @map("engine_id") @db.Uuid
+  transmissionId      String?              @map("transmission_id") @db.Uuid
+  powertrainType      VehiclePowertrainType? @map("powertrain_type")
+  propulsionTopology  VehiclePropulsionTopology? @map("propulsion_topology")
+  engineRole          VehicleCombustionEngineRole? @map("engine_role")
+  energyStorageRole   VehicleEnergyStorageRole? @map("energy_storage_role")
+  externalChargingCapability VehicleExternalChargingCapability? @map("external_charging_capability")
+  batteryPackId       String?              @map("battery_pack_id") @db.Uuid
+  chargingSystemId    String?              @map("charging_system_id") @db.Uuid
+  bodyTypeId          String?              @map("body_type_id") @db.Uuid
+  marketId            String?              @map("market_id") @db.Uuid
+  driveType           String?              @map("drive_type") @db.VarChar(40)
+  materialMarketVariant String?            @map("material_market_variant") @db.VarChar(80)
+  marketApplicabilities VehicleConfigurationMarketApplicability[]
+  modelYear            Int?                       @map("model_year")
+  productionStartYear  Int?                       @map("production_start_year")
+  productionStartMonth Int?                       @map("production_start_month")
+  productionEndYear    Int?                       @map("production_end_year")
+  productionEndMonth   Int?                       @map("production_end_month")
+  productionEndStatus  VehicleProductionEndStatus @default(UNKNOWN) @map("production_end_status")
+  steeringSide         VehicleSteeringSide?       @map("steering_side")
+  status              MasterDataStatus     @default(DRAFT)
+  version             Int                  @default(1)
+  createdById         String               @map("created_by_id") @db.Uuid
+  updatedById         String               @map("updated_by_id") @db.Uuid
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  make                VehicleMake          @relation(fields: [makeId], references: [id], onDelete: Restrict)
+  model               VehicleModel         @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  generation          VehicleGeneration?   @relation(fields: [generationId], references: [id], onDelete: Restrict)
+  trim                VehicleTrim?         @relation(fields: [trimId], references: [id], onDelete: Restrict)
+  engine              VehicleEngine?       @relation(fields: [engineId], references: [id], onDelete: Restrict)
+  transmission        VehicleTransmission? @relation(fields: [transmissionId], references: [id], onDelete: Restrict)
+  batteryPack         VehicleBatteryPack?  @relation(fields: [batteryPackId], references: [id], onDelete: Restrict)
+  chargingSystem      VehicleChargingSystem? @relation(fields: [chargingSystemId], references: [id], onDelete: Restrict)
+  electricMotors      VehicleConfigurationElectricMotor[]
+  driveUnits          VehicleConfigurationDriveUnit[]
+  bodyType            VehicleBodyType?     @relation(fields: [bodyTypeId], references: [id], onDelete: Restrict)
+  market              VehicleMarket?       @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  createdBy           User                 @relation("VehicleConfigurationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy           User                 @relation("VehicleConfigurationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  compatibilities     VehicleCompatibility[]
+  productArticles      ProductVehicleArticle[]
+  vehicleProfiles     VehicleProfile[]
+  identifierMappings  VehicleIdentifierMapping[]
+
+  @@index([makeId, modelId, status])
+  @@index([generationId, trimId])
+  @@index([engineId, transmissionId])
+  @@index([powertrainType])
+  @@index([batteryPackId, chargingSystemId], map: "vehicle_configs_battery_charging_idx")
+  @@index([bodyTypeId, marketId])
+  @@index([modelYear])
+  @@map("vehicle_configurations")
+}
+
+// Additive staging model. No legacy marketId backfill: TARGET/SOURCE must be researched.
+model VehicleConfigurationMarketApplicability {
+  id              String             @id @default(uuid()) @db.Uuid
+  configurationId String             @map("configuration_id") @db.Uuid
+  marketId        String             @map("market_id") @db.Uuid
+  role            VehicleMarketApplicabilityRole
+  status          MasterDataStatus   @default(DRAFT)
+  version         Int                @default(1)
+  createdById     String             @map("created_by_id") @db.Uuid
+  updatedById     String             @map("updated_by_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  configuration   VehicleConfiguration @relation(fields: [configurationId], references: [id], onDelete: Restrict, map: "vehicle_market_applicability_configuration_fkey")
+  market          VehicleMarket      @relation(fields: [marketId], references: [id], onDelete: Restrict, map: "vehicle_market_applicability_market_fkey")
+  createdBy       User               @relation("VehicleMarketApplicabilityCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, map: "vehicle_market_applicability_created_by_fkey")
+  updatedBy       User               @relation("VehicleMarketApplicabilityUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict, map: "vehicle_market_applicability_updated_by_fkey")
+
+  @@unique([configurationId, marketId, role], map: "vehicle_market_applicability_identity_key")
+  @@index([marketId, role, status], map: "vehicle_market_applicability_market_role_status_idx")
+  @@index([configurationId, status], map: "vehicle_market_applicability_configuration_status_idx")
+  @@map("vehicle_configuration_market_applicability")
+}
+
+model VehicleProfile {
+  id                     String                      @id @default(uuid()) @db.Uuid
+  userId                 String                      @map("user_id") @db.Uuid
+  vehicleConfigurationId String                      @map("vehicle_configuration_id") @db.Uuid
+  identificationMethod   VehicleIdentificationMethod @map("identification_method")
+  identifierValue        String?                     @map("identifier_value") @db.VarChar(128)
+  identifierProvider     String?                     @map("identifier_provider") @db.VarChar(80)
+  vin                    String?                     @db.VarChar(64)
+  vinProvider            String?                     @map("vin_provider") @db.VarChar(80)
+  manufactureYear        Int?                        @map("manufacture_year")
+  modelYear              Int?                        @map("model_year")
+  registrationNumber     String?                     @map("registration_number") @db.VarChar(80)
+  displayName            String?                     @map("display_name") @db.VarChar(160)
+  isDefault              Boolean                     @default(false) @map("is_default")
+  version                Int                         @default(1)
+  confirmedAt            DateTime                    @default(now()) @map("confirmed_at")
+  createdAt              DateTime                    @default(now()) @map("created_at")
+  updatedAt              DateTime                    @updatedAt @map("updated_at")
+  user                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleConfiguration   VehicleConfiguration        @relation(fields: [vehicleConfigurationId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, vin])
+  @@unique([userId, identificationMethod, identifierValue])
+  @@unique([userId, registrationNumber])
+  @@index([userId, isDefault, updatedAt])
+  @@index([vehicleConfigurationId])
+  @@map("vehicle_profiles")
+}
+
+model VehicleIdentifierMapping {
+  id                     String                      @id @default(uuid()) @db.Uuid
+  identifierType         VehicleIdentificationMethod @map("identifier_type")
+  rawIdentifier          String                      @map("raw_identifier") @db.VarChar(128)
+  normalizedIdentifier   String                      @map("normalized_identifier") @db.VarChar(128)
+  vehicleConfigurationId String                      @map("vehicle_configuration_id") @db.Uuid
+  provider               String?                     @db.VarChar(80)
+  sourceReference        String?                     @map("source_reference") @db.VarChar(200)
+  verificationState      ProvenanceVerificationState @default(UNVERIFIED) @map("verification_state")
+  status                 MasterDataStatus            @default(DRAFT)
+  version                Int                         @default(1)
+  createdById            String                      @map("created_by_id") @db.Uuid
+  updatedById            String                      @map("updated_by_id") @db.Uuid
+  createdAt              DateTime                    @default(now()) @map("created_at")
+  updatedAt              DateTime                    @updatedAt @map("updated_at")
+  vehicleConfiguration   VehicleConfiguration        @relation(fields: [vehicleConfigurationId], references: [id], onDelete: Restrict)
+  createdBy              User                        @relation("VehicleIdentifierMappingCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy              User                        @relation("VehicleIdentifierMappingUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([identifierType, normalizedIdentifier])
+  @@index([vehicleConfigurationId, status, verificationState])
+  @@index([identifierType, status, verificationState])
+  @@map("vehicle_identifier_mappings")
+}
+
+model VehicleCompatibilityCriterion {
+  id                       String                            @id @default(uuid()) @db.Uuid
+  vehicleCompatibilityId   String                            @map("vehicle_compatibility_id") @db.Uuid
+  type                     CompatibilityCriterionType        @map("criterion_type")
+  textValue                String?                           @map("text_value") @db.VarChar(120)
+  normalizedTextValue      String?                           @map("normalized_text_value") @db.VarChar(120)
+  rangeFrom                String?                           @map("range_from") @db.VarChar(128)
+  rangeTo                  String?                           @map("range_to") @db.VarChar(128)
+  productionFromYear       Int?                              @map("production_from_year")
+  productionFromMonth      Int?                              @map("production_from_month")
+  productionToYear         Int?                              @map("production_to_year")
+  productionToMonth        Int?                              @map("production_to_month")
+  axlePosition             CompatibilityAxlePosition?        @map("axle_position")
+  installationPosition     CompatibilityInstallationPosition? @map("installation_position")
+  isRequired               Boolean                           @default(true) @map("is_required")
+  sortOrder                Int                               @default(0) @map("sort_order")
+  createdAt                DateTime                          @default(now()) @map("created_at")
+  updatedAt                DateTime                          @updatedAt @map("updated_at")
+  vehicleCompatibility     VehicleCompatibility              @relation(fields: [vehicleCompatibilityId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleCompatibilityId, type, sortOrder])
+  @@index([type, normalizedTextValue])
+  @@index([type, rangeFrom, rangeTo])
+  @@map("vehicle_compatibility_criteria")
+}
+
+/// One product-vehicle application shown as an individual Seller Product Article.
+/// Canonical identity and physical stock remain shared by productId.
+model ProductVehicleArticle {
+  id                     String               @id @default(uuid()) @db.Uuid
+  productId              String               @map("product_id") @db.Uuid
+  vehicleConfigurationId String               @map("vehicle_configuration_id") @db.Uuid
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+  product                Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  vehicleConfiguration   VehicleConfiguration @relation(fields: [vehicleConfigurationId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, vehicleConfigurationId], map: "product_vehicle_article_pair_unique")
+  @@index([vehicleConfigurationId])
+  @@map("product_vehicle_articles")
+}
+
+model VehicleCompatibility {
+  id                     String                              @id @default(uuid()) @db.Uuid
+  productId              String                              @map("product_id") @db.Uuid
+  vehicleConfigurationId String?                             @map("vehicle_configuration_id") @db.Uuid
+  makeId                 String?                             @map("make_id") @db.Uuid
+  modelId                String?                             @map("model_id") @db.Uuid
+  generationId           String?                             @map("generation_id") @db.Uuid
+  trimId                 String?                             @map("trim_id") @db.Uuid
+  engineId               String?                             @map("engine_id") @db.Uuid
+  transmissionId         String?                             @map("transmission_id") @db.Uuid
+  bodyTypeId             String?                             @map("body_type_id") @db.Uuid
+  marketId               String?                             @map("market_id") @db.Uuid
+  steeringSide           VehicleSteeringSide?                @map("steering_side")
+  driveType              String?                             @map("drive_type") @db.VarChar(40)
+  yearFrom               Int?                                @map("year_from")
+  yearTo                 Int?                                @map("year_to")
+  position               String?                             @db.VarChar(60)
+  fitmentType            CompatibilityFitmentType            @map("fitment_type")
+  conditions             Json?
+  notes                  String?
+  source                 CompatibilitySource
+  verificationStatus     CompatibilityVerificationStatus     @default(UNVERIFIED) @map("verification_status")
+  status                 MasterDataStatus                    @default(DRAFT)
+  version                Int                                 @default(1)
+  createdById            String                              @map("created_by_id") @db.Uuid
+  updatedById            String                              @map("updated_by_id") @db.Uuid
+  createdAt              DateTime                            @default(now()) @map("created_at")
+  updatedAt              DateTime                            @updatedAt @map("updated_at")
+  product                Product                             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  vehicleConfiguration   VehicleConfiguration?               @relation(fields: [vehicleConfigurationId], references: [id], onDelete: Restrict)
+  make                   VehicleMake?                        @relation(fields: [makeId], references: [id], onDelete: Restrict)
+  model                  VehicleModel?                       @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  generation             VehicleGeneration?                  @relation(fields: [generationId], references: [id], onDelete: Restrict)
+  trim                   VehicleTrim?                        @relation(fields: [trimId], references: [id], onDelete: Restrict)
+  engine                 VehicleEngine?                      @relation(fields: [engineId], references: [id], onDelete: Restrict)
+  transmission           VehicleTransmission?                @relation(fields: [transmissionId], references: [id], onDelete: Restrict)
+  bodyType               VehicleBodyType?                    @relation(fields: [bodyTypeId], references: [id], onDelete: Restrict)
+  market                 VehicleMarket?                      @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  createdBy              User                                @relation("VehicleCompatibilityCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy              User                                @relation("VehicleCompatibilityUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  criteria               VehicleCompatibilityCriterion[]
+
+  @@index([productId, status, verificationStatus])
+  @@index([vehicleConfigurationId, status])
+  @@index([makeId, modelId, yearFrom, yearTo])
+  @@index([generationId, trimId])
+  @@index([engineId, transmissionId])
+  @@index([bodyTypeId, marketId])
+  @@index([steeringSide, driveType])
+  @@map("vehicle_compatibilities")
+}

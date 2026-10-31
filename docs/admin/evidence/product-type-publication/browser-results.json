@@ -1,0 +1,172 @@
+{
+  "baseline": "94c7f4547a521ec4502a4f6cf7b3c9f308a87975",
+  "postgres": "embedded PostgreSQL 17.5",
+  "results": [
+    {
+      "name": "HTTP authentication and stale publication leave Draft unchanged",
+      "status": "PASS",
+      "details": {
+        "unauthenticated": 401,
+        "forbidden": 403,
+        "stale": 409
+      }
+    },
+    {
+      "name": "HTTP empty schema is rejected without partial activation",
+      "status": "PASS",
+      "details": {
+        "invalidSchema": 409,
+        "rolledBack": true
+      }
+    },
+    {
+      "name": "HTTP audit failure atomically rolls back schema, parents and assignments",
+      "status": "PASS",
+      "details": {
+        "response": 500,
+        "rolledBack": [
+          "schema",
+          "category",
+          "partGroup",
+          "productType",
+          "assignments"
+        ]
+      }
+    },
+    {
+      "name": "Live 1440: unselected menu \u2192 Publish \u2192 persisted Active \u2192 reload",
+      "status": "PASS",
+      "details": {
+        "width": 1440,
+        "productTypeId": "dd45df2c-93ec-4801-a48c-a528445cc601",
+        "schemaId": "5662dbbc-533d-4649-9a2b-651194c1d413",
+        "schemaHash": "a3c0445100aaffcf1225af97e66f153cb04326b0064877b95e59984802502e5b",
+        "assignments": 2,
+        "reload": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live 1920: unselected menu \u2192 Publish \u2192 persisted Active \u2192 reload",
+      "status": "PASS",
+      "details": {
+        "width": 1920,
+        "productTypeId": "8971bf15-91a3-4e80-bcc6-d6d5da43fb8a",
+        "schemaId": "1b1640bf-b9b3-4d84-974a-a20a1d30c6e6",
+        "schemaHash": "60710d14fe82678375701a89204920d883e316c58540b3c5617f6d5a867da83e",
+        "assignments": 2,
+        "reload": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: rejected",
+      "status": "PASS",
+      "details": {
+        "mode": "rejected",
+        "publicationAccepted": false,
+        "state": "DRAFT"
+      }
+    },
+    {
+      "name": "Live error handling: record-unavailable",
+      "status": "PASS",
+      "details": {
+        "mode": "record-unavailable",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: assignments-unavailable",
+      "status": "PASS",
+      "details": {
+        "mode": "assignments-unavailable",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: still-draft",
+      "status": "PASS",
+      "details": {
+        "mode": "still-draft",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: wrong-schema",
+      "status": "PASS",
+      "details": {
+        "mode": "wrong-schema",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: wrong-type",
+      "status": "PASS",
+      "details": {
+        "mode": "wrong-type",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: empty-assignments",
+      "status": "PASS",
+      "details": {
+        "mode": "empty-assignments",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: malformed-assignments",
+      "status": "PASS",
+      "details": {
+        "mode": "malformed-assignments",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: missing-assignment",
+      "status": "PASS",
+      "details": {
+        "mode": "missing-assignment",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: inactive-assignment",
+      "status": "PASS",
+      "details": {
+        "mode": "inactive-assignment",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: draft-assignment",
+      "status": "PASS",
+      "details": {
+        "mode": "draft-assignment",
+        "publicationAccepted": true,
+        "state": "ACTIVE"
+      }
+    },
+    {
+      "name": "Live error handling: load-failed",
+      "status": "PASS",
+      "details": {
+        "mode": "load-failed",
+        "publicationAccepted": false,
+        "state": "DRAFT"
+      }
+    }
+  ],
+  "browser": "Chromium 153.0.8010.0",
+  "runtime": "Production Next.js Admin + built NestJS API + Prisma 7.10.0, HTTPS/MFA-assured synthetic Admin session, single-connection embedded PostgreSQL 17.5",
+  "source": "Exact executable SHA 94c7f4547a521ec4502a4f6cf7b3c9f308a87975"
+}

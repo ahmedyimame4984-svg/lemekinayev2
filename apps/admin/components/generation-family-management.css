@@ -1,0 +1,21 @@
+.generation-family-workspace { display: grid; gap: 16px; min-width: 0; }
+.generation-family-workspace .admin-panel { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.generation-family-workspace .admin-filter-toolbar { display: grid; grid-template-columns: minmax(160px,1fr) minmax(200px,1.4fr) 150px minmax(220px,2fr) auto; align-items: end; gap: 12px; }
+.generation-family-workspace label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.generation-family-workspace input:not([type=checkbox]), .generation-family-workspace select { border: 1px solid var(--line); border-radius: 7px; background: var(--white); color: var(--ink); font: inherit; min-height: 36px; padding: 7px 10px; width: 100%; }
+.generation-family-workspace .admin-table-scroll { overflow: auto; max-height: 62vh; }
+.generation-family-workspace .admin-table { border-collapse: collapse; width: 100%; font-size: 13px; text-align: left; }
+.generation-family-workspace .admin-table th { background: var(--white); position: sticky; top: 0; z-index: 1; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+.generation-family-workspace .admin-table th, .generation-family-workspace .admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.generation-family-workspace .admin-table tbody tr:hover { background: #f7f8fa; }
+.generation-family-workspace .admin-library-count { color: var(--muted); font-size: 12px; margin: 12px 0; }
+.generation-family-workspace .admin-pagination, .generation-family-workspace .button-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.generation-family-workspace .admin-pagination { justify-content: flex-end; font-size: 12px; }
+.generation-family-workspace .form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin: 14px 0; }
+.generation-family-editor fieldset { border: 0; padding: 0; min-width: 0; margin: 0; }
+.generation-family-workspace .muted { color: var(--muted); font-size: 12px; }
+.generation-family-workspace .error { color: #9f2525; background: #fff1f1; border-radius: 6px; padding: 10px; }
+.generation-family-workspace .admin-notice { color: #155a3c; background: #edf8f1; padding: 10px; border-radius: 6px; }
+.generation-family-workspace :focus-visible { outline: 2px solid #2866be; outline-offset: 2px; }
+@media (max-width: 1000px) { .generation-family-workspace .admin-filter-toolbar { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 600px) { .generation-family-workspace .admin-filter-toolbar, .generation-family-workspace .form-grid { grid-template-columns: 1fr; } }
