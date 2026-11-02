@@ -57,7 +57,7 @@ export function ProductTypeImageLimits({ productType, onProductTypeChange }: {
     setMessage('');
     try {
       const updated = await patchJson<ProductTypeRecord>(
-        `/api/admin/catalog/product-types/${productType.id}`,
+        `/api/admin/catalog/product-types/${productType.id}/marketplace-rules`,
         { version: productType.version, ...rules },
       );
       onProductTypeChange(updated);
