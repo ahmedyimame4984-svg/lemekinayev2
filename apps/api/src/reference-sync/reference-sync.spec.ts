@@ -92,6 +92,19 @@ describe('Enterprise Reference Data Synchronization (Autotechdoc → LemekinayeV
         create: vi.fn().mockResolvedValue(systemUser),
       },
       referenceSyncCheckpoint: {
+        updateMany: vi.fn().mockImplementation(async ({ where, data }) => {
+          if (where.id !== DEFAULT_CHECKPOINT_ID) return { count: 0 };
+          if (where.OR) {
+            const now = new Date();
+            const eligible = !checkpointStore.lockedUntil ||
+              checkpointStore.lockedUntil <= now || checkpointStore.workerId === data.workerId;
+            if (!eligible) return { count: 0 };
+          } else if (where.workerId !== undefined && checkpointStore.workerId !== where.workerId) {
+            return { count: 0 };
+          }
+          Object.assign(checkpointStore, data);
+          return { count: 1 };
+        }),
         findUnique: vi.fn().mockImplementation(async ({ where }) => {
           if (where.id === DEFAULT_CHECKPOINT_ID) return { ...checkpointStore };
           return null;
