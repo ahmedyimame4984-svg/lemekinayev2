@@ -33,6 +33,13 @@ const modules: AdminModule[] = [
   { label: 'Overview', icon: GridIcon, href: '/admin', ready: true },
   { label: 'Search', icon: SearchIcon, href: '/admin/search', ready: true },
   {
+    label: 'Autotechdoc sync',
+    icon: ActivityIcon,
+    href: '/admin/reference-sync',
+    ready: true,
+    permissionsAny: ['catalog.manage'],
+  },
+  {
     label: 'Imports / jobs',
     icon: ActivityIcon,
     href: '/admin/imports',
