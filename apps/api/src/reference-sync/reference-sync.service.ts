@@ -442,32 +442,30 @@ export class ReferenceSyncService {
         const localCount = await this.getLocalEntityCount(entityType);
         let repaired = 0;
 
+        // Counts alone cannot detect stale values, versions, or archive flags.
+        // Refresh every published source record, including when counts match.
         if (localCount !== remoteManifest.count) {
           this.logger.warn(
-            `Count drift for ${entityType}: remote=${remoteManifest.count}, local=${localCount}. Reconciling...`,
+            `Count drift for ${entityType}: remote=${remoteManifest.count}, local=${localCount}`,
           );
-
-          let cursor: string | null = null;
-          let hasMore = true;
-
-          while (hasMore) {
-            const page: CanonicalSnapshotPageResponse =
-              await this.syncClient.fetchSnapshotPage(entityType, cursor, 100);
-            if (page.items.length > 0) {
-              await this.database.$transaction(async (tx) => {
-                for (const item of page.items) {
-                  await this.upserter.upsertRecord(
-                    tx,
-                    entityType,
-                    item as Record<string, any>,
-                  );
-                  repaired++;
-                }
-              });
-            }
-            hasMore = page.hasMore;
-            cursor = page.nextCursor;
+        }
+        let cursor: string | null = null;
+        let hasMore = true;
+        while (hasMore) {
+          const page: CanonicalSnapshotPageResponse =
+            await this.syncClient.fetchSnapshotPage(entityType, cursor, 100);
+          if (page.items.length > 0) {
+            await this.database.$transaction(async (tx) => {
+              for (const item of page.items) {
+                await this.upserter.upsertRecord(
+                  tx, entityType, item as Record<string, any>,
+                );
+                repaired++;
+              }
+            });
           }
+          hasMore = page.hasMore;
+          cursor = page.nextCursor;
         }
 
         reconciledEntities[entityType] = {
