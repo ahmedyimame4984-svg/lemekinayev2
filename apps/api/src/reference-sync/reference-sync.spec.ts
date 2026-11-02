@@ -54,6 +54,8 @@ describe('Enterprise Reference Data Synchronization (Autotechdoc → LemekinayeV
     checkpointStore = {
       id: DEFAULT_CHECKPOINT_ID,
       snapshotStatus: 'NOT_STARTED',
+      scheduleEnabled: true,
+      intervalMinutes: 5,
       snapshotId: null,
       feedCursor: null,
       lastSnapshotAt: null,
@@ -287,6 +289,33 @@ describe('Enterprise Reference Data Synchronization (Autotechdoc → LemekinayeV
       mockClient as unknown as AutotechdocSyncClient,
       upserter,
     );
+  });
+
+  it('defaults to automatic all-day synchronization every five minutes', async () => {
+    await expect(syncService.getSchedule()).resolves.toEqual({
+      enabled: true, intervalMinutes: 5,
+    });
+  });
+
+  it('persists an administrator-chosen schedule and exposes it in status', async () => {
+    await expect(syncService.updateSchedule({ enabled: true, intervalMinutes: 15 }))
+      .resolves.toEqual({ enabled: true, intervalMinutes: 15 });
+    expect((await syncService.getStatus()).intervalMinutes).toBe(15);
+    expect((await syncService.getStatus()).scheduleEnabled).toBe(true);
+  });
+
+  it('allows disabling the scheduled worker while keeping manual sync available', async () => {
+    await syncService.updateSchedule({ enabled: false, intervalMinutes: 5 });
+    expect((await syncService.getSchedule()).enabled).toBe(false);
+  });
+
+  it('rejects invalid recurrence intervals', async () => {
+    await expect(syncService.updateSchedule({ enabled: true, intervalMinutes: 0 }))
+      .rejects.toThrow(BadRequestException);
+    await expect(syncService.updateSchedule({ enabled: true, intervalMinutes: 1441 }))
+      .rejects.toThrow(BadRequestException);
+    await expect(syncService.updateSchedule({ enabled: true, intervalMinutes: 2.5 }))
+      .rejects.toThrow(BadRequestException);
   });
 
   // 1. Initial full snapshot
