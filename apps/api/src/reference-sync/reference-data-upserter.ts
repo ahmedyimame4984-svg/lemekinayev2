@@ -362,43 +362,31 @@ export class ReferenceDataUpserter {
               description: record.description ?? null,
               sortOrder: record.sortOrder ?? 0,
               brandRequirement:
-                (record.brandRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.OPTIONAL,
               identifierRequirement:
-                (record.identifierRequirement as ProductTypeIdentifierRequirement) ??
                 ProductTypeIdentifierRequirement.ANY_PART_NUMBER,
               gtinRequirement:
-                (record.gtinRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.OPTIONAL,
               oemReferenceRequirement:
-                (record.oemReferenceRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.OPTIONAL,
               crossReferenceRequirement:
-                (record.crossReferenceRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.OPTIONAL,
               fitmentRequirement:
-                (record.fitmentRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.REQUIRED,
               imageRequirement:
-                (record.imageRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.REQUIRED,
-              minimumImageCount: record.minimumImageCount ?? 1,
-              maximumImageCount: record.maximumImageCount ?? 20,
+              minimumImageCount: 1,
+              maximumImageCount: 20,
               documentRequirement:
-                (record.documentRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.OPTIONAL,
-              minimumDocumentCount: record.minimumDocumentCount ?? 0,
+              minimumDocumentCount: 0,
               priceRequirement:
-                (record.priceRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.REQUIRED,
               stockRequirement:
-                (record.stockRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.REQUIRED,
               conditionRequirement:
-                (record.conditionRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.REQUIRED,
               warrantyRequirement:
-                (record.warrantyRequirement as ProductTypeRequirementLevel) ??
                 ProductTypeRequirementLevel.OPTIONAL,
               status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
               version: record.version ?? 1,
