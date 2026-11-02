@@ -30,7 +30,6 @@ import {
   type AdminPageSize,
 } from './admin-library-shell';
 import { AdminPageHeader } from './admin-page-header';
-import { AdminMasterLifecycleActions } from './admin-master-lifecycle-actions';
 import { AdminStatusBadge } from './admin-status-badge';
 import { AdminEmptyState, AdminLoadingState } from './admin-state';
 import { AdminSearchableCombobox } from './admin-searchable-combobox';
@@ -1600,15 +1599,14 @@ export function ProductTypesManagement({
                   <span className="eyebrow">Selected Product Type</span>
                   <strong>{selectedProductType.name}</strong>
                   <small>
-                    One professional workflow for definition, requirements, technical
-                    Attributes, readiness and publishing.
+                    Canonical reference identity from Autotechdoc with editable local
+                    marketplace requirements and attribute settings.
                   </small>
                 </div>
                 <nav className="product-type-workbench-nav" aria-label="Product Type workflow">
                   <a href="#product-type-definition">Definition</a>
                   <a href="#product-type-requirements">Article requirements</a>
                   <a href="#product-type-attributes">Technical Attributes</a>
-                  <a href="#product-type-publish">Readiness & publish</a>
                 </nav>
               </section>
 
@@ -1617,11 +1615,10 @@ export function ProductTypesManagement({
                   <span className="eyebrow">Canonical reference data</span>
                   <strong>One identity, many integrations and languages</strong>
                   <small>
-                    Keep the Lemekinaye Product Type canonical while maintaining
-                    external-standard IDs and localized names/descriptions.
+                    Canonical identity, names and source versions are controlled by Autotechdoc.
                   </small>
                 </div>
-                <div className="product-type-reference-actions" style={{ display: 'none' }}>
+                {false ? <div className="product-type-reference-actions">
                   <button
                     className="button button--quiet"
                     type="button"
@@ -1636,7 +1633,7 @@ export function ProductTypesManagement({
                   >
                     External mappings
                   </button>
-                </div>
+                </div> : null}
               </div>
               <ProductTypeImageLimits
                 key={selectedProductType.id}
@@ -2521,20 +2518,7 @@ export function ProductTypesManagement({
                             ? 'Review setup'
                             : 'Continue setup'}
                         </a>
-                        <AdminMasterLifecycleActions
-                          domain="CATALOG"
-                          entityType="PRODUCT_TYPE"
-                          entityId={item.id}
-                          entityName={item.name}
-                          status={item.status}
-                          version={item.version}
-                          reactivatePath={`/api/admin/catalog/product-types/${item.id}`}
-                          disabled={!canManage}
-                          onPublishRequested={() => openProductType(true)}
-                          onCompleted={() =>
-                            setLibraryReloadKey((current) => current + 1)
-                          }
-                        />
+
                       </span>
                     </div>
                   );
