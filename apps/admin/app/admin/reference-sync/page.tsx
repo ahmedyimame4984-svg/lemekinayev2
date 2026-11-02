@@ -27,6 +27,10 @@ export default function ReferenceSyncPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [confirmFull, setConfirmFull] = useState(false);
+  const [scheduleEnabled, setScheduleEnabled] = useState(true);
+  const [intervalMinutes, setIntervalMinutes] = useState(5);
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+  const [scheduleLoaded, setScheduleLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -40,6 +44,47 @@ export default function ReferenceSyncPage() {
       setLoading(false);
     }
   }, []);
+
+  const refreshSchedule = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/reference-sync/schedule', { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Schedule unavailable (HTTP ${response.status})`);
+      const result = (await response.json()) as { enabled: boolean; intervalMinutes: number };
+      setScheduleEnabled(result.enabled);
+      setIntervalMinutes(result.intervalMinutes);
+      setScheduleLoaded(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read schedule');
+    }
+  }, []);
+
+  async function saveSchedule() {
+    if (!Number.isInteger(intervalMinutes) || intervalMinutes < 1 || intervalMinutes > 1440) {
+      setError('Choose an interval between 1 and 1440 minutes.');
+      return;
+    }
+    setScheduleBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch('/api/admin/reference-sync/schedule', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ enabled: scheduleEnabled, intervalMinutes }),
+      });
+      if (!response.ok) throw new Error(`Could not save schedule (HTTP ${response.status})`);
+      setNotice(`Automatic synchronization ${scheduleEnabled ? `scheduled every ${intervalMinutes} minute(s), every day` : 'disabled'}. Worker checks configuration every 15 seconds.`);
+      await refreshSchedule();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update schedule');
+    } finally {
+      setScheduleBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshSchedule();
+  }, [refreshSchedule]);
 
   useEffect(() => {
     void refresh();
@@ -88,6 +133,23 @@ export default function ReferenceSyncPage() {
             <div className="card" style={{ padding: 20 }}><strong>Snapshot</strong><p>{status?.snapshotStatus ?? 'Unknown'}</p></div>
             <div className="card" style={{ padding: 20 }}><strong>Worker</strong><p>{status?.isLocked ? 'Running' : 'Idle'}</p></div>
             <div className="card" style={{ padding: 20 }}><strong>Applied records</strong><p>{status?.totalApplied ?? 0}</p></div>
+          </div>
+          <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+            <h2>Automatic synchronization schedule</h2>
+            <p>Runs every day, 24 hours a day. Default: every 5 minutes (:00, :05, :10, etc.). Setting changes apply to the managed worker without restarting it.</p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <input type="checkbox" checked={scheduleEnabled} onChange={(e) => setScheduleEnabled(e.target.checked)} disabled={scheduleBusy || !scheduleLoaded} />
+              Enable automatic synchronization
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 260 }}>
+              Interval in minutes (1–1440)
+              <input type="number" min={1} max={1440} step={1} value={intervalMinutes}
+                onChange={(e) => setIntervalMinutes(Number(e.target.value))} disabled={scheduleBusy || !scheduleLoaded} />
+            </label>
+            <p>Checks are aligned to the configured interval; a long-running sync will not overlap another worker. Manual synchronization remains available if automatic scheduling is disabled.</p>
+            <button type="button" disabled={scheduleBusy || !scheduleLoaded} onClick={() => void saveSchedule()}>
+              {scheduleBusy ? 'Saving…' : 'Save schedule'}
+            </button>
           </div>
           <div className="card" style={{ padding: 24, marginBottom: 24 }}>
             <h2>Manual operations</h2>
