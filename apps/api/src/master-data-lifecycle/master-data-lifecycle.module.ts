@@ -1,3 +1,4 @@
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import { Module } from '@nestjs/common';
 import {
   AdminCatalogLifecycleController,
@@ -12,7 +13,7 @@ import { MasterDataLifecycleService } from './master-data-lifecycle.service.js';
     AdminSourcingLifecycleController,
     AdminVehicleLifecycleController,
   ],
-  providers: [MasterDataLifecycleService],
+  providers: [MasterDataLifecycleService, CanonicalReferenceReadOnlyGuard],
   exports: [MasterDataLifecycleService],
 })
 export class MasterDataLifecycleModule {}
