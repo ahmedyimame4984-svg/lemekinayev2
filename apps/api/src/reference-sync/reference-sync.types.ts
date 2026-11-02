@@ -79,6 +79,8 @@ export interface SyncResult {
 
 export interface SyncStatusReport {
   isConfigured: boolean;
+  scheduleEnabled: boolean;
+  intervalMinutes: number;
   checkpointId: string;
   snapshotStatus: string;
   snapshotId: string | null;
