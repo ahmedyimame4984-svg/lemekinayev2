@@ -10,6 +10,9 @@ export class CanonicalReferenceReadOnlyGuard implements CanActivate {
       return true;
     }
     const path = request.path.replace(/\/+$/u, '');
+    if (path.includes('/admin/reference-data/')) {
+      throw new ForbiddenException('Reference data imports and replacement are controlled by Autotechdoc synchronization.');
+    }
     if (path.includes('/admin/vehicles')) {
       // Identifier resolution is a query, not a canonical mutation.
       if (request.method === 'POST' && path.endsWith('/admin/vehicles/identifiers/resolve')) return true;
@@ -22,6 +25,9 @@ export class CanonicalReferenceReadOnlyGuard implements CanActivate {
     if (path.includes('/admin/catalog/')) {
       const suffix = path.slice(path.indexOf('/admin/catalog/') + '/admin/catalog/'.length);
       if (/^product-types\/[^/]+\/marketplace-rules$/u.test(suffix)) return true;
+      if (/^(?:professional-baseline|canonical-product-catalog)(?:\/|$)/u.test(suffix)) {
+        throw new ForbiddenException('Canonical catalog bootstrap and reconciliation are owned by Autotechdoc synchronization.');
+      }
       // Marketplace-owned Product Type attribute policies remain editable.
       if (/^product-types\/[^/]+\/attributes(?:\/|$)/u.test(suffix)) return true;
       // Client-only criteria application remains editable.
