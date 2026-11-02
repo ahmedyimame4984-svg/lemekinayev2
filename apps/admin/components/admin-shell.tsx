@@ -37,7 +37,8 @@ const modules: AdminModule[] = [
     icon: ActivityIcon,
     href: '/admin/reference-sync',
     ready: true,
-    permissionsAny: ['catalog.manage'],
+    permission: 'catalog.manage',
+    permissionsAny: ['vehicle.manage'],
   },
   {
     label: 'Imports / jobs',
