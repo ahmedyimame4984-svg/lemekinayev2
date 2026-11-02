@@ -31,7 +31,7 @@ function getApiBaseUrl(): string {
 export async function requestAdminApi<T>(
   path: string,
   options: {
-    method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: unknown;
     accessToken?: string;
     timeoutMs?: number;
