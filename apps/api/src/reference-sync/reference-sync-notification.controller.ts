@@ -3,7 +3,7 @@ import {
   Body, Controller, Headers, HttpCode, HttpStatus, Logger,
   Post, ServiceUnavailableException, UnauthorizedException, BadRequestException,
 } from '@nestjs/common';
-import { IsIn, IsString, IsUUID } from 'class-validator';
+import { IsIn, IsUUID } from 'class-validator';
 import { Public } from '../auth/auth.decorators.js';
 import { ReferenceSyncService } from './reference-sync.service.js';
 
