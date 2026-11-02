@@ -71,6 +71,21 @@ export class ReferenceSyncService {
     });
   }
 
+  private async renewLease(tx: any, workerId: string): Promise<void> {
+    const now = new Date();
+    const renewed = await tx.referenceSyncCheckpoint.updateMany({
+      where: {
+        id: DEFAULT_CHECKPOINT_ID,
+        workerId,
+        lockedUntil: { gt: now },
+      },
+      data: { lockedUntil: new Date(now.getTime() + LOCK_TTL_MS) },
+    });
+    if (renewed.count !== 1) {
+      throw new ConflictException('Reference synchronization lease expired or ownership changed');
+    }
+  }
+
   async getStatus(): Promise<SyncStatusReport> {
     await this.ensureCheckpoint();
 
@@ -178,6 +193,7 @@ export class ReferenceSyncService {
           if (page.items.length > 0) {
             await this.database.$transaction(
               async (tx) => {
+                await this.renewLease(tx, workerId);
                 for (const item of page.items) {
                   const outcome = await this.upserter.upsertRecord(
                     tx,
@@ -330,6 +346,7 @@ export class ReferenceSyncService {
         let pageSkippedCount = 0;
         await this.database.$transaction(
           async (tx) => {
+            await this.renewLease(tx, workerId);
             for (const change of feed.changes) {
               if (change.operation === 'ARCHIVE') {
                 await this.upserter.archiveRecord(tx, change.entityType, change.entityId);
@@ -456,6 +473,7 @@ export class ReferenceSyncService {
             await this.syncClient.fetchSnapshotPage(entityType, cursor, 100);
           if (page.items.length > 0) {
             await this.database.$transaction(async (tx) => {
+              await this.renewLease(tx, workerId);
               for (const item of page.items) {
                 await this.upserter.upsertRecord(
                   tx, entityType, item as Record<string, any>,
