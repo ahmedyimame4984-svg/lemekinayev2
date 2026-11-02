@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Put,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -16,7 +17,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AccountType } from '@prisma/client';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
 import {
   RequireAccountTypes,
   RequirePermissions,
@@ -34,6 +35,16 @@ export class TriggerSnapshotDto {
   forceFull?: boolean;
 }
 
+export class UpdateReferenceSyncScheduleDto {
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  intervalMinutes!: number;
+}
+
 @ApiTags('Admin reference sync')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Authentication is required' })
@@ -45,6 +56,16 @@ export class TriggerSnapshotDto {
 @Controller('admin/reference-sync')
 export class ReferenceSyncController {
   constructor(private readonly syncService: ReferenceSyncService) {}
+
+  @Get('schedule')
+  async getSchedule(): Promise<{ enabled: boolean; intervalMinutes: number }> {
+    return this.syncService.getSchedule();
+  }
+
+  @Put('schedule')
+  async updateSchedule(@Body() body: UpdateReferenceSyncScheduleDto): Promise<{ enabled: boolean; intervalMinutes: number }> {
+    return this.syncService.updateSchedule(body);
+  }
 
   @Get('status')
   @ApiOperation({ summary: 'Get current Autotechdoc synchronization status and checkpoint' })
