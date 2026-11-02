@@ -326,20 +326,23 @@ export class ReferenceSyncService {
           break;
         }
 
+        let pageAppliedCount = 0;
+        let pageSkippedCount = 0;
         await this.database.$transaction(
           async (tx) => {
             for (const change of feed.changes) {
               if (change.operation === 'ARCHIVE') {
                 await this.upserter.archiveRecord(tx, change.entityType, change.entityId);
                 appliedCount++;
+                pageAppliedCount++;
               } else {
                 const outcome = await this.upserter.upsertRecord(
                   tx,
                   change.entityType,
                   change.data,
                 );
-                if (outcome === 'APPLIED') appliedCount++;
-                else skippedCount++;
+                if (outcome === 'APPLIED') { appliedCount++; pageAppliedCount++; }
+                else { skippedCount++; pageSkippedCount++; }
               }
               processedCount++;
             }
@@ -352,8 +355,8 @@ export class ReferenceSyncService {
                 lastIncrementalAt: new Date(),
                 lastSuccessAt: new Date(),
                 lastError: null,
-                appliedCount: { increment: appliedCount },
-                skippedCount: { increment: skippedCount },
+                appliedCount: { increment: pageAppliedCount },
+                skippedCount: { increment: pageSkippedCount },
               },
             });
           },
