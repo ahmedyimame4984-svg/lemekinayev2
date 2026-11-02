@@ -1382,7 +1382,7 @@ export function ProductTypesManagement({
       <AdminPageHeader
         eyebrow="Product catalog"
         title="Product Types"
-        description="Build the generic automotive catalog from classification through technical Attributes and publication."
+        description="Browse Product Types synchronized from Autotechdoc. Only marketplace-specific requirements and attribute settings can be configured here."
       />
 
       <CatalogPrimaryNav active="product-types" />
@@ -1478,7 +1478,7 @@ export function ProductTypesManagement({
             </div>
           </section>
 
-          {createMode ? (
+          {false && createMode ? (
             <form
               className="product-classification-create"
               ref={createFormKeyboard.ref}
@@ -1621,7 +1621,7 @@ export function ProductTypesManagement({
                     external-standard IDs and localized names/descriptions.
                   </small>
                 </div>
-                <div className="product-type-reference-actions">
+                {false ? <div className="product-type-reference-actions">
                   <button
                     className="button button--quiet"
                     type="button"
@@ -1638,6 +1638,7 @@ export function ProductTypesManagement({
                   </button>
                 </div>
               </div>
+              </div> : null}
               <ProductTypeImageLimits
                 key={selectedProductType.id}
                 productType={selectedProductType}
@@ -1656,22 +1657,14 @@ export function ProductTypesManagement({
             <div className="catalog-empty product-types-no-selection">
               <h2>
                 {familyId
-                  ? 'Create or choose a Product Type'
+                  ? 'Choose a synchronized Product Type'
                   : 'Choose the catalog classification'}
               </h2>
               <p>
                 Technical Attributes become available immediately after a Product
                 Type is selected.
               </p>
-              {familyId ? (
-                <button
-                  className="button button--primary"
-                  type="button"
-                  onClick={() => openCreate('product-type')}
-                >
-                  + Add Product Type
-                </button>
-              ) : null}
+
             </div>
           )}
 
@@ -2602,7 +2595,7 @@ function ClassificationField({
   options: Array<{ id: string; label: string }>;
   placeholder: string;
   onChange: (value: string) => void;
-  onAdd: () => void;
+  onAdd?: () => void;
   addLabel: string;
   disabled?: boolean;
 }) {
@@ -2610,7 +2603,7 @@ function ClassificationField({
     <div className="product-classification-field">
       <div className="product-classification-field__heading">
         <span className="field__label">{label}</span>
-        <button
+        {false && onAdd ? <button
           className="product-classification-field__add"
           type="button"
           disabled={disabled}
@@ -2618,7 +2611,7 @@ function ClassificationField({
         >
           <span aria-hidden="true">+</span>
           {addLabel}
-        </button>
+        </button> : null}
       </div>
 
       <AdminSearchableCombobox
