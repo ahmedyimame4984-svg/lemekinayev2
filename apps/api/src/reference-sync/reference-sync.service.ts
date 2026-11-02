@@ -144,6 +144,11 @@ export class ReferenceSyncService {
 
     try {
       const manifest = await this.syncClient.fetchManifest();
+      if (!/^1\\./u.test(manifest.schemaVersion)) {
+        throw new ServiceUnavailableException(
+          `Unsupported Autotechdoc reference schema version: ${manifest.schemaVersion}`,
+        );
+      }
       const batchSize = options?.batchSize ?? 100;
 
       if (options?.forceFull) {
@@ -451,6 +456,11 @@ export class ReferenceSyncService {
 
     try {
       const manifest = await this.syncClient.fetchManifest();
+      if (!/^1\\./u.test(manifest.schemaVersion)) {
+        throw new ServiceUnavailableException(
+          `Unsupported Autotechdoc reference schema version: ${manifest.schemaVersion}`,
+        );
+      }
 
       for (const entityType of SYNCHRONIZATION_ORDER) {
         const remoteManifest = manifest.entities[entityType];
