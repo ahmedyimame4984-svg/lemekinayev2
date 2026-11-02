@@ -1,10 +1,5 @@
-import type { Metadata } from 'next';
-import { VehicleMasterConfigurationManagement } from '@/components/vehicle-master-configuration-management';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Advanced Vehicle Master Libraries',
-};
-
-export default function AdvancedVehicleMasterLibrariesPage() {
-  return <VehicleMasterConfigurationManagement />;
+export default function ReadOnlyVehicleReferenceRedirect() {
+  redirect('/admin/vehicles/configurations');
 }
