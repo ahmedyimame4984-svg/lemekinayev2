@@ -15,6 +15,10 @@ export class CanonicalReferenceReadOnlyGuard implements CanActivate {
       if (request.method === 'POST' && path.endsWith('/admin/vehicles/identifiers/resolve')) return true;
       throw new ForbiddenException('Vehicle reference data is managed and published in Autotechdoc. LemekinayeV2 is read-only.');
     }
+    if (path.includes('/admin/catalog/lifecycle/')) {
+      if (/\/CRITERIA_TEMPLATE\//u.test(path)) return true;
+      throw new ForbiddenException('Canonical catalog lifecycle is controlled by Autotechdoc.');
+    }
     if (path.includes('/admin/catalog/')) {
       const suffix = path.slice(path.indexOf('/admin/catalog/') + '/admin/catalog/'.length);
       if (/^product-types\/[^/]+\/marketplace-rules$/u.test(suffix)) return true;
