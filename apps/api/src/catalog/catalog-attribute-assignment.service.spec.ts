@@ -78,6 +78,7 @@ describe('CatalogAttributeAssignmentService', () => {
     fitmentRequirement: ProductTypeRequirementLevel.REQUIRED,
     imageRequirement: ProductTypeRequirementLevel.REQUIRED,
     minimumImageCount: 1,
+    maximumImageCount: 20,
     documentRequirement: ProductTypeRequirementLevel.OPTIONAL,
     minimumDocumentCount: 0,
     priceRequirement: ProductTypeRequirementLevel.REQUIRED,

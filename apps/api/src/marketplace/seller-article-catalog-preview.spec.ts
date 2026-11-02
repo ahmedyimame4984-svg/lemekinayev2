@@ -17,9 +17,9 @@ function arrange() {
   };
   const sellers = { requireOperationalSellerByUser: vi.fn().mockResolvedValue({ id: 'seller-1' }) };
   // Only the two read dependencies are needed for this focused method.
-  const service = Object.assign(Object.create(SellerArticleService.prototype) as SellerArticleService, {
+  const service = Object.assign(Object.create(SellerArticleService.prototype), {
     database, sellers,
-  });
+  }) as unknown as SellerArticleService;
   return { database, sellers, service };
 }
 

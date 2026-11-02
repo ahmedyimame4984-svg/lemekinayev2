@@ -173,6 +173,7 @@ describe('Seller Listing unified Save', () => {
     tx.sellerListing.findUnique.mockResolvedValue({
       sellerId, sellerProductId: 'stock-1', productId: articleId,
       status: SellerListingStatus.ACTIVE, version: 3,
+      seller: { status: 'ACTIVE', approvalStatus: 'APPROVED', verificationStatus: 'VERIFIED' },
     });
     tx.sellerListingAsset.findMany.mockResolvedValue([{ storageKey: 'seller-listings/safe-key.webp' }]);
     await expect(service.review(listingId, revisionId, userId, 'REJECT', 'Wrong image'))
@@ -234,6 +235,7 @@ describe('Seller Listing unified Save', () => {
     tx.sellerListing.findUnique.mockResolvedValue({
       sellerId, sellerProductId: 'stock-1', productId: articleId,
       status: SellerListingStatus.ACTIVE, version: 3,
+      seller: { status: 'ACTIVE', approvalStatus: 'APPROVED', verificationStatus: 'VERIFIED' },
     });
     tx.product.findUnique.mockResolvedValue({ status: ProductStatus.DRAFT });
     await expect(service.review(listingId, revisionId, userId, 'APPROVE'))
@@ -249,6 +251,7 @@ describe('Seller Listing unified Save', () => {
     tx.sellerListing.findUnique.mockResolvedValue({
       sellerId, sellerProductId: 'stock-1', productId: articleId,
       status: SellerListingStatus.ACTIVE, version: 3,
+      seller: { status: 'ACTIVE', approvalStatus: 'APPROVED', verificationStatus: 'VERIFIED' },
     });
     const result = await service.review(listingId, revisionId, userId, 'REJECT', 'Wrong product specifications');
     expect(result.status).toBe('REJECTED');

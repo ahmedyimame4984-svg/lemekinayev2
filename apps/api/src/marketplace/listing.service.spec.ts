@@ -287,17 +287,17 @@ describe('ListingService', () => {
     }));
   });
 
-  it('updates a previously approved Listing without resetting its approval', async () => {
+  it('updates a draft Listing without resetting its state', async () => {
     sellerListing.findFirst
-      .mockResolvedValueOnce({ ...persisted, status: SellerListingStatus.ACTIVE })
-      .mockResolvedValueOnce({ ...persisted, status: SellerListingStatus.ACTIVE, version: 2 });
+      .mockResolvedValueOnce({ ...persisted, status: SellerListingStatus.DRAFT })
+      .mockResolvedValueOnce({ ...persisted, status: SellerListingStatus.DRAFT, version: 2 });
     sellerListing.updateMany.mockResolvedValue({ count: 1 });
     const result = await service.updateForSellerUser(
       listingId, { version: 1, sellerDescription: 'Updated shipping offer' }, userId,
     );
-    expect(result.status).toBe(SellerListingStatus.ACTIVE);
+    expect(result.status).toBe(SellerListingStatus.DRAFT);
     expect(sellerListing.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: SellerListingStatus.ACTIVE }),
+      data: expect.objectContaining({ status: SellerListingStatus.DRAFT }),
     }));
   });
 

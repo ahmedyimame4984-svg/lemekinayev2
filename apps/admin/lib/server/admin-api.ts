@@ -19,7 +19,7 @@ function getApiBaseUrl(): string {
     throw new Error('ADMIN_API_BASE_URL is required in production');
   }
 
-  const value = configured || 'http://127.0.0.1:3000/api/v1';
+  const value = configured || 'http://127.0.0.1:5000/api/v1';
   const url = new URL(value);
   if (!['http:', 'https:'].includes(url.protocol)) {
     throw new Error('ADMIN_API_BASE_URL must use http or https');

@@ -50,7 +50,7 @@ Docker remains optional. Its Compose database uses the example port `55432`:
 docker compose --env-file .env -f infrastructure/compose.yaml up -d postgres
 ```
 
-`DATABASE_URL` is required and must be a PostgreSQL URL. `PORT` defaults to `3000`
+`DATABASE_URL` is required and must be a PostgreSQL URL. `PORT` defaults to `5000`
 and `NODE_ENV` defaults to `development`; invalid configuration stops the API before
 it starts. Never commit `.env` or production credentials.
 
@@ -144,7 +144,7 @@ is running. Requirement evidence and deferred scope are recorded in
 
 ## Admin Portal
 
-The Next.js Admin Portal runs on `http://localhost:3001`. It currently provides
+The Next.js Admin Portal runs on `http://localhost:5001`. It currently provides
 one-time account activation, QR/manual authenticator enrollment, password plus TOTP login,
 automatic access-token refresh, logout and the protected administration shell.
 Start the API and Admin Portal in separate terminals:
@@ -155,7 +155,7 @@ npm run dev:admin
 ```
 
 `ADMIN_API_BASE_URL` is server-only and defaults to
-`http://127.0.0.1:3000/api/v1` during local development. For a different API,
+`http://127.0.0.1:5000/api/v1` during local development. For a different API,
 copy `apps/admin/.env.example` to `apps/admin/.env.local` and edit that value.
 Never prefix it with `NEXT_PUBLIC_`.
 
@@ -182,7 +182,7 @@ also use `Secure` and `__Host-` names. See
 ## Seller Portal
 
 The Seller Portal is a separate Next.js application from Admin. It runs on
-`http://localhost:3002` and uses its own Seller session cookie and BFF boundary.
+`http://localhost:5002` and uses its own Seller session cookie and BFF boundary.
 Admin continues to govern Seller accounts and catalog review; Sellers use this
 application for their own operational workflows.
 
@@ -196,11 +196,11 @@ npm run dev:seller
 
 Local application boundaries:
 
-- API: `http://localhost:3000`
-- Admin: `http://localhost:3001`
-- Seller: `http://localhost:3002`
-- Seller sign in: `http://localhost:3002/login`
-- Seller Article workspace: `http://localhost:3002/articles`
+- API: `http://localhost:5000`
+- Admin: `http://localhost:5001`
+- Seller: `http://localhost:5002`
+- Seller sign in: `http://localhost:5002/login`
+- Seller Article workspace: `http://localhost:5002/articles`
 
 For a non-default API or production deployment, copy
 `apps/seller/.env.example` to `apps/seller/.env.local`. Configure

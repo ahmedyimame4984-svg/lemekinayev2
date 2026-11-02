@@ -12,12 +12,12 @@ export function resolveSellerEmailOrigin(
     throw new Error('SELLER_APP_ORIGIN must be an HTTPS origin in production.');
   }
 
-  const value = raw || 'http://127.0.0.1:3002';
+  const value = raw || 'http://127.0.0.1:5002';
   let url: URL;
   try {
     url = new URL(value);
   } catch {
-    throw new Error('SELLER_APP_ORIGIN must be a full URL, such as http://localhost:3002.');
+    throw new Error('SELLER_APP_ORIGIN must be a full URL, such as http://localhost:5002.');
   }
 
   const developmentLocalhost =

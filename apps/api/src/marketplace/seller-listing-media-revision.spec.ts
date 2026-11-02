@@ -14,7 +14,7 @@ const policy = {
   minimumDocumentCount: 0,
 };
 
-function transaction(records = [
+function transaction(records: Array<{ id: string; type: ProductAssetType; isPublished: boolean; stagedForRevisionId: string | null }> = [
   { id: prior, type: ProductAssetType.IMAGE, isPublished: true, stagedForRevisionId: null },
   { id: replacement, type: ProductAssetType.IMAGE, isPublished: false, stagedForRevisionId: null },
 ]) {
