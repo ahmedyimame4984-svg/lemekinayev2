@@ -1621,7 +1621,7 @@ export function ProductTypesManagement({
                     external-standard IDs and localized names/descriptions.
                   </small>
                 </div>
-                {false ? <div className="product-type-reference-actions">
+                <div className="product-type-reference-actions" style={{ display: 'none' }}>
                   <button
                     className="button button--quiet"
                     type="button"
@@ -1638,7 +1638,6 @@ export function ProductTypesManagement({
                   </button>
                 </div>
               </div>
-              </div> : null}
               <ProductTypeImageLimits
                 key={selectedProductType.id}
                 productType={selectedProductType}
