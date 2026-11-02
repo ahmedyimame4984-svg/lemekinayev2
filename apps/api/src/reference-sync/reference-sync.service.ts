@@ -31,14 +31,31 @@ export class ReferenceSyncService {
   ) {}
 
   private async ensureCheckpoint(): Promise<void> {
-    await this.database.referenceSyncCheckpoint.upsert({
-      where: { id: DEFAULT_CHECKPOINT_ID },
-      create: {
-        id: DEFAULT_CHECKPOINT_ID,
-        snapshotStatus: 'NOT_STARTED',
-      },
-      update: {},
-    });
+    try {
+      const existing = await this.database.referenceSyncCheckpoint.findUnique({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+        select: { id: true },
+      });
+      if (existing) {
+        return;
+      }
+
+      await this.database.referenceSyncCheckpoint.upsert({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+        create: {
+          id: DEFAULT_CHECKPOINT_ID,
+          snapshotStatus: 'NOT_STARTED',
+        },
+        update: {},
+      });
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'P2002') {
+        // Concurrent initialization race condition: already created by another request
+        return;
+      }
+      throw err;
+    }
   }
 
   async getSchedule(): Promise<{ enabled: boolean; intervalMinutes: number }> {

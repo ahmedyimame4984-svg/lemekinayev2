@@ -33,8 +33,10 @@ export class AutotechdocSyncClient {
       config?.baseUrl ??
       process.env.AUTOTECHDOC_SYNC_BASE_URL ??
       'http://127.0.0.1:4000/api/v1'
-    ).replace(/\/$/u, '');
-    this.token = config?.token ?? process.env.AUTOTECHDOC_SYNC_TOKEN;
+    )
+      .trim()
+      .replace(/\/$/u, '');
+    this.token = (config?.token ?? process.env.AUTOTECHDOC_SYNC_TOKEN)?.trim();
     this.timeoutMs = config?.timeoutMs ?? 15_000;
     this.maxRetries = config?.maxRetries ?? 4;
   }
