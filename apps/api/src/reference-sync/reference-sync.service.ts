@@ -46,44 +46,29 @@ export class ReferenceSyncService {
     const now = new Date();
     const lockedUntil = new Date(now.getTime() + ttlMs);
 
-    const checkpoint = await this.database.referenceSyncCheckpoint.findUnique({
-      where: { id: DEFAULT_CHECKPOINT_ID },
-    });
-
-    if (
-      checkpoint?.lockedUntil &&
-      checkpoint.lockedUntil > now &&
-      checkpoint.workerId !== workerId
-    ) {
-      throw new ConflictException(
-        `Synchronization is already in progress by worker ${checkpoint.workerId} until ${checkpoint.lockedUntil.toISOString()}`,
-      );
-    }
-
-    await this.database.referenceSyncCheckpoint.update({
-      where: { id: DEFAULT_CHECKPOINT_ID },
-      data: {
-        workerId,
-        lockedUntil,
+    // Atomic compare-and-set: competing workers cannot both acquire the lease.
+    const acquired = await this.database.referenceSyncCheckpoint.updateMany({
+      where: {
+        id: DEFAULT_CHECKPOINT_ID,
+        OR: [
+          { lockedUntil: null },
+          { lockedUntil: { lte: now } },
+          { workerId },
+        ],
       },
+      data: { workerId, lockedUntil },
     });
+    if (acquired.count !== 1) {
+      throw new ConflictException('Reference synchronization is already running');
+    }
   }
 
   async releaseLock(workerId: string): Promise<void> {
-    const checkpoint = await this.database.referenceSyncCheckpoint.findUnique({
-      where: { id: DEFAULT_CHECKPOINT_ID },
-      select: { workerId: true },
+    // Only the current lease owner can release; never clear another worker's lease.
+    await this.database.referenceSyncCheckpoint.updateMany({
+      where: { id: DEFAULT_CHECKPOINT_ID, workerId },
+      data: { workerId: null, lockedUntil: null },
     });
-
-    if (checkpoint?.workerId === workerId) {
-      await this.database.referenceSyncCheckpoint.update({
-        where: { id: DEFAULT_CHECKPOINT_ID },
-        data: {
-          workerId: null,
-          lockedUntil: null,
-        },
-      });
-    }
   }
 
   async getStatus(): Promise<SyncStatusReport> {
