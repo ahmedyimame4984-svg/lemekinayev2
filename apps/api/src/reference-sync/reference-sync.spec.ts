@@ -335,7 +335,7 @@ describe('Enterprise Reference Data Synchronization (Autotechdoc → LemekinayeV
     expect(result.status).toBe('SUCCESS');
     expect(result.appliedCount).toBe(2);
     expect(checkpointStore.snapshotStatus).toBe('COMPLETED');
-    expect(checkpointStore.feedCursor).toBe(serverTime);
+    expect(checkpointStore.feedCursor).toBeNull();
     expect(checkpointStore.snapshotId).toBe(serverTime);
     expect(brandStore.size).toBe(2);
     expect(brandStore.get('b1').name).toBe('Bosch');
