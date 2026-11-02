@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   Injectable,
+  Inject,
+  Optional,
   Logger,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -27,7 +29,7 @@ export class AutotechdocSyncClient {
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
 
-  constructor(config?: SyncClientConfig) {
+  constructor(@Optional() @Inject('AUTOTECHDOC_SYNC_CLIENT_CONFIG') config?: SyncClientConfig) {
     this.baseUrl = (
       config?.baseUrl ??
       process.env.AUTOTECHDOC_SYNC_BASE_URL ??
