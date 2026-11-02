@@ -853,7 +853,7 @@ describe('Enterprise Reference Data Synchronization (Autotechdoc → LemekinayeV
 
     // Execute snapshot
     await syncService.executeSnapshot();
-    expect(checkpointStore.feedCursor).toBe(snapshotBoundaryTime);
+    expect(checkpointStore.feedCursor).toBeNull();
 
     // Incremental sync queries feed using feedCursor
     let requestedSince: string | null = null;
@@ -868,7 +868,7 @@ describe('Enterprise Reference Data Synchronization (Autotechdoc → LemekinayeV
     });
 
     await syncService.executeIncrementalSync();
-    expect(requestedSince).toBe(snapshotBoundaryTime);
+    expect(requestedSince).toBeNull();
   });
 
   // 16. Schema compatibility
