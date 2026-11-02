@@ -434,19 +434,17 @@ export class ReferenceDataUpserter {
               displayOrder: record.displayOrder ?? 0,
               defaultUnitId: record.defaultUnitId ?? null,
               requirement:
-                (record.requirement as ProductTypeAttributeRequirement) ??
                 ProductTypeAttributeRequirement.OPTIONAL,
               displayMode:
-                (record.displayMode as ProductTypeAttributeDisplayMode) ??
                 ProductTypeAttributeDisplayMode.VISIBLE,
               validationRule: undefined,
               conditionalRule: undefined,
-              searchable: record.searchable ?? false,
-              filterable: record.filterable ?? false,
-              comparable: record.comparable ?? false,
-              variantDefining: record.variantDefining ?? false,
-              marketplaceVisible: record.marketplaceVisible ?? true,
-              sellerEditable: record.sellerEditable ?? true,
+              searchable: false,
+              filterable: false,
+              comparable: false,
+              variantDefining: false,
+              marketplaceVisible: true,
+              sellerEditable: true,
               origin: ProductTypeAttributeAssignmentOrigin.CANONICAL,
               status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
               version: record.version ?? 1,
