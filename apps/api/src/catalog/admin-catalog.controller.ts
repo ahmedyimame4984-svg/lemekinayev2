@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import {
   Body,
   Controller,
@@ -173,6 +175,7 @@ import {
 @ApiForbiddenResponse({ description: 'catalog.manage is required' })
 @RequireAccountTypes(AccountType.ADMIN)
 @RequirePermissions('catalog.manage')
+@UseGuards(CanonicalReferenceReadOnlyGuard)
 @Controller('admin/catalog')
 export class AdminCatalogController {
   constructor(
