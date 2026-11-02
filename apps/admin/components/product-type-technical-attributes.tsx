@@ -1278,7 +1278,81 @@ export function ProductTypeTechnicalAttributes({
         )}
       </section>
 
+      <section className="product-type-publish-panel" style={{ display: 'none' }} id="product-type-publish">
+        <div>
+          <span className="eyebrow">Review & publish</span>
+          <h3>Product Type readiness</h3>
+        </div>
 
+        <div className="product-type-readiness-checks">
+          <ReadinessCheck
+            ready={readiness.classification}
+            label="Classification complete"
+            href="#product-type-classification"
+            actionLabel="Fix classification"
+          />
+          <ReadinessCheck
+            ready={readiness.attributes}
+            label="Technical Attributes assigned"
+            href="#product-type-attributes"
+            actionLabel="Assign Attributes"
+          />
+          <ReadinessCheck
+            ready={readiness.grouping}
+            label="Attributes professionally grouped"
+            href="#product-type-attributes"
+            actionLabel="Review grouping"
+          />
+          <ReadinessCheck
+            ready={readiness.applicability}
+            label="Applicability policy defined"
+            href="#product-type-requirements"
+            actionLabel="Set fitment policy"
+          />
+          <ReadinessCheck
+            ready={invalidPublishableAttributes.length === 0}
+            label={
+              invalidPublishableAttributes.length === 0
+                ? 'Master Attributes valid'
+                : `${invalidPublishableAttributes.length} inactive master Attribute(s)`
+            }
+            href="#product-type-attributes"
+            actionLabel="Review Attributes"
+          />
+        </div>
+
+        <div className="product-type-publish-panel__actions">
+          <span>
+            {unsavedCount > 0
+              ? `Save ${unsavedCount} pending Attribute configuration(s) before publishing.`
+              : readiness.published
+              ? 'Published. Further changes require publishing a new schema version.'
+              : draftAssignments.length > 0
+                ? `${draftAssignments.length} draft Attribute assignment(s) will be activated when publishing.`
+                : 'Ready for final validation.'}
+          </span>
+          <button
+            className="button button--primary"
+            type="button"
+            disabled={
+              publishing ||
+              unsavedCount > 0 ||
+              !readiness.classification ||
+              !readiness.attributes ||
+              !readiness.grouping ||
+              !readiness.applicability ||
+              !readiness.publishable
+            }
+            onClick={() => void publishProductType()}
+          >
+            {publishing
+              ? 'Publishing…'
+              : readiness.published
+                ? 'Publish new version'
+                : 'Publish Product Type'}
+          </button>
+        </div>
+      </section>
     </section>
   );
 }
