@@ -231,7 +231,10 @@ export class ReferenceSyncService {
         data: {
           snapshotStatus: 'COMPLETED',
           snapshotId: manifest.serverTime,
-          // Replay the current published feed from its beginning after a live snapshot.\n          // The paginated snapshot is not point-in-time consistent, so starting at\n          // manifest.serverTime could silently skip records changed during paging.\n          feedCursor: null,
+          // Replay the current published feed from its beginning after a live snapshot.
+          // The paginated snapshot is not point-in-time consistent, so starting at
+          // manifest.serverTime could silently skip records changed during paging.
+          feedCursor: null,
           lastSnapshotAt: completedAt,
           lastSuccessAt: completedAt,
           lastError: null,
