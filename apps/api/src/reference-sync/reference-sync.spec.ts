@@ -904,17 +904,17 @@ describe('Enterprise Reference Data Synchronization (Autotechdoc → LemekinayeV
       } as any,
     });
 
-    mockClient.fetchSnapshotPage.mockResolvedValue({
-      entityType: 'Brand',
-      items: [
+    mockClient.fetchSnapshotPage.mockImplementation(async (entityType: string) => ({
+      entityType,
+      items: entityType === 'Brand' ? [
         { id: 'b1', code: 'BOSCH', name: 'Bosch' },
         { id: 'b2', code: 'BREMBO', name: 'Brembo' },
-      ],
+      ] : [],
       nextCursor: null,
       hasMore: false,
-      totalCount: 2,
+      totalCount: entityType === 'Brand' ? 2 : 0,
       snapshotId: 'reconcile-snap',
-    });
+    }));
 
     const report = await syncService.executeReconciliation();
     expect(report.reconciledEntities.Brand.remoteCount).toBe(2);
