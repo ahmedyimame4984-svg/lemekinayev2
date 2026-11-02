@@ -17,6 +17,7 @@ export class CanonicalReferenceReadOnlyGuard implements CanActivate {
     }
     if (path.includes('/admin/catalog/')) {
       const suffix = path.slice(path.indexOf('/admin/catalog/') + '/admin/catalog/'.length);
+      if (/^product-types\/[^/]+\/marketplace-rules$/u.test(suffix)) return true;
       // Marketplace-owned Product Type attribute policies remain editable.
       if (/^product-types\/[^/]+\/attributes(?:\/|$)/u.test(suffix)) return true;
       // Client-only criteria application remains editable.
