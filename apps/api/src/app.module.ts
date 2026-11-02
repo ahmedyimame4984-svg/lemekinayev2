@@ -14,6 +14,7 @@ import { MarketplaceModule } from './marketplace/marketplace.module.js';
 import { MasterDataLifecycleModule } from './master-data-lifecycle/master-data-lifecycle.module.js';
 import { ProductModule } from './product/product.module.js';
 import { ReferenceDataModule } from './reference-data/reference-data.module.js';
+import { ReferenceSyncModule } from './reference-sync/reference-sync.module.js';
 import { SearchModule } from './search/search.module.js';
 import { SourcingModule } from './sourcing/sourcing.module.js';
 import { VehicleModule } from './vehicle/vehicle.module.js';
@@ -32,6 +33,7 @@ import { VehicleModule } from './vehicle/vehicle.module.js';
     CatalogHealthModule,
     ProductModule,
     ReferenceDataModule,
+    ReferenceSyncModule,
     SearchModule,
     SourcingModule,
     CompatibilityModule,

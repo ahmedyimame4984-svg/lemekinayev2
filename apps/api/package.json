@@ -25,6 +25,7 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "admin:seed-demo": "npm run build --silent && node dist/scripts/seed-admin-demo.js",
     "admin:seed-master": "npm run build --silent && node dist/scripts/seed-master-reference.js",
+    "sync:reference-data": "npm run build --silent && node dist/scripts/sync-reference-data.js",
     "prestart:dev": "npm run migrate:deploy -w @lemekinaye/database"
   },
   "dependencies": {

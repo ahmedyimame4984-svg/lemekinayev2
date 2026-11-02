@@ -2701,3 +2701,59 @@ model VehicleCompatibility {
   @@index([steeringSide, driveType])
   @@map("vehicle_compatibilities")
 }
+
+model ReferenceSyncCheckpoint {
+  id                String                     @id @map("id") @db.VarChar(60)
+  snapshotStatus    String                     @default("NOT_STARTED") @map("snapshot_status") @db.VarChar(30)
+  snapshotId        String?                    @map("snapshot_id") @db.VarChar(60)
+  feedCursor        String?                    @map("feed_cursor") @db.VarChar(200)
+  lastSnapshotAt    DateTime?                  @map("last_snapshot_at")
+  lastIncrementalAt DateTime?                  @map("last_incremental_at")
+  lastSuccessAt     DateTime?                  @map("last_success_at")
+  lastFailureAt     DateTime?                  @map("last_failure_at")
+  lastError         String?                    @map("last_error")
+  appliedCount      Int                        @default(0) @map("applied_count")
+  skippedCount      Int                        @default(0) @map("skipped_count")
+  failedCount       Int                        @default(0) @map("failed_count")
+  workerId          String?                    @map("worker_id") @db.VarChar(100)
+  lockedUntil       DateTime?                  @map("locked_until")
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
+  entityStates      ReferenceSyncEntityState[]
+
+  @@map("reference_sync_checkpoints")
+}
+
+model ReferenceSyncEntityState {
+  id                  String                  @id @default(uuid()) @db.Uuid
+  checkpointId        String                  @map("checkpoint_id") @db.VarChar(60)
+  entityType          String                  @map("entity_type") @db.VarChar(60)
+  lastCompletedCursor String?                 @map("last_completed_cursor") @db.VarChar(200)
+  status              String                  @default("PENDING") @db.VarChar(30)
+  recordCount         Int                     @default(0) @map("record_count")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+  checkpoint          ReferenceSyncCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@unique([checkpointId, entityType])
+  @@index([checkpointId, status])
+  @@map("reference_sync_entity_states")
+}
+
+model ReferenceSyncLog {
+  id               String    @id @default(uuid()) @db.Uuid
+  syncType         String    @map("sync_type") @db.VarChar(30)
+  status           String    @db.VarChar(30)
+  startedAt        DateTime  @default(now()) @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+  cursorBefore     String?   @map("cursor_before") @db.VarChar(200)
+  cursorAfter      String?   @map("cursor_after") @db.VarChar(200)
+  recordsProcessed Int       @default(0) @map("records_processed")
+  recordsApplied   Int       @default(0) @map("records_applied")
+  recordsSkipped   Int       @default(0) @map("records_skipped")
+  error            String?
+  details          Json?
+
+  @@index([syncType, status, startedAt])
+  @@map("reference_sync_logs")
+}
+
