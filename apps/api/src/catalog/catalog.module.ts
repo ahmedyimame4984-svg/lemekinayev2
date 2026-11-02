@@ -1,3 +1,4 @@
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import { Module } from '@nestjs/common';
 import { ReferenceDataModule } from '../reference-data/reference-data.module.js';
 import { AdminCatalogController } from './admin-catalog.controller.js';
@@ -19,6 +20,7 @@ import { CatalogService } from './catalog.service.js';
   imports: [ReferenceDataModule],
   controllers: [CatalogController, CatalogSchemaController, AdminCatalogController],
   providers: [
+    CanonicalReferenceReadOnlyGuard,
     CatalogService,
     CatalogAttributeService,
     CatalogAttributeMasterV2Service,
