@@ -41,6 +41,28 @@ export class ReferenceSyncService {
     });
   }
 
+  async getSchedule(): Promise<{ enabled: boolean; intervalMinutes: number }> {
+    await this.ensureCheckpoint();
+    const state = await this.database.referenceSyncCheckpoint.findUniqueOrThrow({
+      where: { id: DEFAULT_CHECKPOINT_ID },
+      select: { scheduleEnabled: true, intervalMinutes: true },
+    });
+    return { enabled: state.scheduleEnabled, intervalMinutes: state.intervalMinutes };
+  }
+
+  async updateSchedule(input: { enabled: boolean; intervalMinutes: number }): Promise<{ enabled: boolean; intervalMinutes: number }> {
+    if (!Number.isInteger(input.intervalMinutes) || input.intervalMinutes < 1 || input.intervalMinutes > 1440) {
+      throw new BadRequestException('Interval must be between 1 and 1440 minutes');
+    }
+    await this.ensureCheckpoint();
+    const state = await this.database.referenceSyncCheckpoint.update({
+      where: { id: DEFAULT_CHECKPOINT_ID },
+      data: { scheduleEnabled: input.enabled, intervalMinutes: input.intervalMinutes },
+    });
+    this.logger.log(`Administrator updated reference synchronization schedule: enabled=${state.scheduleEnabled}, interval=${state.intervalMinutes} minutes`);
+    return { enabled: state.scheduleEnabled, intervalMinutes: state.intervalMinutes };
+  }
+
   async acquireLock(workerId: string, ttlMs = LOCK_TTL_MS): Promise<void> {
     await this.ensureCheckpoint();
     const now = new Date();
@@ -104,6 +126,8 @@ export class ReferenceSyncService {
 
     return {
       isConfigured: this.syncClient.isConfigured(),
+      scheduleEnabled: checkpoint.scheduleEnabled,
+      intervalMinutes: checkpoint.intervalMinutes,
       checkpointId: checkpoint.id,
       snapshotStatus: checkpoint.snapshotStatus,
       snapshotId: checkpoint.snapshotId,
