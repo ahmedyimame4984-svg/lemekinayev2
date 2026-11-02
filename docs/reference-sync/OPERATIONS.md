@@ -10,14 +10,18 @@ npm run sync:reference-data:worker -w api
 
 Run it under a restartable supervisor (systemd, PM2, container orchestrator).
 The worker checks for a completed initial snapshot and starts/resumes it automatically
-if needed. After a successful run or failure it waits the configured interval
-(default five minutes) and polls again. It must have access to the **LemekinayeV2**
+if needed. Its recurrence is stored in the LemekinayeV2 PostgreSQL checkpoint
+and controlled from Admin Pro. The default is every five minutes, every day
+(288 time slots per 24 hours), aligned to :00, :05, :10, etc. rather than
+five minutes after the previous run. Admin can choose 1–1440 minutes or disable
+automatic runs. The worker refreshes configuration every 15 seconds without a
+restart. If a sync takes longer than a slot, overlapping runs are not started;
+the next available cycle catches up from the durable checkpoint. It must have access to the **LemekinayeV2**
 PostgreSQL database; Autotechdoc is contacted only through authenticated HTTP.
 
 ```env
 AUTOTECHDOC_SYNC_BASE_URL=https://autotechdoc.example/api/v1
 AUTOTECHDOC_SYNC_TOKEN=<same-strong-machine-export-token-as-Autotechdoc>
-AUTOTECHDOC_SYNC_INTERVAL_SECONDS=300
 AUTOTECHDOC_PUBLICATION_WEBHOOK_SECRET=<distinct-strong-secret-at-least-32-chars>
 ```
 
@@ -75,3 +79,16 @@ The page is an operational UI, not a substitute for the scheduled worker.
 - Run API/Admin builds, typechecks, unit/integration tests and migrate validation.
 
 Do not merge or deploy without actual verification.
+
+## Administrator recurrence configuration
+
+Open **Admin Pro → Autotechdoc sync → Automatic synchronization schedule**.
+Set **Enable automatic synchronization** and **Interval in minutes (1–1440)**,
+then save. The API requires an Admin with both `catalog.manage` and
+`vehicle.manage`, and the database enforces the allowed interval range.
+
+For example, **5 minutes means 288 scheduled opportunities per day**;
+15 minutes means 96 per day, and 60 minutes means 24 per day.
+Actual completed runs can be fewer if the source is unreachable or a prior
+run is still active. Manual synchronization works even when the automatic
+schedule is disabled. The managed worker must be deployed and running.
