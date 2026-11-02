@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -44,6 +46,7 @@ class ReplaceMasterReferenceDataDto {
 })
 @RequireAccountTypes(AccountType.ADMIN)
 @RequirePermissions('catalog.manage', 'vehicle.manage')
+@UseGuards(CanonicalReferenceReadOnlyGuard)
 @Controller('admin/reference-data')
 export class AdminReferenceDataController {
   constructor(
