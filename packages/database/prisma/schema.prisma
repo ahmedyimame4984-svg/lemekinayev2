@@ -2705,6 +2705,8 @@ model VehicleCompatibility {
 model ReferenceSyncCheckpoint {
   id                String                     @id @map("id") @db.VarChar(60)
   snapshotStatus    String                     @default("NOT_STARTED") @map("snapshot_status") @db.VarChar(30)
+  scheduleEnabled   Boolean                    @default(true) @map("schedule_enabled")
+  intervalMinutes   Int                        @default(5) @map("interval_minutes")
   snapshotId        String?                    @map("snapshot_id") @db.VarChar(60)
   feedCursor        String?                    @map("feed_cursor") @db.VarChar(200)
   lastSnapshotAt    DateTime?                  @map("last_snapshot_at")
