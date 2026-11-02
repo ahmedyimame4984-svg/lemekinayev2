@@ -634,7 +634,7 @@ export function ProductTypeTechnicalAttributes({
         ...requirements,
       };
       const updated = await patchJson<ProductTypeRecord>(
-        `/api/admin/catalog/product-types/${productType.id}`,
+        `/api/admin/catalog/product-types/${productType.id}/marketplace-rules`,
         input,
       );
       replaceProductType(updated);
