@@ -21,7 +21,7 @@ export default async function ProductTypesPage({
       initialCategoryId={params.categoryId ?? ''}
       initialProductFamilyId={params.productFamilyId ?? ''}
       initialProductTypeId={params.productTypeId ?? ''}
-      startCreate={params.create === '1'}
+      startCreate={false}
     />
   );
 }
