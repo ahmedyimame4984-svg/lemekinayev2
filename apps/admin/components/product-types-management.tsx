@@ -1618,18 +1618,22 @@ export function ProductTypesManagement({
                     Canonical identity, names and source versions are controlled by Autotechdoc.
                   </small>
                 </div>
-                {false ? <div className="product-type-reference-actions">
+                {false && selectedProductType ? <div className="product-type-reference-actions">
                   <button
                     className="button button--quiet"
                     type="button"
-                    onClick={() => void openLocalizations(selectedProductType)}
+                    onClick={() => {
+                      if (selectedProductType) void openLocalizations(selectedProductType);
+                    }}
                   >
                     Localized content
                   </button>
                   <button
                     className="button button--quiet"
                     type="button"
-                    onClick={() => void openMappings(selectedProductType)}
+                    onClick={() => {
+                      if (selectedProductType) void openMappings(selectedProductType);
+                    }}
                   >
                     External mappings
                   </button>

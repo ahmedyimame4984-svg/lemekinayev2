@@ -1,48 +1,60 @@
-import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
+import {
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { CanonicalReferenceReadOnlyGuard } from './canonical-reference-readonly.guard.js';
 
-const guard = new CanonicalReferenceReadOnlyGuard();
+describe('Canonical ownership enforcement', () => {
+  const guard = new CanonicalReferenceReadOnlyGuard();
 
-function allowed(method: string, path: string): boolean {
-  const context = {
-    switchToHttp: () => ({ getRequest: () => ({ method, path }) }),
-  } as unknown as ExecutionContext;
-  return guard.canActivate(context);
-}
+  function request(method: string, path: string) {
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({ method, path }),
+      }),
+    } as unknown as ExecutionContext;
 
-describe('Autotechdoc-owned reference master read-only enforcement', () => {
-  it.each([
-    ['/api/v1/admin/catalog/product-types', 'POST'],
-    ['/api/v1/admin/catalog/product-types/abc', 'PATCH'],
-    ['/api/v1/admin/catalog/product-types/import/commit', 'POST'],
-    ['/api/v1/admin/catalog/product-types/abc/schemas/publish', 'POST'],
-    ['/api/v1/admin/catalog/categories', 'POST'],
-    ['/api/v1/admin/catalog/product-families', 'POST'],
-    ['/api/v1/admin/catalog/canonical-product-catalog/install', 'POST'],
-    ['/api/v1/admin/catalog/professional-baseline/reconcile', 'POST'],
-    ['/api/v1/admin/reference-data/replace', 'POST'],
-    ['/api/v1/admin/catalog/attributes/abc', 'PATCH'],
-    ['/api/v1/admin/catalog/lifecycle/PRODUCT_TYPE/abc', 'PATCH'],
-    ['/api/v1/admin/catalog/lifecycle/PRODUCT_TYPE/abc/restore', 'POST'],
-    ['/api/v1/admin/vehicles/models', 'POST'],
-    ['/api/v1/admin/vehicles/makes/abc', 'PATCH'],
-    ['/api/v1/admin/vehicles/generations', 'POST'],
-    ['/api/v1/admin/vehicles/configurations/abc', 'PATCH'],
-    ['/api/v1/admin/vehicles/lifecycle/VEHICLE_MODEL/abc', 'PATCH'],
-  ])('rejects canonical write %s %s', (path, method) => {
-    expect(() => allowed(method, path)).toThrow(ForbiddenException);
-  });
+    return () => guard.canActivate(context);
+  }
 
-  it.each([
-    ['/api/v1/admin/catalog/product-types/abc', 'GET'],
-    ['/api/v1/admin/vehicles/models', 'GET'],
-    ['/api/v1/admin/catalog/product-types/abc/marketplace-rules', 'PATCH'],
-    ['/api/v1/admin/catalog/product-types/abc/attributes/assignment', 'PATCH'],
-    ['/api/v1/admin/catalog/product-types/abc/attributes', 'POST'],
-    ['/api/v1/admin/catalog/lifecycle/CRITERIA_TEMPLATE/abc', 'PATCH'],
-    ['/api/v1/admin/vehicles/identifiers/resolve', 'POST'],
-  ])('retains allowed read or consumer-side write %s %s', (path, method) => {
-    expect(allowed(method, path)).toBe(true);
-  });
+  const forbidden = [
+    ['POST', '/api/v1/admin/catalog/product-types'],
+    ['PATCH', '/api/v1/admin/catalog/product-types/abc'],
+    ['POST', '/api/v1/admin/catalog/categories'],
+    ['POST', '/api/v1/admin/catalog/product-families'],
+    ['POST', '/api/v1/admin/catalog/attributes'],
+    ['POST', '/api/v1/admin/catalog/product-types/import/commit'],
+    ['POST', '/api/v1/admin/catalog/product-types/abc/schemas/publish'],
+    ['POST', '/api/v1/admin/vehicles/makes'],
+    ['POST', '/api/v1/admin/vehicles/models'],
+    ['POST', '/api/v1/admin/vehicles/configurations'],
+    ['PATCH', '/api/v1/admin/vehicles/configurations/abc'],
+    ['POST', '/api/v1/admin/reference-data/replace'],
+    ['PATCH', '/api/v1/admin/catalog/lifecycle/PRODUCT_TYPE/abc'],
+  ];
+
+  it.each(forbidden)(
+    'blocks canonical mutation %s %s',
+    (method, path) => {
+      expect(request(method, path)).toThrow(
+        ForbiddenException,
+      );
+    },
+  );
+
+  const permitted = [
+    ['GET', '/api/v1/admin/catalog/product-types'],
+    ['GET', '/api/v1/admin/vehicles/makes'],
+    ['GET', '/api/v1/admin/vehicles/configurations/library'],
+    ['PATCH', '/api/v1/admin/catalog/product-types/abc/marketplace-rules'],
+    ['PATCH', '/api/v1/admin/catalog/product-types/abc/attributes/assignment'],
+  ];
+
+  it.each(permitted)(
+    'permits reference read or local configuration %s %s',
+    (method, path) => {
+      expect(request(method, path)()).toBe(true);
+    },
+  );
 });

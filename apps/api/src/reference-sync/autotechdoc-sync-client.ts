@@ -1,9 +1,8 @@
 import {
   BadRequestException,
   Injectable,
-  Inject,
-  Optional,
   Logger,
+  Optional,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -29,7 +28,7 @@ export class AutotechdocSyncClient {
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
 
-  constructor(@Optional() @Inject('AUTOTECHDOC_SYNC_CLIENT_CONFIG') config?: SyncClientConfig) {
+  constructor(@Optional() config?: SyncClientConfig) {
     this.baseUrl = (
       config?.baseUrl ??
       process.env.AUTOTECHDOC_SYNC_BASE_URL ??
