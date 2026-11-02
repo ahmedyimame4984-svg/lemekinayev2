@@ -924,6 +924,15 @@ describe('Enterprise Reference Data Synchronization (Autotechdoc → LemekinayeV
     expect(brandStore.get('b2').name).toBe('Brembo');
   });
 
+  it('does not let a previous worker release the active worker lease', async () => {
+    checkpointStore.workerId = 'worker-active';
+    checkpointStore.lockedUntil = new Date(Date.now() + 60_000);
+    await syncService.releaseLock('worker-stale');
+    expect(checkpointStore.workerId).toBe('worker-active');
+    await syncService.releaseLock('worker-active');
+    expect(checkpointStore.workerId).toBeNull();
+  });
+
   // 18. Concurrent synchronization worker protection
   it('18. prevents overlapping concurrent workers from advancing checkpoints simultaneously', async () => {
     // Worker 1 holds active lock
