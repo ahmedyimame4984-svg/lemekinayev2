@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import {
   Body,
   Controller,
@@ -42,6 +44,7 @@ import { VehicleIdentificationService } from './vehicle-identification.service.j
 @ApiForbiddenResponse({ description: 'vehicle.manage is required' })
 @RequireAccountTypes(AccountType.ADMIN)
 @RequirePermissions('vehicle.manage')
+@UseGuards(CanonicalReferenceReadOnlyGuard)
 @Controller('admin/vehicles/identifiers')
 export class AdminVehicleIdentificationController {
   constructor(
