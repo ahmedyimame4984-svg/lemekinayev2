@@ -38,7 +38,7 @@ export class ReferenceSyncNotificationController {
       throw new ServiceUnavailableException('Publication notifications not configured');
     }
     const numericTimestamp = Number(timestamp);
-    if (!timestamp || !/^\\d{10,13}$/.test(timestamp) ||
+    if (!timestamp || !/^\d{10,13}$/.test(timestamp) ||
       !Number.isFinite(numericTimestamp) ||
       Math.abs(Date.now() - (timestamp.length === 10 ? numericTimestamp * 1000 : numericTimestamp)) > 300_000) {
       throw new UnauthorizedException('Invalid or expired publication notification');
