@@ -451,8 +451,8 @@ export class ReferenceDataUpserter {
               displayMode:
                 (record.displayMode as ProductTypeAttributeDisplayMode) ??
                 ProductTypeAttributeDisplayMode.VISIBLE,
-              validationRule: record.validationRule ?? undefined,
-              conditionalRule: record.conditionalRule ?? undefined,
+              validationRule: undefined,
+              conditionalRule: undefined,
               searchable: record.searchable ?? false,
               filterable: record.filterable ?? false,
               comparable: record.comparable ?? false,
