@@ -1,3 +1,4 @@
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import { AdminGenerationFamilyController } from './admin-generation-family.controller.js';
 import { GenerationFamilyService } from './generation-family.service.js';
 import { AdminVehicleMarketController } from './admin-vehicle-market.controller.js';
@@ -32,6 +33,7 @@ import { VinService } from './vin.service.js';
     VehicleProfileController,
   ],
   providers: [
+    CanonicalReferenceReadOnlyGuard,
     GenerationFamilyService,
     VehicleMarketService,
     VehicleService,
