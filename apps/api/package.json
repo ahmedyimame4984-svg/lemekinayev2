@@ -26,7 +26,8 @@
     "admin:seed-demo": "npm run build --silent && node dist/scripts/seed-admin-demo.js",
     "admin:seed-master": "npm run build --silent && node dist/scripts/seed-master-reference.js",
     "sync:reference-data": "npm run build --silent && node dist/scripts/sync-reference-data.js",
-    "prestart:dev": "npm run migrate:deploy -w @lemekinaye/database"
+    "prestart:dev": "npm run migrate:deploy -w @lemekinaye/database",
+    "sync:reference-data:worker": "npm run build --silent && node dist/scripts/sync-reference-data-worker.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
