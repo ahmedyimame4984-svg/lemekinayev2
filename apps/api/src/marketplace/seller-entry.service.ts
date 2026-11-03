@@ -223,6 +223,7 @@ export class SellerEntryService {
         sellerDescription: input.sellerDescription,
         warrantyInformation: input.warrantyInformation,
         deliveryInformation: input.deliveryInformation,
+        commercialDetails: input.commercialDetails,
         sellingPrice: input.sellingPrice,
         basePrice: 0,
         currency: 'ETB',

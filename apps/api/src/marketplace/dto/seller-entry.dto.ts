@@ -7,6 +7,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { SubmitSellerArticleDto } from './seller-article.dto.js';
+import { SellerListingCommercialDto } from './seller-listing-commercial.dto.js';
 
 export enum SellerEntryKind {
   INVENTORY = 'INVENTORY',
@@ -104,4 +105,8 @@ export class SaveSellerEntryDto {
   @ApiPropertyOptional({ maxLength: 5000 })
   @IsOptional() @IsString() @MaxLength(5000)
   deliveryInformation?: string;
+
+  @ApiPropertyOptional({ type: SellerListingCommercialDto })
+  @IsOptional() @ValidateNested() @Type(() => SellerListingCommercialDto)
+  commercialDetails?: SellerListingCommercialDto;
 }
