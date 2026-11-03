@@ -880,6 +880,12 @@ model ProductType {
   stockRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("stock_requirement")
   conditionRequirement ProductTypeRequirementLevel @default(REQUIRED) @map("condition_requirement")
   warrantyRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("warranty_requirement")
+  // Lemekinaye-only Seller Offer policies; never synchronized from Autotechdoc.
+  packageDimensionsRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("package_dimensions_requirement")
+  packageWeightRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("package_weight_requirement")
+  discountRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("discount_requirement")
+  transportRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("transport_requirement")
+  specialHandlingRequirement ProductTypeRequirementLevel @default(OPTIONAL) @map("special_handling_requirement")
   status      MasterDataStatus @default(DRAFT)
   version     Int              @default(1)
   createdById String           @map("created_by_id") @db.Uuid
@@ -1616,6 +1622,9 @@ model SellerListing {
   warrantyInformation String?            @map("warranty_information")
   deliveryInformation String?            @map("delivery_information")
   commercialTerms    String?             @map("commercial_terms")
+  // Seller-owned packaging, promotion intent, and one-unit transport declaration.
+  // Kept separate from canonical technical attributes and Article identity.
+  commercialDetails  Json?               @map("commercial_details")
   status             SellerListingStatus @default(DRAFT)
   reviewIntent       Boolean             @default(false) @map("review_intent")
   rejectionReason    String?             @map("rejection_reason")
