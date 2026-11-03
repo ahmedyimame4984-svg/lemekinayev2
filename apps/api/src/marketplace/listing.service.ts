@@ -155,7 +155,10 @@ export class ListingService {
           },
         ],
       },
-      select: { schemaVersion: { select: { snapshot: true } } },
+      select: { schemaVersion: { select: { snapshot: true } },
+        productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true,
+          discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
+      },
     });
     if (!article) {
       throw new BadRequestException({
