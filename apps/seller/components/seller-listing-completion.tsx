@@ -14,11 +14,12 @@ import { SellerListingMedia } from './seller-listing-media';
  * losing the private Draft. The authenticated API decides publication.
  */
 export function SellerListingCompletion({
-  listingId, onSubmitted, onSaveDraft,
+  listingId, onSubmitted, onSaveDraft, onBlockingChange,
 }: {
   listingId: string;
   onSubmitted: (result: SellerListingRow) => Promise<void> | void;
   onSaveDraft: () => Promise<void> | void;
+  onBlockingChange?: (blocking: boolean) => void;
 }) {
   const [listing, setListing] = useState<SellerListingRow | null>(null);
   const [article, setArticle] = useState<SellerListingArticleDetails | null>(null);
@@ -31,6 +32,9 @@ export function SellerListingCompletion({
   const [notice, setNotice] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const issues = listingMediaIssues(media);
+  useEffect(() => {
+    onBlockingChange?.(mediaPending || submitting);
+  }, [mediaPending, submitting, onBlockingChange]);
 
   useEffect(() => {
     let active = true;

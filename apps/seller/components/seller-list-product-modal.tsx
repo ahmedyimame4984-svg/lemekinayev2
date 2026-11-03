@@ -1,6 +1,7 @@
 'use client';
 
 import { SellerListingCommercialFields } from './seller-listing-commercial-fields';
+import { SellerListingCompletion } from './seller-listing-completion';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ClientApiError, getJson, postJson } from '@/lib/client-api';
@@ -35,6 +36,8 @@ export function SellerListProductModal({
   const [loadError, setLoadError] = useState('');
   const [retry, setRetry] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [draftListingId, setDraftListingId] = useState<string | null>(null);
+  const [completionBlocking, setCompletionBlocking] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [saveError, setSaveError] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -42,7 +45,7 @@ export function SellerListProductModal({
   const closeRef = useRef(onClose);
   const savingRef = useRef(saving);
   closeRef.current = onClose;
-  savingRef.current = saving;
+  savingRef.current = saving || completionBlocking;
 
   useEffect(() => {
     let active = true;
@@ -87,7 +90,7 @@ export function SellerListProductModal({
       }
       if (event.key !== 'Tab') return;
       const elements = [...dialog.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       )].filter(element => element.getClientRects().length > 0);
       const first = elements[0];
       const last = elements[elements.length - 1];
@@ -130,7 +133,7 @@ export function SellerListProductModal({
     try {
       const result = await postJson<{ record: SellerListingRow }>('/api/seller/entry',
         inventoryListingPayload(product, details, requirements));
-      await onSaved(result.record);
+      setDraftListingId(result.record.id);
     } catch (cause) {
       setSaveError(cause instanceof ClientApiError || cause instanceof Error
         ? cause.message : 'Could not create the Draft Listing. Please try again.');
@@ -150,21 +153,33 @@ export function SellerListProductModal({
         aria-modal="true"
         aria-labelledby="seller-list-product-heading"
         aria-describedby="seller-list-product-description"
-        className="flex max-h-[95vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div>
-            <h2 id="seller-list-product-heading" className="text-xl font-semibold text-slate-950">List Product</h2>
+            <h2 id="seller-list-product-heading" className="text-xl font-semibold text-slate-950">
+              {draftListingId ? 'Complete Product Listing' : 'List Product'}
+            </h2>
             <p id="seller-list-product-description" className="mt-1 text-sm text-slate-600">
-              Prepare a Draft Listing from existing Inventory. Stock stays in Inventory and publication still requires Admin approval.
+              {draftListingId
+                ? 'Your private Draft is saved. Finish photos and submit here without opening another screen.'
+                : 'Enter the selling details from this Inventory SKU. Photos and approval are completed in this workspace.'}
             </p>
           </div>
-          <button type="button" disabled={saving} onClick={onClose}
+          <button type="button" disabled={saving || completionBlocking} onClick={onClose}
             aria-label="Close List Product dialog"
             className="rounded-md p-2 text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-[#a71920] disabled:opacity-50">
             ✕
           </button>
         </div>
+        {draftListingId ? (
+          <div className="min-h-0 space-y-4 overflow-y-auto px-5 py-4">
+            <SellerListingCompletion listingId={draftListingId}
+              onBlockingChange={setCompletionBlocking}
+              onSaveDraft={onClose}
+              onSubmitted={onSaved}/>
+          </div>
+        ) : (
         <form onSubmit={save} className="flex min-h-0 flex-col">
           <div className="space-y-4 overflow-y-auto px-5 py-4">
             <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm sm:grid-cols-2">
@@ -240,16 +255,17 @@ export function SellerListProductModal({
               <p role="status" className="text-sm text-amber-800">{validationError}</p>
             ) : null}
             <div className="flex flex-wrap justify-end gap-2">
-              <button type="button" disabled={saving} onClick={onClose}
+              <button type="button" disabled={saving || completionBlocking} onClick={onClose}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 focus-visible:outline-2 focus-visible:outline-[#a71920] disabled:opacity-50">
                 Cancel
               </button>
               <button type="submit" disabled={saving || loading || Boolean(loadError) || Boolean(validationError)} className={buttonClass}>
-                {saving ? 'Saving Draft…' : 'Continue to Listing images'}
+                {saving ? 'Saving Draft…' : 'Save private Draft & add photos'}
               </button>
             </div>
           </div>
         </form>
+        )}
       </div>
     </div>,
     document.body,
