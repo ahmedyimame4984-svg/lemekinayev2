@@ -1,5 +1,4 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import {
   ArrayMaxSize, ArrayUnique, IsArray, IsEnum, IsNumber,
   IsOptional, IsString, Max, MaxLength, Min,
