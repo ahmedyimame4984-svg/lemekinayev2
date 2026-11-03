@@ -10,6 +10,11 @@ import { SellerService } from './seller.service.js';
 import { SellerArticleService } from './seller-article.service.js';
 import { SellerR2StorageService } from './seller-r2-storage.service.js';
 import { assertSellerListingMediaReady } from './seller-listing-media-readiness.js';
+import {
+  DEFAULT_COMMERCIAL_POLICY, commercialPolicyForProductType,
+  validateSellerCommercialDetails, discountPrice,
+} from './seller-listing-commercial.js';
+import type { SellerCommercialDetails } from './seller-listing-commercial.js';
 import { parseProposedMedia, publishProposedMedia, validateProposedMedia } from './seller-listing-media-revision.js';
 
 type ListingSaveOutcome = {
@@ -91,6 +96,7 @@ export class SellerListingEditService {
             id: true, version: true, status: true, productId: true,
             sellerProductId: true, sellerTitle: true, sellerDescription: true,
             warrantyInformation: true, deliveryInformation: true,
+            commercialDetails: true,
             price: { select: { id: true, version: true, sellingPrice: true } },
           },
         });
@@ -127,9 +133,27 @@ export class SellerListingEditService {
             throw new BadRequestException('Choose an Active product or your own Draft product.');
           }
         }
-        const changes = offeredFields(input);
+        const changes = offeredFields(input) as Partial<Record<SellingFields, string | null>> & {
+          commercialDetails?: SellerCommercialDetails;
+        };
         for (const field of FIELDS) {
           if (changes[field] === listing[field]) delete changes[field];
+        }
+        // Client-owned commercial policy follows the selected Article's local Product Type.
+        const selectedArticle = await tx.product.findUniqueOrThrow({
+          where: { id: productId }, select: { productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } }, },
+        });
+        const commercialPolicy = selectedArticle.productType
+          ? commercialPolicyForProductType(selectedArticle.productType)
+          : DEFAULT_COMMERCIAL_POLICY;
+        const proposedCommercial = input.commercialDetails === undefined ? undefined
+          : validateSellerCommercialDetails(
+              input.commercialDetails, commercialPolicy, false,
+              input.sellingPrice ?? (listing.price ? Number(listing.price.sellingPrice) : null),
+            );
+        if (proposedCommercial !== undefined &&
+          JSON.stringify(proposedCommercial) !== JSON.stringify(listing.commercialDetails ?? {})) {
+          changes.commercialDetails = proposedCommercial;
         }
         const mediaChanged = input.mediaAssetIds !== undefined;
         if (mediaChanged && isLive(listing.status)) {
@@ -153,6 +177,12 @@ export class SellerListingEditService {
         if (!contentChanged && !priceChanged) {
           return { listingId: id, version: listing.version, status: 'UNCHANGED', articleId: productId };
         }
+        const nextPrice = input.sellingPrice ?? (listing.price ? Number(listing.price.sellingPrice) : null);
+        const appliedCommercial = (isEditableDraft(listing.status) && changes.commercialDetails
+          ? changes.commercialDetails : listing.commercialDetails) ?? {};
+        const checkedCommercial = validateSellerCommercialDetails(appliedCommercial,
+          commercialPolicy, false, nextPrice);
+        const discountedPrice = nextPrice === null ? null : discountPrice(nextPrice, checkedCommercial);
         if (priceChanged) {
           const product = await tx.product.findUniqueOrThrow({
             where: { id: isLive(listing.status) ? listing.productId : productId }, select: { priceRequirement: true },
@@ -163,12 +193,14 @@ export class SellerListingEditService {
           if (listing.price) {
             const updated = await tx.listingPrice.updateMany({
               where: { id: listing.price.id, version: input.priceVersion },
-              data: { sellingPrice: input.sellingPrice!, version: { increment: 1 } },
+              data: { sellingPrice: input.sellingPrice!, promotionalPrice: discountedPrice,
+                version: { increment: 1 } },
             });
             if (updated.count !== 1) throw new ConflictException('Price changed. Reload before saving.');
           } else {
             await tx.listingPrice.create({ data: {
-              listingId: id, basePrice: 0, sellingPrice: input.sellingPrice!, currency: 'ETB',
+              listingId: id, basePrice: 0, sellingPrice: input.sellingPrice!,
+              promotionalPrice: discountedPrice, currency: 'ETB',
             } });
           }
           await tx.auditLog.create({ data: {
@@ -177,6 +209,15 @@ export class SellerListingEditService {
             metadata: { oldValue: listing.price ? Number(listing.price.sellingPrice) : null,
               newValue: input.sellingPrice },
           } });
+        }
+        if (!priceChanged && isEditableDraft(listing.status) &&
+            changes.commercialDetails !== undefined && listing.price) {
+          // Discount edits on a Draft update the stored promotional price atomically.
+          const priceUpdated = await tx.listingPrice.updateMany({
+            where: { id: listing.price.id, version: listing.price.version },
+            data: { promotionalPrice: discountedPrice, version: { increment: 1 } },
+          });
+          if (priceUpdated.count !== 1) throw new ConflictException('Listing price changed. Reload.');
         }
         const updated = await tx.sellerListing.updateMany({
           where: { id, sellerId: seller.id, version: input.version },
@@ -308,7 +349,8 @@ export class SellerListingEditService {
         where: { id }, select: {
           sellerId: true, sellerProductId: true, productId: true,
           status: true, version: true, condition: true, warrantyInformation: true,
-          price: { select: { sellingPrice: true } },
+          commercialDetails: true,
+          price: { select: { id: true, version: true, sellingPrice: true } },
           inventories: { select: { id: true } },
           seller: { select: { status: true, approvalStatus: true, verificationStatus: true } },
         },
@@ -330,6 +372,7 @@ export class SellerListingEditService {
             conditionRequirement: true, warrantyRequirement: true,
             imageRequirement: true, minimumImageCount: true, maximumImageCount: true,
             documentRequirement: true, minimumDocumentCount: true,
+            productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
           },
         });
         if (article?.status !== ProductStatus.ACTIVE) {
@@ -340,6 +383,14 @@ export class SellerListingEditService {
             !Array.isArray(revision.changes) ? revision.changes : {})
             .filter(([key]) => FIELDS.includes(key as SellingFields)),
         ) as Partial<Record<SellingFields, string | null>>;
+        const revisionChanges = (revision.changes && typeof revision.changes === 'object' &&
+          !Array.isArray(revision.changes) ? revision.changes : {}) as Record<string, unknown>;
+        const nextCommercial = revisionChanges.commercialDetails === undefined
+          ? listing.commercialDetails : revisionChanges.commercialDetails;
+        const verifiedCommercial = validateSellerCommercialDetails(nextCommercial,
+          article.productType ? commercialPolicyForProductType(article.productType)
+            : DEFAULT_COMMERCIAL_POLICY, true,
+          listing.price ? Number(listing.price.sellingPrice) : null);
         const warranty = allowed.warrantyInformation === undefined
           ? listing.warrantyInformation : allowed.warrantyInformation;
         if ((article.priceRequirement === ProductTypeRequirementLevel.REQUIRED && !listing.price) ||
@@ -366,11 +417,22 @@ export class SellerListingEditService {
           where: { id, version: listing.version },
           data: {
             ...allowed,
+            ...(revisionChanges.commercialDetails !== undefined
+              ? { commercialDetails: verifiedCommercial as Prisma.InputJsonObject } : {}),
             ...(revision.proposedProductId ? { productId: revision.proposedProductId } : {}),
             version: { increment: 1 }, updatedById: actorId,
           },
         });
         if (updated.count !== 1) throw new ConflictException('Listing changed during review.');
+        if (revisionChanges.commercialDetails !== undefined && listing.price) {
+          await tx.listingPrice.update({
+            where: { id: listing.price.id },
+            data: {
+              promotionalPrice: discountPrice(Number(listing.price.sellingPrice), verifiedCommercial),
+              version: { increment: 1 },
+            },
+          });
+        }
         // The live asset set changes only inside the same successful Admin transaction.
         const proposedMedia = parseProposedMedia(revision.proposedMedia);
         if (proposedMedia) cleanupKeys.push(...await publishProposedMedia(tx, id, revisionId, proposedMedia, article));
