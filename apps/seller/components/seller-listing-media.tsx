@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 import { AlertCircle, CheckCircle2, FileText, ImagePlus, Loader2, UploadCloud, X } from 'lucide-react';
 import { ClientApiError, getJson, patchJson, postJson } from '@/lib/client-api';
 import { optimizeListingImage } from '@/lib/optimize-listing-image';
+import type { ListingMediaReadiness } from '@/lib/seller-listing-readiness';
 import {
   listingMediaLimit,
   putFileToR2, validateListingFile,
@@ -54,11 +55,13 @@ export function SellerListingMediaEmptyState({ loaded, loading, count }: {
 
 export type ProposedMediaSelection = { assetIds: string[]; primaryId: string | null; changed: boolean };
 export function SellerListingMedia({
-  listingId, readOnly = false, reviewMode = false, onPendingChange, onSelectionChange,
+  listingId, readOnly = false, reviewMode = false,
+  onPendingChange, onSelectionChange, onReadinessChange,
 }: {
   listingId: string; readOnly?: boolean; reviewMode?: boolean;
   onPendingChange?: (hasUnuploadedFiles: boolean) => void;
   onSelectionChange?: (selection: ProposedMediaSelection) => void;
+  onReadinessChange?: (readiness: ListingMediaReadiness | null) => void;
 }) {
   const base = `/api/seller/listings/${listingId}/assets`;
   const fileInputId = useId();
@@ -348,6 +351,25 @@ export function SellerListingMedia({
     (images.length === 0 || (reviewMode
       ? images.some(asset => asset.id === selectedPrimaryId)
       : images.some(asset => asset.isPrimary)));
+  const hasPrimaryImage = images.some(asset => reviewMode
+    ? asset.id === selectedPrimaryId : asset.isPrimary);
+  const readiness = useMemo<ListingMediaReadiness | null>(() => {
+    if (!loaded || !policy) return null;
+    return {
+      imageApplicable: policy.image !== 'NOT_APPLICABLE',
+      documentApplicable: policy.document !== 'NOT_APPLICABLE',
+      imageCount: images.length,
+      minimumImages: neededImages,
+      maximumImages: listingMediaLimit('IMAGE', policy),
+      documentCount: documents.length,
+      minimumDocuments: neededDocuments,
+      hasPrimaryImage,
+      complete,
+    };
+  }, [loaded, policy, images.length, documents.length, neededImages, neededDocuments, hasPrimaryImage, complete]);
+  useEffect(() => {
+    onReadinessChange?.(readiness);
+  }, [onReadinessChange, readiness]);
   const waiting = pending.filter(row => row.status === 'queued' || row.status === 'failed').length;
   const published = assets.filter(asset => asset.isPublished);
   const proposedChanged = reviewMode && (
@@ -375,15 +397,19 @@ export function SellerListingMedia({
       <div className="space-y-1">
         <h3 className="text-base font-semibold text-slate-900">Listing images and documents</h3>
         <p className="text-sm text-slate-600">
-          Upload actual Seller product photos. Multiple images are supported.
-          Each file is saved only after private Cloudflare R2 verification.
+          Upload clear photos of the actual part: main view, other angles, visible part number,
+          and packaging. For used or refurbished parts, show wear and defects.
+          Files are saved only after private Cloudflare R2 verification.
         </p>
       </div>
       {loading ? <p role="status" className="text-sm text-slate-600">Loading Listing media…</p> : null}
       {policy ? (
         <p className="text-sm text-slate-700">
-          Images: <strong>{policy.image}</strong> ({images.length} uploaded, minimum {neededImages}, maximum {listingMediaLimit('IMAGE', policy)}).
+          Images: <strong>{policy.image}</strong> ({images.length} verified, minimum {neededImages}, maximum {listingMediaLimit('IMAGE', policy)}).
           {' '}Documents: <strong>{policy.document}</strong> ({documents.length}/{neededDocuments} minimum).
+          {neededImages > 0 ? <span className="ml-1 font-medium">
+            {Math.min(images.length, neededImages)} of {neededImages} required images ready.
+          </span> : null}
         </p>
       ) : null}
 
@@ -527,8 +553,8 @@ export function SellerListingMedia({
       ) : null}
       {policy ? (
         <p role="status" className={complete ? 'text-sm text-green-800' : 'text-sm text-amber-800'}>
-          {complete ? (reviewMode ? 'Proposed media meets requirements. Save Listing to submit for Admin review.' : 'Verified media requirements satisfied. You can Create Listing.') :
-            'Upload required files and select a primary image before creating the Listing.'}
+          {complete ? (reviewMode ? 'Proposed media meets requirements. Save Listing to submit for Admin review.' : 'Verified media requirements satisfied. You can submit the Listing for review.') :
+            'Upload required files and select a primary image before submitting the Listing.'}
         </p>
       ) : null}
     </section>
