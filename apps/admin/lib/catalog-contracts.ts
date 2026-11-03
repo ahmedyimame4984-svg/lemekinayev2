@@ -250,6 +250,11 @@ export interface ProductTypeRecord {
   stockRequirement: ProductTypeRequirementLevel;
   conditionRequirement: ProductTypeRequirementLevel;
   warrantyRequirement: ProductTypeRequirementLevel;
+  packageDimensionsRequirement: ProductTypeRequirementLevel;
+  packageWeightRequirement: ProductTypeRequirementLevel;
+  discountRequirement: ProductTypeRequirementLevel;
+  transportRequirement: ProductTypeRequirementLevel;
+  specialHandlingRequirement: ProductTypeRequirementLevel;
   status: MasterDataStatus;
   version: number;
   currentSchemaVersionId: string | null;
@@ -385,6 +390,11 @@ export interface CreateProductTypeInput {
   stockRequirement?: ProductTypeRequirementLevel;
   conditionRequirement?: ProductTypeRequirementLevel;
   warrantyRequirement?: ProductTypeRequirementLevel;
+  packageDimensionsRequirement?: ProductTypeRequirementLevel;
+  packageWeightRequirement?: ProductTypeRequirementLevel;
+  discountRequirement?: ProductTypeRequirementLevel;
+  transportRequirement?: ProductTypeRequirementLevel;
+  specialHandlingRequirement?: ProductTypeRequirementLevel;
   status?: MasterDataStatus;
 }
 
@@ -411,6 +421,11 @@ export interface UpdateProductTypeInput {
   stockRequirement?: ProductTypeRequirementLevel;
   conditionRequirement?: ProductTypeRequirementLevel;
   warrantyRequirement?: ProductTypeRequirementLevel;
+  packageDimensionsRequirement?: ProductTypeRequirementLevel;
+  packageWeightRequirement?: ProductTypeRequirementLevel;
+  discountRequirement?: ProductTypeRequirementLevel;
+  transportRequirement?: ProductTypeRequirementLevel;
+  specialHandlingRequirement?: ProductTypeRequirementLevel;
   status?: MasterDataStatus;
 }
 

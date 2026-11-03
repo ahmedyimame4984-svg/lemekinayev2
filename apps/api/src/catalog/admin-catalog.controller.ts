@@ -170,7 +170,7 @@ import {
   PublishProductTypeSchemaDto,
 } from './dto/product-type-schema.dto.js';
 
-export class UpdateMarketplaceProductTypeRulesDto extends PickType(UpdateProductTypeDto, ["version","brandRequirement","identifierRequirement","gtinRequirement","oemReferenceRequirement","crossReferenceRequirement","fitmentRequirement","imageRequirement","minimumImageCount","maximumImageCount","documentRequirement","minimumDocumentCount","priceRequirement","stockRequirement","conditionRequirement","warrantyRequirement"] as const) {}
+export class UpdateMarketplaceProductTypeRulesDto extends PickType(UpdateProductTypeDto, ["version","brandRequirement","identifierRequirement","gtinRequirement","oemReferenceRequirement","crossReferenceRequirement","fitmentRequirement","imageRequirement","minimumImageCount","maximumImageCount","documentRequirement","minimumDocumentCount","priceRequirement","stockRequirement","conditionRequirement","warrantyRequirement","packageDimensionsRequirement","packageWeightRequirement","discountRequirement","transportRequirement","specialHandlingRequirement"] as const) {}
 
 @ApiTags('Admin catalog')
 @ApiBearerAuth()

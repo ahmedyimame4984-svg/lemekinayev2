@@ -188,6 +188,32 @@ export class CreateProductTypeDto {
   @IsEnum(ProductTypeRequirementLevel)
   warrantyRequirement?: ProductTypeRequirementLevel;
 
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  packageDimensionsRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  packageWeightRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  discountRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  transportRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  specialHandlingRequirement?: ProductTypeRequirementLevel;
+
+
   @ApiPropertyOptional({ enum: MasterDataStatus, default: 'DRAFT' })
   @IsOptional()
   @IsEnum(MasterDataStatus)
@@ -316,6 +342,32 @@ export class UpdateProductTypeDto {
   @IsOptional()
   @IsEnum(ProductTypeRequirementLevel)
   warrantyRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  packageDimensionsRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  packageWeightRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  discountRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  transportRequirement?: ProductTypeRequirementLevel;
+
+  @ApiPropertyOptional({ enum: ProductTypeRequirementLevel, description: 'Lemekinaye-only Seller Listing policy' })
+  @IsOptional()
+  @IsEnum(ProductTypeRequirementLevel)
+  specialHandlingRequirement?: ProductTypeRequirementLevel;
+
 
   @ApiPropertyOptional({ enum: MasterDataStatus })
   @IsOptional()
@@ -463,6 +515,22 @@ export class ProductTypeResponseDto {
 
   @ApiProperty({ enum: ProductTypeRequirementLevel })
   warrantyRequirement!: ProductTypeRequirementLevel;
+
+  @ApiProperty({ enum: ProductTypeRequirementLevel })
+  packageDimensionsRequirement!: ProductTypeRequirementLevel;
+
+  @ApiProperty({ enum: ProductTypeRequirementLevel })
+  packageWeightRequirement!: ProductTypeRequirementLevel;
+
+  @ApiProperty({ enum: ProductTypeRequirementLevel })
+  discountRequirement!: ProductTypeRequirementLevel;
+
+  @ApiProperty({ enum: ProductTypeRequirementLevel })
+  transportRequirement!: ProductTypeRequirementLevel;
+
+  @ApiProperty({ enum: ProductTypeRequirementLevel })
+  specialHandlingRequirement!: ProductTypeRequirementLevel;
+
 
   @ApiProperty({ enum: MasterDataStatus })
   status!: MasterDataStatus;
