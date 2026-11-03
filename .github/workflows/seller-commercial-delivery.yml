@@ -1,9 +1,6 @@
 name: Seller commercial and delivery MVP
 
 on:
-  push:
-    branches:
-      - feat/seller-commercial-delivery-mvp
   pull_request:
     paths:
       - 'apps/api/**'
@@ -11,6 +8,10 @@ on:
       - 'apps/seller/**'
       - 'packages/database/**'
       - '.github/workflows/seller-commercial-delivery.yml'
+
+concurrency:
+  group: seller-commercial-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
