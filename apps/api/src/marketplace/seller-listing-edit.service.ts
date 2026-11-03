@@ -97,7 +97,7 @@ export class SellerListingEditService {
             sellerProductId: true, sellerTitle: true, sellerDescription: true,
             warrantyInformation: true, deliveryInformation: true,
             commercialDetails: true,
-            price: { select: { id: true, version: true, sellingPrice: true } },
+            price: { select: { id: true, version: true, sellingPrice: true, promotionalPrice: true } },
           },
         });
         if (!listing) throw new NotFoundException('Listing not found.');
@@ -183,7 +183,18 @@ export class SellerListingEditService {
           ? changes.commercialDetails : listing.commercialDetails) ?? {};
         const checkedCommercial = validateSellerCommercialDetails(appliedCommercial,
           commercialPolicy, false, nextPrice);
-        const discountedPrice = nextPrice === null ? null : discountPrice(nextPrice, checkedCommercial);
+        const wasSellerDiscounted = Boolean(listing.commercialDetails &&
+          typeof listing.commercialDetails === 'object' &&
+          !Array.isArray(listing.commercialDetails) &&
+          'discountType' in listing.commercialDetails);
+        const discountedPrice = checkedCommercial.discountType
+          ? nextPrice === null ? null : discountPrice(nextPrice, checkedCommercial)
+          : wasSellerDiscounted ? null
+          : listing.price?.promotionalPrice === null || listing.price?.promotionalPrice === undefined
+            ? null : Number(listing.price.promotionalPrice);
+        if (nextPrice !== null && discountedPrice !== null && discountedPrice > nextPrice) {
+          throw new BadRequestException('Existing promotional price exceeds the new selling price.');
+        }
         if (priceChanged) {
           const product = await tx.product.findUniqueOrThrow({
             where: { id: isLive(listing.status) ? listing.productId : productId }, select: { priceRequirement: true },
@@ -351,7 +362,7 @@ export class SellerListingEditService {
           sellerId: true, sellerProductId: true, productId: true,
           status: true, version: true, condition: true, warrantyInformation: true,
           commercialDetails: true,
-          price: { select: { id: true, version: true, sellingPrice: true } },
+          price: { select: { id: true, version: true, sellingPrice: true, promotionalPrice: true } },
           inventories: { select: { id: true } },
           seller: { select: { status: true, approvalStatus: true, verificationStatus: true } },
         },
@@ -425,7 +436,12 @@ export class SellerListingEditService {
           },
         });
         if (updated.count !== 1) throw new ConflictException('Listing changed during review.');
-        if (revisionChanges.commercialDetails !== undefined && listing.price) {
+        const previousSellerDiscount = Boolean(listing.commercialDetails &&
+          typeof listing.commercialDetails === 'object' &&
+          !Array.isArray(listing.commercialDetails) &&
+          'discountType' in listing.commercialDetails);
+        if (revisionChanges.commercialDetails !== undefined && listing.price &&
+            (previousSellerDiscount || verifiedCommercial.discountType)) {
           await tx.listingPrice.update({
             where: { id: listing.price.id },
             data: {
