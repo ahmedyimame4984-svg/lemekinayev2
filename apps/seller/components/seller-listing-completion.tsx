@@ -6,6 +6,7 @@ import { getJson, postJson } from '@/lib/client-api';
 import type { SellerListingArticleDetails, SellerListingRow } from '@/lib/seller-stock-contracts';
 import { listingMediaIssues, type ListingMediaReadiness } from '@/lib/seller-listing-readiness';
 import { SellerListingMedia } from './seller-listing-media';
+import { SellerListingEditor } from './seller-listing-editor';
 
 /**
  * Final stage of the same-page creation flow. The Article/Inventory/Listing
@@ -31,6 +32,7 @@ export function SellerListingCompletion({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const issues = listingMediaIssues(media);
   useEffect(() => {
     onBlockingChange?.(mediaPending || submitting);
@@ -53,7 +55,7 @@ export function SellerListingCompletion({
   }, [listingId]);
 
   async function submit() {
-    if (submitting || submitted || mediaPending) return;
+    if (submitting || submitted || mediaPending || editOpen) return;
     setError('');
     setNotice('');
     if (issues.length) {
@@ -131,6 +133,38 @@ export function SellerListingCompletion({
           Changes to this Listing do not edit shared reference data.
         </p>
       </section>
+      <section aria-label="Edit saved Listing details" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold">Product, selling &amp; packaging details</h3>
+            <p className="text-sm text-slate-600">
+              Need to correct a detail? Update the same saved Draft here before uploading or submitting.
+            </p>
+          </div>
+          <button type="button" disabled={submitted || submitting || loading || !listing || !article || mediaPending}
+            aria-expanded={editOpen} aria-controls="seller-listing-inline-editor"
+            onClick={() => setEditOpen(value => !value)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50">
+            {editOpen ? 'Close details editor' : 'Edit saved details'}
+          </button>
+        </div>
+        {editOpen && listing && article ? (
+          <div id="seller-listing-inline-editor">
+            <SellerListingEditor key={`${listing.id}-${listing.version}`}
+              listing={listing} article={article} inline showMedia={false}
+              onClose={() => setEditOpen(false)}
+              onDone={async () => {
+                const base = `/api/seller/listings/${encodeURIComponent(listingId)}`;
+                const [saved, details] = await Promise.all([
+                  getJson<SellerListingRow>(base),
+                  getJson<SellerListingArticleDetails>(`${base}/article-details`),
+                ]);
+                setListing(saved); setArticle(details); setEditOpen(false);
+                setNotice('Draft details updated. Continue with images and final submission.');
+              }}/>
+          </div>
+        ) : null}
+      </section>
       <div id="seller-listing-media" className="scroll-mt-6">
         <SellerListingMedia listingId={listingId}
           readOnly={submitted || submitting}
@@ -149,6 +183,9 @@ export function SellerListingCompletion({
         </ul> : <p role="status" className="text-sm text-emerald-900">
           Image and document requirements satisfied. The server will verify all remaining Product Type rules.
         </p>}
+        {editOpen ? <p role="status" className="text-sm text-amber-900">
+          Save or close the details editor before submitting.
+        </p> : null}
         {mediaPending ? <p role="status" className="text-sm text-amber-900">
           Upload or remove the queued files before submitting.
         </p> : null}
@@ -160,7 +197,7 @@ export function SellerListingCompletion({
             className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50">
             Save Draft &amp; return to My Listings
           </button>
-          <button type="button" disabled={submitting || submitted || mediaPending || loading}
+          <button type="button" disabled={submitting || submitted || mediaPending || loading || editOpen}
             onClick={() => void submit()}
             className="rounded-lg bg-[#a71920] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
             {submitting ? 'Submitting…' : submitted ? 'Submitted' : 'Submit for Admin review'}

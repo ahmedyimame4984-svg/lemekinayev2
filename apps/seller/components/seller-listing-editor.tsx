@@ -51,13 +51,15 @@ function initialProductValues(details: SellerListingArticleDetails | null): Inli
 }
 
 export function SellerListingEditor({
-  listing, article, onDone, onClose, inline = false,
+  listing, article, onDone, onClose, inline = false, showMedia = true,
 }: {
   listing: SellerListingRow;
   article: SellerListingArticleDetails | null;
   onDone: () => Promise<void>;
   onClose: () => void;
   inline?: boolean;
+  /** The creation completion panel owns the one shared uploader and Submit action. */
+  showMedia?: boolean;
 }) {
   const [description, setDescription] = useState(listing.sellerDescription ?? '');
   const [warranty, setWarranty] = useState(listing.warrantyInformation ?? '');
@@ -319,7 +321,7 @@ export function SellerListingEditor({
           </button> : null}
         </div>
       </form>
-      <div id="seller-listing-images" className="scroll-mt-6 space-y-3">
+      {showMedia ? <div id="seller-listing-images" className="scroll-mt-6 space-y-3">
         <h3 className="text-base font-semibold">Listing photos and documents</h3>
         <SellerListingMedia listingId={listing.id}
           reviewMode={!draft}
@@ -340,7 +342,7 @@ export function SellerListingEditor({
             </p>}
           </div>
         ) : null}
-      </div>
+      </div> : null}
     </section>
   );
 }
