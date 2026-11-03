@@ -49,11 +49,12 @@ export async function assertSellerListingMediaReady(
       message: `Upload at least ${requiredImages} image(s) and ${requiredDocuments} document(s). Currently verified: ${imageCount} image(s), ${documentCount} document(s).`,
     });
   }
-  if (requiredImages > 0 &&
-      !listing.assets.some(x => x.type === ProductAssetType.IMAGE && x.isPrimary)) {
+  const primaryImageCount = listing.assets.filter(x =>
+    x.type === ProductAssetType.IMAGE && x.isPrimary).length;
+  if (requiredImages > 0 && primaryImageCount !== 1) {
     throw new ConflictException({
       code: 'SELLER_LISTING_PRIMARY_IMAGE_REQUIRED',
-      message: 'Choose a primary Seller Listing image before submission.',
+      message: 'Choose exactly one primary Seller Listing image before submission.',
     });
   }
 }

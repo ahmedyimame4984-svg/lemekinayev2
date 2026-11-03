@@ -51,12 +51,15 @@ function initialProductValues(details: SellerListingArticleDetails | null): Inli
 }
 
 export function SellerListingEditor({
-  listing, article, onDone, onClose,
+  listing, article, onDone, onClose, inline = false, showMedia = true,
 }: {
   listing: SellerListingRow;
   article: SellerListingArticleDetails | null;
   onDone: () => Promise<void>;
   onClose: () => void;
+  inline?: boolean;
+  /** The creation completion panel owns the one shared uploader and Submit action. */
+  showMedia?: boolean;
 }) {
   const [description, setDescription] = useState(listing.sellerDescription ?? '');
   const [warranty, setWarranty] = useState(listing.warrantyInformation ?? '');
@@ -183,7 +186,7 @@ export function SellerListingEditor({
       }
       try {
         await onDone();
-        if (result.articleReview !== 'NEEDS_ATTENTION') onClose();
+        if (result.articleReview !== 'NEEDS_ATTENTION' && !inline) onClose();
       } catch {
         setError('Your Listing was saved, but the details could not be refreshed. Reload to see the latest version.');
       }
@@ -211,7 +214,7 @@ export function SellerListingEditor({
         setError('The Listing is still a Draft. Complete all required fields and retry.');
         return;
       }
-      onClose();
+      if (!inline) onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Complete required fields and media before submitting.');
     } finally {
@@ -312,13 +315,13 @@ export function SellerListingEditor({
             className="rounded-lg bg-[#a71920] px-4 py-2.5 text-sm font-semibold text-white focus-visible:outline-2 disabled:opacity-50">
             {busy ? 'Saving…' : 'Save Listing'}
           </button>
-          <button type="button" onClick={onClose} disabled={busy}
+          {!inline ? <button type="button" onClick={onClose} disabled={busy}
             className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold focus-visible:outline-2">
             Close
-          </button>
+          </button> : null}
         </div>
       </form>
-      <div className="space-y-3">
+      {showMedia ? <div id="seller-listing-images" className="scroll-mt-6 space-y-3">
         <h3 className="text-base font-semibold">Listing photos and documents</h3>
         <SellerListingMedia listingId={listing.id}
           reviewMode={!draft}
@@ -339,7 +342,7 @@ export function SellerListingEditor({
             </p>}
           </div>
         ) : null}
-      </div>
+      </div> : null}
     </section>
   );
 }

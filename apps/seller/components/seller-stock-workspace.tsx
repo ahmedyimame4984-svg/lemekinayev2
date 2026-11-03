@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ClientApiError, patchJson, postJson } from '@/lib/client-api';
 import type {
@@ -17,8 +17,8 @@ import { SellerVehicleConfigurationPicker } from './seller-vehicle-configuration
 import { emptyInlineSellerArticle, inlineEntryArticlePayload, type InlineSellerArticle } from '@/lib/seller-inline-article';
 import { SellerStockTransferPanel } from './seller-stock-transfer-panel';
 import { SellerLocationsPanel } from './seller-locations-panel';
-import { SellerListingEditor } from './seller-listing-editor';
 import { SellerListProductModal } from './seller-list-product-modal';
+import { SellerListingCompletion } from './seller-listing-completion';
 import { SellerListingCommercialFields } from './seller-listing-commercial-fields';
 import type { SellerCommercialDetails } from '@/lib/seller-commercial';
 import { SELLING_UNITS } from '@/lib/seller-commercial';
@@ -55,7 +55,6 @@ function friendlyError(error: unknown) {
 
 export function SellerStockWorkspace() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [tab, setTab] = useState<SellerProductTab>(
     resolveSellerProductTab(searchParams.get('tab')),
   );
@@ -68,6 +67,8 @@ export function SellerStockWorkspace() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [mode, setMode] = useState<FormMode>(null);
+  const [draftListingId, setDraftListingId] = useState<string | null>(null);
+  const [draftBlocking, setDraftBlocking] = useState(false);
   const [entryStep, setEntryStep] = useState<'find' | 'details'>('find');
   const [selectedProduct, setSelectedProduct] = useState<SellerProductRow | null>(null);
   const [locationId, setLocationId] = useState('');
@@ -102,7 +103,6 @@ export function SellerStockWorkspace() {
   const [stockLocationId, setStockLocationId] = useState('');
   const [stockDelta, setStockDelta] = useState('');
   const [stockReason, setStockReason] = useState('');
-  const [editListing, setEditListing] = useState<SellerListingRow | null>(null);
   const [listingProduct, setListingProduct] = useState<SellerProductRow | null>(null);
   const [priceListing, setPriceListing] = useState<SellerListingRow | null>(null);
   const [updatedPrice, setUpdatedPrice] = useState('');
@@ -173,6 +173,8 @@ export function SellerStockWorkspace() {
   }, [mode, articleSource, selectedProduct?.productId, article?.id]);
 
   function resetForm() {
+    setDraftListingId(null);
+    setDraftBlocking(false);
     setSelectedProduct(null);
     setArticle(null);
     setMatchConfirmed(false);
@@ -246,12 +248,15 @@ export function SellerStockWorkspace() {
   async function handleInventoryListed(listing: SellerListingRow) {
     setListingProduct(null);
     setTab('listing');
-    router.push(`/listings/${encodeURIComponent(listing.id)}?manage=images`);
-    setNotice(`Listing ${listing.sellerSku} prepared. Upload photos and submit for review.`);
+    setNotice(listing.status === 'SUBMITTED'
+      ? `Listing ${listing.sellerSku} submitted for Admin review.`
+      : listing.reviewIntent
+        ? `Listing ${listing.sellerSku} is waiting for catalog verification.`
+        : `Draft Listing ${listing.sellerSku} saved.`);
     try {
       await load();
     } catch (error) {
-      setError(`Draft Listing saved, but records could not refresh: ${friendlyError(error)}`);
+      setError(`Listing was saved, but the records could not refresh: ${friendlyError(error)}`);
     }
   }
 
@@ -346,9 +351,6 @@ export function SellerStockWorkspace() {
     if (offerRules.price === 'NOT_APPLICABLE' || offerRules.stock === 'NOT_APPLICABLE') {
       setError('This Product Type cannot be listed as a priced stock-backed offer.'); return;
     }
-    if (offerRules.warranty === 'REQUIRED' && !warranty.trim()) {
-      setError('Warranty information is required for this Product Type.'); return;
-    }
     const sellingPrice = Number(price);
     if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) {
       setError('Enter a positive online selling price.'); return;
@@ -381,10 +383,9 @@ export function SellerStockWorkspace() {
         deliveryInformation: delivery.trim() || undefined,
         commercialDetails,
       });
-      resetForm();
-      setTab('listing');
+      setDraftListingId(result.record.id);
       setArticleTableRevision(current => current + (result.articleCreated ? 1 : 0));
-      router.push(`/listings/${encodeURIComponent(result.record.id)}?manage=images`);
+      setNotice('Your private Draft is saved. Complete photos and submit on this page.');
     });
   }
 
@@ -489,9 +490,33 @@ export function SellerStockWorkspace() {
         {mode ? (
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-2">
-              <h2 ref={formTitleRef} tabIndex={-1} className="text-lg font-semibold focus:outline-none">{mode === 'product' ? 'Add Inventory' : 'Add Product'}</h2>
-              <button type="button" className={secondaryClass} onClick={resetForm}>Close</button>
+              <h2 ref={formTitleRef} tabIndex={-1} className="text-lg font-semibold focus:outline-none">
+                {mode === 'product' ? 'Add Inventory' : draftListingId ? 'Complete Product Listing' : 'Add Product Listing'}
+              </h2>
+              <button type="button" className={secondaryClass}
+                disabled={busy || draftBlocking}
+                onClick={resetForm}>
+                {draftListingId ? 'Save Draft & close' : 'Close'}
+              </button>
             </div>
+            {draftListingId ? (
+              <SellerListingCompletion listingId={draftListingId}
+                onBlockingChange={setDraftBlocking}
+                onSaveDraft={async () => {
+                  resetForm();
+                  setTab('listing');
+                  setNotice('Private Draft saved. You can reopen it from My Listings to finish later.');
+                  await load();
+                }}
+                onSubmitted={async result => {
+                  resetForm();
+                  setTab('listing');
+                  setNotice(result.status === 'SUBMITTED'
+                    ? 'Listing submitted for Admin review. It is not public yet.'
+                    : 'Listing is saved. Catalog verification must finish before Listing review.');
+                  await load();
+                }}/>
+            ) : (
             <form onSubmit={event => {
               if (entryStep === 'find') {
                 event.preventDefault();
@@ -511,7 +536,7 @@ export function SellerStockWorkspace() {
                     ? 'Search for a verified product first. If there is no match, enter the required product information.'
                     : mode === 'product'
                       ? 'Record what you have in stock. Technical product data remains linked in the background.'
-                      : 'Add your quantity, selling price, and terms. Photos and approval come next.'}
+                      : 'Enter stock, price, package and delivery details; photos and submission are completed below on this same page.'}
                 </p>
               </div>
               {entryStep === 'find' ? (
@@ -685,7 +710,7 @@ export function SellerStockWorkspace() {
                   ) : null}
                   {offerRules?.warranty !== 'NOT_APPLICABLE' ? (
                     <label className="block text-sm font-medium">Warranty information{offerRules?.warranty === 'REQUIRED' ? ' *' : ''}
-                      <input maxLength={5000} required={offerRules?.warranty === 'REQUIRED'}
+                      <input maxLength={5000} 
                         value={warranty} onChange={event => setWarranty(event.target.value)} className={inputClass}/>
                     </label>
                   ) : null}
@@ -713,17 +738,17 @@ export function SellerStockWorkspace() {
                       onClick={() => setEntryStep('find')}>Back</button> : null}
                     <button type="submit" disabled={busy || !defaultLocation || !locationId ||
                       (mode !== 'product' && (!offerRules || offerRules.price === 'NOT_APPLICABLE' ||
-                        offerRules.stock === 'NOT_APPLICABLE' ||
-                        (offerRules.warranty === 'REQUIRED' && !warranty.trim()))) ||
+                        offerRules.stock === 'NOT_APPLICABLE')) ||
                       (!selectedProduct && (articleSource === 'existing' ? !article :
                         !inlineArticleReady || (fitmentRequired && vehicleConfigurationIds.length === 0)))}
                       className={primaryClass}>
-                      {busy ? 'Saving…' : mode === 'product' ? 'Save Inventory' : 'Continue to images'}
+                      {busy ? 'Saving…' : mode === 'product' ? 'Save Inventory' : 'Save private Draft & add photos'}
                     </button>
                   </div>
                 </>
               )}
             </form>
+            )}
           </section>
         ) : null}
 
@@ -868,7 +893,7 @@ export function SellerStockWorkspace() {
                     <Link href={`/listings/${listing.id}`} className={secondaryClass}
                       aria-label={`View details and photos for ${listing.sellerSku}`}>View details</Link>
                     {['DRAFT','REJECTED'].includes(listing.status) ?
-                      <button type="button" className={secondaryClass} onClick={() => setEditListing(listing)}>Edit</button> : null}
+                      <Link className={secondaryClass} href={`/listings/${listing.id}#listing-selling`}>Edit Listing</Link> : null}
                     {listing.price && ['DRAFT','REJECTED','ACTIVE','OUT_OF_STOCK','PAUSED'].includes(listing.status) ?
                       <button type="button" className={secondaryClass} onClick={() => {
                         setPriceListing(listing); setUpdatedPrice(String(listing.price!.sellingPrice));
@@ -915,18 +940,11 @@ export function SellerStockWorkspace() {
 
         {listingProduct ? (
           <SellerListProductModal key={listingProduct.id} product={listingProduct}
-            onClose={() => setListingProduct(null)}
+            onClose={() => {
+              setListingProduct(null);
+              void load().catch(cause => setError(friendlyError(cause)));
+            }}
             onSaved={handleInventoryListed}/>
-        ) : null}
-
-        {editListing ? (
-          <SellerListingEditor
-            key={editListing.id}
-            listing={editListing}
-            article={null}
-            onDone={load}
-            onClose={() => setEditListing(null)}
-          />
         ) : null}
 
         {priceListing ? (
