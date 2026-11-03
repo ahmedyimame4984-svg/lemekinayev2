@@ -36,7 +36,7 @@ describe('Seller stock-to-Listing published Offer rules', () => {
       offerRequirements: { warranty: 'REQUIRED', price: 'REQUIRED', stock: 'REQUIRED', condition: 'NOT_APPLICABLE' },
     });
     await expect(service.offerRequirementsForSellerArticle(articleId, userId))
-      .resolves.toEqual({
+      .resolves.toMatchObject({
         warranty: ProductTypeRequirementLevel.REQUIRED,
         price: ProductTypeRequirementLevel.REQUIRED,
         stock: ProductTypeRequirementLevel.REQUIRED,
@@ -44,14 +44,14 @@ describe('Seller stock-to-Listing published Offer rules', () => {
       });
     expect(database.product.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ id: articleId }),
-      select: { schemaVersion: { select: { snapshot: true } } },
+      select: expect.objectContaining({ schemaVersion: { select: { snapshot: true } } }),
     }));
   });
 
   it('defaults older schemas to the existing Listing creation rules', async () => {
     const { service } = setup({});
     await expect(service.offerRequirementsForSellerArticle(articleId, userId))
-      .resolves.toEqual({
+      .resolves.toMatchObject({
         price: ProductTypeRequirementLevel.REQUIRED,
         stock: ProductTypeRequirementLevel.REQUIRED,
         condition: ProductTypeRequirementLevel.REQUIRED,

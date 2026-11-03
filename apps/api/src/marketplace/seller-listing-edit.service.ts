@@ -140,10 +140,11 @@ export class SellerListingEditService {
           if (changes[field] === listing[field]) delete changes[field];
         }
         // Client-owned commercial policy follows the selected Article's local Product Type.
-        const selectedArticle = await tx.product.findUniqueOrThrow({
+        const selectedArticle = input.commercialDetails !== undefined
+          ? await tx.product.findUniqueOrThrow({
           where: { id: productId }, select: { productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } }, },
-        });
-        const commercialPolicy = selectedArticle.productType
+        }) : null;
+        const commercialPolicy = selectedArticle?.productType
           ? commercialPolicyForProductType(selectedArticle.productType)
           : DEFAULT_COMMERCIAL_POLICY;
         const proposedCommercial = input.commercialDetails === undefined ? undefined

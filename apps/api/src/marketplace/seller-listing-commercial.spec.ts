@@ -28,7 +28,8 @@ describe('seller-only commercial and one-unit transport rules', () => {
     expect(discountPrice(5000, { discountType: 'PERCENT', discountValue: 10 })).toBe(4500);
     expect(discountPrice(5000, { discountType: 'FIXED', discountValue: 500 })).toBe(4500);
     expect(() => validateSellerCommercialDetails({discountType:'FIXED',discountValue:5000}, DEFAULT_COMMERCIAL_POLICY,false,5000)).toThrow();
-    expect(() => discountPrice(100, {discountType:'PERCENT',discountValue:99.99})).toThrow();
+    expect(discountPrice(100, { discountType: 'PERCENT', discountValue: 99.99 })).toBe(0.01);
+    expect(() => discountPrice(100, {discountType:'PERCENT',discountValue:100})).toThrow();
   });
   it('rejects unknown JSON fields rather than persisting arbitrary input', () => {
     expect(() => validateSellerCommercialDetails({ shouldNotSave: true }, DEFAULT_COMMERCIAL_POLICY, false)).toThrow();

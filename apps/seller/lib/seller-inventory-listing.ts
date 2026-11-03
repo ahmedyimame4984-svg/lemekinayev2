@@ -19,7 +19,7 @@ export interface InventoryListingDetails {
   description: string;
   warranty: string;
   delivery: string;
-  commercialDetails: SellerCommercialDetails;
+  commercialDetails?: SellerCommercialDetails;
 
 
 /** The Listing is associated with one existing Inventory SKU; no stock is moved. */
@@ -62,7 +62,7 @@ export function validateInventoryListing(
     return 'Warranty information is required for this Product Type.';
   }
   const commercialError = validateSellerCommercial(
-    details.commercialDetails, requirements.commercial ?? DEFAULT_SELLER_COMMERCIAL_POLICY, amount,
+    details.commercialDetails ?? {}, requirements.commercial ?? DEFAULT_SELLER_COMMERCIAL_POLICY, amount,
   );
   if (commercialError) return commercialError;
   if (details.description.length > 5000 ||
@@ -87,7 +87,7 @@ export function inventoryListingPayload(
       ? {} : { condition: product.condition }),
     sellerTitle: details.title.trim(),
     sellingPrice: Number(details.sellingPrice),
-    commercialDetails: details.commercialDetails,
+    ...(details.commercialDetails ? { commercialDetails: details.commercialDetails } : {}),
     ...(details.description.trim()
       ? { sellerDescription: details.description.trim() } : {}),
     ...(requirements.warranty !== 'NOT_APPLICABLE' && details.warranty.trim()

@@ -54,7 +54,7 @@ function badField(message: string): never {
 
 function isPositiveMeasurement(x: unknown, max: number): x is number {
   return typeof x === 'number' && Number.isFinite(x) && x > 0 && x <= max &&
-    Math.round(x * 100) === x * 100;
+    Math.abs(x * 100 - Math.round(x * 100)) <= 0.000001;
 }
 
 /**
@@ -141,9 +141,17 @@ export function validateSellerCommercialDetails(
 /** The seller's declared discount is converted server-side, never trusted as a submitted promotional price. */
 export function discountPrice(sellingPrice: number, details: SellerCommercialDetails): number | null {
   if (!details.discountType || details.discountValue === undefined) return null;
-  const reduction = details.discountType === 'PERCENT'
-    ? sellingPrice * details.discountValue / 100 : details.discountValue;
-  const result = Math.round((sellingPrice - reduction + Number.EPSILON) * 100) / 100;
+  if (!Number.isFinite(sellingPrice) || sellingPrice <= 0 ||
+      details.discountValue <= 0 || !Number.isFinite(details.discountValue) ||
+      (details.discountType === 'PERCENT' && details.discountValue >= 100) ||
+      (details.discountType === 'FIXED' && details.discountValue >= sellingPrice)) {
+    badField('Discount must be positive and below the selling price.');
+  }
+  const priceCents = Math.round(sellingPrice * 100);
+  const reductionCents = details.discountType === 'PERCENT'
+    ? Math.round(priceCents * details.discountValue / 100)
+    : Math.round(details.discountValue * 100);
+  const result = (priceCents - reductionCents) / 100;
   if (!Number.isFinite(result) || result < 0.01) badField('Discount leaves no valid payable price.');
   return result;
 }

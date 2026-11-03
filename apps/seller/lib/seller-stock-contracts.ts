@@ -1,3 +1,4 @@
+import type { SellerCommercialDetails } from './seller-commercial';
 export type SellerProductCondition = 'NEW' | 'USED' | 'REFURBISHED' | 'OTHER';
 
 export interface SellerInventoryLocation {
@@ -38,8 +39,6 @@ export interface SellerProductRow {
     sellingPrice: number; currency: string;
   } | null } | null;
 }
-
-import type { SellerCommercialDetails } from './seller-commercial';
 
 export interface SellerListingRow {
   id: string;
