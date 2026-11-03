@@ -43,6 +43,13 @@ describe('Seller Listing media publication boundary', () => {
       code: 'SELLER_LISTING_PRIMARY_IMAGE_REQUIRED',
     }) });
   });
+  it('rejects multiple main images rather than publishing an ambiguous product card', async () => {
+    await expect(assertSellerListingMediaReady(databaseForMedia({
+      minimumImages: 2, media: [pic, pic],
+    }), 'listing')).rejects.toMatchObject({ response: expect.objectContaining({
+      code: 'SELLER_LISTING_PRIMARY_IMAGE_REQUIRED',
+    }) });
+  });
   it('requires both images and documents at Listing level', async () => {
     const db = databaseForMedia({
       minimumImages: 2, document: ProductTypeRequirementLevel.REQUIRED,

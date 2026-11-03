@@ -349,10 +349,10 @@ export function SellerListingMedia({
     (policy === null || images.length <= listingMediaLimit('IMAGE', policy)) &&
     documents.length >= neededDocuments &&
     (images.length === 0 || (reviewMode
-      ? images.some(asset => asset.id === selectedPrimaryId)
-      : images.some(asset => asset.isPrimary)));
-  const hasPrimaryImage = images.some(asset => reviewMode
-    ? asset.id === selectedPrimaryId : asset.isPrimary);
+      ? images.filter(asset => asset.id === selectedPrimaryId).length === 1
+      : images.filter(asset => asset.isPrimary).length === 1));
+  const hasPrimaryImage = images.filter(asset => reviewMode
+    ? asset.id === selectedPrimaryId : asset.isPrimary).length === 1;
   const readiness = useMemo<ListingMediaReadiness | null>(() => {
     if (!loaded || !policy) return null;
     return {

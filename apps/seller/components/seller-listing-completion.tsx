@@ -35,8 +35,17 @@ export function SellerListingCompletion({
   const [editOpen, setEditOpen] = useState(false);
   const issues = listingMediaIssues(media);
   useEffect(() => {
-    onBlockingChange?.(mediaPending || submitting);
-  }, [mediaPending, submitting, onBlockingChange]);
+    onBlockingChange?.(mediaPending || submitting || editOpen);
+  }, [mediaPending, submitting, editOpen, onBlockingChange]);
+  useEffect(() => {
+    if (!mediaPending) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [mediaPending]);
 
   useEffect(() => {
     let active = true;
@@ -192,7 +201,7 @@ export function SellerListingCompletion({
         {error ? <p role="alert" className="text-sm font-medium text-red-800">{error}</p> : null}
         {notice ? <p role="status" className="text-sm text-emerald-900">{notice}</p> : null}
         <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={submitting || mediaPending}
+          <button type="button" disabled={submitting || mediaPending || editOpen}
             onClick={() => { if (!submitted) void onSaveDraft(); }}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50">
             Save Draft &amp; return to My Listings

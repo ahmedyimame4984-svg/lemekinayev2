@@ -68,6 +68,7 @@ export function SellerStockWorkspace() {
   const [notice, setNotice] = useState('');
   const [mode, setMode] = useState<FormMode>(null);
   const [draftListingId, setDraftListingId] = useState<string | null>(null);
+  const [draftBlocking, setDraftBlocking] = useState(false);
   const [entryStep, setEntryStep] = useState<'find' | 'details'>('find');
   const [selectedProduct, setSelectedProduct] = useState<SellerProductRow | null>(null);
   const [locationId, setLocationId] = useState('');
@@ -173,6 +174,7 @@ export function SellerStockWorkspace() {
 
   function resetForm() {
     setDraftListingId(null);
+    setDraftBlocking(false);
     setSelectedProduct(null);
     setArticle(null);
     setMatchConfirmed(false);
@@ -491,12 +493,15 @@ export function SellerStockWorkspace() {
               <h2 ref={formTitleRef} tabIndex={-1} className="text-lg font-semibold focus:outline-none">
                 {mode === 'product' ? 'Add Inventory' : draftListingId ? 'Complete Product Listing' : 'Add Product Listing'}
               </h2>
-              <button type="button" className={secondaryClass} onClick={resetForm}>
+              <button type="button" className={secondaryClass}
+                disabled={busy || draftBlocking}
+                onClick={resetForm}>
                 {draftListingId ? 'Save Draft & close' : 'Close'}
               </button>
             </div>
             {draftListingId ? (
               <SellerListingCompletion listingId={draftListingId}
+                onBlockingChange={setDraftBlocking}
                 onSaveDraft={async () => {
                   resetForm();
                   setTab('listing');
