@@ -578,6 +578,7 @@ export class ListingService {
         id: true,
         version: true,
         status: true,
+        commercialDetails: true,
         product: {
           select: {
             schemaVersion: { select: { snapshot: true } },
@@ -660,8 +661,15 @@ export class ListingService {
     const sellingPrice =
       input.sellingPrice ??
       (existing.price ? Number(existing.price.sellingPrice) : 0);
-    const promotionalPrice =
-      input.promotionalPrice !== undefined
+    const storedDetails = validateSellerCommercialDetails(existing.commercialDetails,
+      existing.product.productType ? commercialPolicyForProductType(existing.product.productType)
+        : DEFAULT_COMMERCIAL_POLICY, false, sellingPrice);
+    if (storedDetails.discountType && input.promotionalPrice !== undefined) {
+      throw new BadRequestException('Remove the listing discount before setting a direct promotional price.');
+    }
+    const promotionalPrice = storedDetails.discountType
+      ? discountPrice(sellingPrice, storedDetails)
+      : input.promotionalPrice !== undefined
         ? input.promotionalPrice
         : existing.price?.promotionalPrice === null ||
             existing.price?.promotionalPrice === undefined
@@ -692,8 +700,8 @@ export class ListingService {
                 ...(input.sellingPrice !== undefined
                   ? { sellingPrice: input.sellingPrice }
                   : {}),
-                ...(input.promotionalPrice !== undefined
-                  ? { promotionalPrice: input.promotionalPrice }
+                ...(input.promotionalPrice !== undefined || storedDetails.discountType
+                  ? { promotionalPrice }
                   : {}),
                 ...(input.currency !== undefined
                   ? { currency }
