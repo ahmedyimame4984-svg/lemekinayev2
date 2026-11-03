@@ -17,7 +17,6 @@ import { SellerVehicleConfigurationPicker } from './seller-vehicle-configuration
 import { emptyInlineSellerArticle, inlineEntryArticlePayload, type InlineSellerArticle } from '@/lib/seller-inline-article';
 import { SellerStockTransferPanel } from './seller-stock-transfer-panel';
 import { SellerLocationsPanel } from './seller-locations-panel';
-import { SellerListingEditor } from './seller-listing-editor';
 import { SellerListProductModal } from './seller-list-product-modal';
 import { SellerListingCompletion } from './seller-listing-completion';
 import { SellerListingCommercialFields } from './seller-listing-commercial-fields';
@@ -103,7 +102,6 @@ export function SellerStockWorkspace() {
   const [stockLocationId, setStockLocationId] = useState('');
   const [stockDelta, setStockDelta] = useState('');
   const [stockReason, setStockReason] = useState('');
-  const [editListing, setEditListing] = useState<SellerListingRow | null>(null);
   const [listingProduct, setListingProduct] = useState<SellerProductRow | null>(null);
   const [priceListing, setPriceListing] = useState<SellerListingRow | null>(null);
   const [updatedPrice, setUpdatedPrice] = useState('');
@@ -890,7 +888,7 @@ export function SellerStockWorkspace() {
                     <Link href={`/listings/${listing.id}`} className={secondaryClass}
                       aria-label={`View details and photos for ${listing.sellerSku}`}>View details</Link>
                     {['DRAFT','REJECTED'].includes(listing.status) ?
-                      <button type="button" className={secondaryClass} onClick={() => setEditListing(listing)}>Edit</button> : null}
+                      <Link className={secondaryClass} href={`/listings/${listing.id}#listing-selling`}>Edit Listing</Link> : null}
                     {listing.price && ['DRAFT','REJECTED','ACTIVE','OUT_OF_STOCK','PAUSED'].includes(listing.status) ?
                       <button type="button" className={secondaryClass} onClick={() => {
                         setPriceListing(listing); setUpdatedPrice(String(listing.price!.sellingPrice));
@@ -942,16 +940,6 @@ export function SellerStockWorkspace() {
               void load().catch(cause => setError(friendlyError(cause)));
             }}
             onSaved={handleInventoryListed}/>
-        ) : null}
-
-        {editListing ? (
-          <SellerListingEditor
-            key={editListing.id}
-            listing={editListing}
-            article={null}
-            onDone={load}
-            onClose={() => setEditListing(null)}
-          />
         ) : null}
 
         {priceListing ? (
