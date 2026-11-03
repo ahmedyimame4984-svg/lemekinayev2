@@ -20,7 +20,7 @@ export interface InventoryListingDetails {
   warranty: string;
   delivery: string;
   commercialDetails?: SellerCommercialDetails;
-
+}
 
 /** The Listing is associated with one existing Inventory SKU; no stock is moved. */
 export function firstListingLocation(product: SellerProductRow): string {
