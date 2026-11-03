@@ -19,6 +19,9 @@ import { SellerStockTransferPanel } from './seller-stock-transfer-panel';
 import { SellerLocationsPanel } from './seller-locations-panel';
 import { SellerListingEditor } from './seller-listing-editor';
 import { SellerListProductModal } from './seller-list-product-modal';
+import { SellerListingCommercialFields } from './seller-listing-commercial-fields';
+import type { SellerCommercialDetails } from '@/lib/seller-commercial';
+import { validateSellerCommercial, DEFAULT_SELLER_COMMERCIAL_POLICY } from '@/lib/seller-commercial';
 import { SellerArticleWorkspace } from './seller-article-workspace';
 import { SellerProductDraftCorrections } from './seller-product-draft-corrections';
 import { validateSellerInventoryEntry } from '@/lib/seller-inventory-entry';
@@ -91,6 +94,7 @@ export function SellerStockWorkspace() {
   const [description, setDescription] = useState('');
   const [warranty, setWarranty] = useState('');
   const [delivery, setDelivery] = useState('');
+  const [commercialDetails, setCommercialDetails] = useState<SellerCommercialDetails>({});
   const [stockProduct, setStockProduct] = useState<SellerProductRow | null>(null);
   const [transferProduct, setTransferProduct] = useState<SellerProductRow | null>(null);
   const [stockLocationId, setStockLocationId] = useState('');
@@ -178,6 +182,7 @@ export function SellerStockWorkspace() {
     setDescription('');
     setWarranty('');
     setDelivery('');
+    setCommercialDetails({});
     setMode(null);
     setArticleSource('existing');
     setEntryStep('find');
@@ -344,6 +349,9 @@ export function SellerStockWorkspace() {
     if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) {
       setError('Enter a positive online selling price.'); return;
     }
+    const commercialError = validateSellerCommercial(commercialDetails,
+      offerRules.commercial ?? DEFAULT_SELLER_COMMERCIAL_POLICY, sellingPrice);
+    if (commercialError) { setError(commercialError); return; }
     const quantity = Number(packageQuantity);
     const opening = Number(openingQuantity);
     if (!selectedProduct) {
@@ -367,6 +375,7 @@ export function SellerStockWorkspace() {
         ...(offerRules.warranty !== 'NOT_APPLICABLE' && warranty.trim()
           ? { warrantyInformation: warranty.trim() } : {}),
         deliveryInformation: delivery.trim() || undefined,
+        commercialDetails,
       });
       resetForm();
       setTab('listing');
@@ -668,7 +677,12 @@ export function SellerStockWorkspace() {
                   <label className="block text-sm font-medium">Delivery information
                     <input maxLength={5000} value={delivery} onChange={event => setDelivery(event.target.value)} className={inputClass}/>
                   </label>
-                  <label className="block text-sm font-medium md:col-span-2">Listing description
+                  <div className="md:col-span-2">
+                     <SellerListingCommercialFields value={commercialDetails}
+                       onChange={setCommercialDetails} policy={offerRules?.commercial}
+                       disabled={busy}/>
+                   </div>
+                   <label className="block text-sm font-medium md:col-span-2">Listing description
                     <textarea maxLength={5000} rows={3} value={description} onChange={event => setDescription(event.target.value)}
                       className={inputClass}/>
                   </label>
