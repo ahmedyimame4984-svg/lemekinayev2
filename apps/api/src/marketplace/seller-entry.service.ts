@@ -198,6 +198,7 @@ export class SellerEntryService {
           sku,
           condition: input.condition,
           packageQuantity: input.packageQuantity,
+          packageUnit: input.packageUnit,
           openingQuantity: input.openingQuantity,
           locationId: input.locationId,
         }, userId, tx);
@@ -218,6 +219,7 @@ export class SellerEntryService {
         selectedLocationId: input.locationId,
         condition: input.condition,
         packageQuantity: input.sellerProductId ? undefined : input.packageQuantity,
+        packageUnit: input.sellerProductId ? undefined : input.packageUnit,
         openingQuantity: input.sellerProductId ? undefined : input.openingQuantity,
         sellerTitle: input.sellerTitle,
         sellerDescription: input.sellerDescription,

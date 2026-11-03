@@ -1,5 +1,12 @@
 /** Seller-facing MVP form values; transport choices refer to ONE selling unit. */
 export type RequirementLevel = 'REQUIRED' | 'OPTIONAL' | 'NOT_APPLICABLE';
+export const SELLING_UNITS = [
+  { id: 'PIECE', label: 'Piece' },
+  { id: 'PAIR', label: 'Pair' },
+  { id: 'SET', label: 'Set' },
+  { id: 'BOX', label: 'Box' },
+  { id: 'CARTON', label: 'Carton' },
+] as const;
 export type SellerTransport = 'BICYCLE' | 'SCOOTER' | 'MOTORCYCLE' | 'CAR' | 'VAN_PICKUP';
 export const SELLER_TRANSPORTS: ReadonlyArray<{ id: SellerTransport; label: string }> = [
   { id: 'BICYCLE', label: 'Bicycle' },

@@ -21,6 +21,7 @@ import { SellerListingEditor } from './seller-listing-editor';
 import { SellerListProductModal } from './seller-list-product-modal';
 import { SellerListingCommercialFields } from './seller-listing-commercial-fields';
 import type { SellerCommercialDetails } from '@/lib/seller-commercial';
+import { SELLING_UNITS } from '@/lib/seller-commercial';
 import { validateSellerCommercial, DEFAULT_SELLER_COMMERCIAL_POLICY } from '@/lib/seller-commercial';
 import { SellerArticleWorkspace } from './seller-article-workspace';
 import { SellerProductDraftCorrections } from './seller-product-draft-corrections';
@@ -88,6 +89,7 @@ export function SellerStockWorkspace() {
   const [articleToResume, setArticleToResume] = useState<string | null>(null);
   const [condition, setCondition] = useState('NEW');
   const [packageQuantity, setPackageQuantity] = useState('1');
+  const [packageUnit, setPackageUnit] = useState('PIECE');
   const [customSku, setCustomSku] = useState('');
   const [openingQuantity, setOpeningQuantity] = useState('0');
   const [price, setPrice] = useState('');
@@ -176,6 +178,7 @@ export function SellerStockWorkspace() {
     setMatchConfirmed(false);
     setCondition('NEW');
     setPackageQuantity('1');
+    setPackageUnit('PIECE');
     setCustomSku('');
     setOpeningQuantity('0');
     setPrice('');
@@ -225,6 +228,7 @@ export function SellerStockWorkspace() {
     setEntryStep(product ? 'details' : initialProduct ? 'details' : 'find');
     setCondition(product?.condition ?? 'NEW');
     setPackageQuantity(String(product?.packageQuantity ?? 1));
+    setPackageUnit(product?.packageUnit ?? 'PIECE');
     setLocationId(storeId ?? defaultLocation?.id ?? '');
     setMode('listing-from-product');
     setTab('listing');
@@ -324,7 +328,7 @@ export function SellerStockWorkspace() {
       const result = await postJson<{ articleCreated: boolean; record: SellerProductRow }>('/api/seller/entry', {
         kind: 'INVENTORY', ...selection,
         vehicleConfigurationIds, sku: sellerEntrySku(),
-        condition, packageQuantity: quantity, locationId, openingQuantity: opening,
+        condition, packageQuantity: quantity, packageUnit, locationId, openingQuantity: opening,
       });
       resetForm();
       setTab('inventory');
@@ -358,7 +362,7 @@ export function SellerStockWorkspace() {
       const inventoryError = validateSellerInventoryEntry({
         productId: selection.articleId ?? inlineArticle.productTypeId,
         locationId, availableLocationIds: locations.map(item => item.id),
-        packageQuantity: quantity, openingQuantity: opening,
+        packageQuantity: quantity, packageUnit, openingQuantity: opening,
       });
       if (inventoryError) { setError(inventoryError); return; }
     }
@@ -367,7 +371,7 @@ export function SellerStockWorkspace() {
         kind: 'LISTING', ...selection,
         vehicleConfigurationIds: selectedProduct ? [] : vehicleConfigurationIds,
         ...(selectedProduct ? { sellerProductId: selectedProduct.id, sku: selectedProduct.sku } :
-          { sku: sellerEntrySku(), packageQuantity: quantity, openingQuantity: opening }),
+          { sku: sellerEntrySku(), packageQuantity: quantity, packageUnit, openingQuantity: opening }),
         locationId,
         ...(offerRules.condition !== 'NOT_APPLICABLE' ? { condition } : {}),
         sellingPrice,
@@ -644,7 +648,18 @@ export function SellerStockWorkspace() {
                   disabled={Boolean(selectedProduct)}
                   onChange={event => setPackageQuantity(event.target.value)} className={inputClass}/>
               </label>
-              <ReactSelect label="Stock Location" options={locationOptions} value={locationId}
+              <label className="block text-sm font-medium">Selling unit
+                 <select className={inputClass} value={packageUnit}
+                   disabled={Boolean(selectedProduct)}
+                   onChange={event => setPackageUnit(event.target.value)}>
+                   {SELLING_UNITS.map(option =>
+                     <option key={option.id} value={option.id}>{option.label}</option>)}
+                 </select>
+                 <span className="mt-1 block text-xs font-normal text-slate-600">
+                   The delivery selections apply to one packaged selling unit.
+                 </span>
+               </label>
+               <ReactSelect label="Stock Location" options={locationOptions} value={locationId}
                 onChange={option => setLocationId(String(option?.value ?? ''))}
                 isClearable={false}/>
               {!selectedProduct ? (
