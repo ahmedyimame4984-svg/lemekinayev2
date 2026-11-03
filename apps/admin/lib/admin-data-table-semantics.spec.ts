@@ -35,7 +35,7 @@ const semanticTableFiles = [
   {
     path: '../components/vehicles-management.tsx',
     tables: 2,
-    columns: 11,
+    columns: 9,
   },
   {
     path: '../components/vehicle-master-configuration-management.tsx',
@@ -78,9 +78,7 @@ describe('Admin data-table semantics', () => {
     const sellerSource = read('../components/sellers-management.tsx');
     const auditSource = read('../components/audit-history-management.tsx');
 
-    expect(vehicleSource).toContain(
-      '<span role="cell">\n              <button',
-    );
+    expect(vehicleSource).not.toContain('onEdit');
     expect(vehicleSource).toContain(
       '<span role="cell">\n            <a',
     );
