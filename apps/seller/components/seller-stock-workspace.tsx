@@ -362,7 +362,7 @@ export function SellerStockWorkspace() {
       const inventoryError = validateSellerInventoryEntry({
         productId: selection.articleId ?? inlineArticle.productTypeId,
         locationId, availableLocationIds: locations.map(item => item.id),
-        packageQuantity: quantity, packageUnit, openingQuantity: opening,
+        packageQuantity: quantity, openingQuantity: opening,
       });
       if (inventoryError) { setError(inventoryError); return; }
     }
