@@ -225,7 +225,7 @@ export function SellerListProductModal({
               <textarea className={fieldClass} maxLength={5000} rows={2} disabled={saving}
                 value={details.delivery} onChange={event => change('delivery', event.target.value)}/>
             </label>
-            <SellerListingCommercialFields value={details.commercialDetails}
+            <SellerListingCommercialFields value={details.commercialDetails ?? {}}
                  policy={requirements?.commercial}
                  disabled={saving} onChange={commercialDetails => change('commercialDetails', commercialDetails)}/>
              <label className="block text-sm font-medium text-slate-800">Listing description
