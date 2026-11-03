@@ -437,6 +437,7 @@ export class ListingService {
         condition: true,
         warrantyInformation: true,
         commercialDetails: true,
+        price: { select: { id: true, version: true, sellingPrice: true } },
         product: {
           select: {
             schemaVersion: { select: { snapshot: true } },
@@ -484,7 +485,7 @@ export class ListingService {
       : validateSellerCommercialDetails(input.commercialDetails,
           existing.product.productType
             ? commercialPolicyForProductType(existing.product.productType) : DEFAULT_COMMERCIAL_POLICY,
-          false);
+          false, existing.price ? Number(existing.price.sellingPrice) : null);
     this.assertOfferFieldsApplicable({
       requirements,
       condition:
@@ -545,6 +546,22 @@ export class ListingService {
             },
           });
           if (result.count !== 1) throw this.versionConflict();
+          if (updatedCommercial !== undefined && existing.price) {
+            const oldDiscount = existing.commercialDetails &&
+              typeof existing.commercialDetails === 'object' &&
+              !Array.isArray(existing.commercialDetails) &&
+              'discountType' in existing.commercialDetails;
+            if (updatedCommercial.discountType || oldDiscount) {
+              const priceUpdated = await transaction.listingPrice.updateMany({
+                where: { id: existing.price.id, version: existing.price.version },
+                data: {
+                  promotionalPrice: discountPrice(Number(existing.price.sellingPrice), updatedCommercial),
+                  version: { increment: 1 },
+                },
+              });
+              if (priceUpdated.count !== 1) throw this.versionConflict();
+            }
+          }
           await transaction.auditLog.create({
             data: {
               actorId: userId,
