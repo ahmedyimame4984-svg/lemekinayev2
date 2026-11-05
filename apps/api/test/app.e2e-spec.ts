@@ -1948,8 +1948,7 @@ describe('API (e2e)', () => {
         sourceReference: 'catalog-governance-42',
       })
       .expect(403);
-
-
+    expect(masterDataLifecycle.transition).toHaveBeenCalledTimes(callsBeforeInvalid);
   });
 
   it('protects vehicle master-data lifecycle with vehicle.manage', async () => {
