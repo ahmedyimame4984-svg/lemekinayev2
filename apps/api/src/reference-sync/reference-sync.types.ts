@@ -18,6 +18,10 @@ export const SYNCHRONIZATION_ORDER = [
   'VehicleTransmission',
   'VehicleBodyType',
   'VehicleMarket',
+  'VehicleBatteryPack',
+  'VehicleChargingSystem',
+  'VehicleElectricMotor',
+  'VehicleDriveUnit',
   'VehicleConfiguration',
 ] as const;
 
