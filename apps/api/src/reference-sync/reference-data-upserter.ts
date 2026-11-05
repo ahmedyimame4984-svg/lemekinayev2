@@ -1056,6 +1056,30 @@ export class ReferenceDataUpserter {
           data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
         });
         break;
+      case 'VehicleBatteryPack':
+        await tx.vehicleBatteryPack.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'VehicleChargingSystem':
+        await tx.vehicleChargingSystem.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'VehicleElectricMotor':
+        await tx.vehicleElectricMotor.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'VehicleDriveUnit':
+        await tx.vehicleDriveUnit.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
       case 'VehicleConfiguration':
         await tx.vehicleConfiguration.updateMany({
           where: { id },
