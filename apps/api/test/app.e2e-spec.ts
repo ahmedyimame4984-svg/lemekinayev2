@@ -1893,7 +1893,7 @@ describe('API (e2e)', () => {
     expect(response.body).toMatchObject({ code: 'PERMISSION_DENIED' });
   });
 
-  it('governs catalog master-data lifecycle with catalog.manage and validated evidence', async () => {
+  it('permits canonical lifecycle inspection but rejects local transitions', async () => {
     await request(app.getHttpServer())
       .get(
         `/api/v1/admin/catalog/lifecycle/CATEGORY/${categoryRecord.id}`,
@@ -1931,12 +1931,12 @@ describe('API (e2e)', () => {
         targetStatus: 'DEPRECATED',
         reason: '     ',
       })
-      .expect(400);
+      .expect(403);
     expect(masterDataLifecycle.transition).toHaveBeenCalledTimes(
       callsBeforeInvalid,
     );
 
-    const transitioned = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .patch(
         `/api/v1/admin/catalog/lifecycle/CATEGORY/${categoryRecord.id}`,
       )
@@ -1947,24 +1947,9 @@ describe('API (e2e)', () => {
         reason: 'Taxonomy replaced by the approved canonical category.',
         sourceReference: 'catalog-governance-42',
       })
-      .expect(200);
+      .expect(403);
 
-    expect(transitioned.body).toMatchObject({
-      entityType: 'CATEGORY',
-      status: 'DEPRECATED',
-      version: 2,
-      sourceReference: 'catalog-governance-42',
-    });
-    expect(masterDataLifecycle.transition).toHaveBeenLastCalledWith(
-      'CATALOG',
-      MasterDataLifecycleEntityType.CATEGORY,
-      categoryRecord.id,
-      expect.objectContaining({
-        version: 1,
-        targetStatus: MasterDataStatus.DEPRECATED,
-      }),
-      'admin-1',
-    );
+
   });
 
   it('protects vehicle master-data lifecycle with vehicle.manage', async () => {
