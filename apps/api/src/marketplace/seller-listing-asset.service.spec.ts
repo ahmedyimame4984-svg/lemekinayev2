@@ -51,6 +51,8 @@ function arrange(input: { status?: SellerListingStatus; image?: ProductTypeRequi
   const r2 = {
     sign: vi.fn().mockReturnValue('https://example.r2.cloudflarestorage.com/signed'),
     remove: vi.fn().mockResolvedValue(undefined),
+    verifyUploaded: vi.fn().mockResolvedValue(undefined),
+    sealUpload: vi.fn().mockResolvedValue('seller-listings/sealed.jpg'),
   };
   return {
     db, seller, r2,
@@ -264,6 +266,99 @@ describe('Seller Listing private media ownership and policy', () => {
     expect(db.sellerListingAsset.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ status: MasterDataStatus.ACTIVE }),
     }));
+  });
+
+  it('normalizes image/jpg to image/jpeg during presign', async () => {
+    const { service, r2, db } = arrange();
+    const result = await service.begin(listingId, actorId, {
+      mimeType: 'image/jpg',
+      sizeBytes: 1024,
+      fileName: 'photo.jpg',
+    });
+    expect(result.mimeType).toBe('image/jpeg');
+    expect(r2.sign).toHaveBeenCalledWith(expect.stringMatching(/\.jpg$/), 'PUT', 300, 'image/jpeg');
+    expect(db.sellerListingAsset.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ mimeType: 'image/jpeg' }),
+    }));
+  });
+
+  it('archives draft asset when replaceDraftAssetId is provided during retry', async () => {
+    const { service, db } = arrange();
+    const replaceId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    await service.begin(listingId, actorId, {
+      ...upload,
+      replaceDraftAssetId: replaceId,
+    });
+    expect(db.sellerListingAsset.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: replaceId,
+        listingId,
+        status: MasterDataStatus.DRAFT,
+      },
+      data: { status: MasterDataStatus.ARCHIVED },
+    });
+  });
+
+  it('automatically elects the first verified image as primary in complete()', async () => {
+    const { service, db } = arrange();
+    const pendingAssetId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    db.sellerListingAsset.findFirst.mockImplementation(({ where }: any = {}) => {
+      if (where?.id === pendingAssetId) {
+        return Promise.resolve({
+          id: pendingAssetId,
+          listingId,
+          type: 'IMAGE',
+          mimeType: 'image/jpeg',
+          sizeBytes: 4096,
+          storageKey: 'seller-listings/temp.jpg',
+          status: MasterDataStatus.DRAFT,
+        });
+      }
+      if (where?.isPrimary === true) {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve(null);
+    });
+
+    const result = await service.complete(listingId, pendingAssetId, actorId);
+    expect(result).toEqual({ id: pendingAssetId, status: MasterDataStatus.ACTIVE });
+    expect(db.sellerListingAsset.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: pendingAssetId, listingId, status: MasterDataStatus.DRAFT },
+      data: expect.objectContaining({
+        status: MasterDataStatus.ACTIVE,
+        storageKey: 'seller-listings/sealed.jpg',
+        isPrimary: true,
+      }),
+    }));
+  });
+
+  it('elects the next active image as primary when the primary image is removed', async () => {
+    const { service, db } = arrange();
+    const removeAssetId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const nextImageId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    let findFirstCalls = 0;
+    db.sellerListingAsset.findFirst.mockImplementation(({ where }: any = {}) => {
+      findFirstCalls++;
+      if (findFirstCalls === 1) {
+        return Promise.resolve({
+          id: removeAssetId,
+          storageKey: 'seller-listings/primary.jpg',
+          status: MasterDataStatus.ACTIVE,
+          isPublished: true,
+        });
+      }
+      if (where?.isPrimary === true) {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve({ id: nextImageId });
+    });
+
+    const result = await service.remove(listingId, removeAssetId, actorId);
+    expect(result).toEqual({ removed: true });
+    expect(db.sellerListingAsset.update).toHaveBeenCalledWith({
+      where: { id: nextImageId },
+      data: { isPrimary: true },
+    });
   });
 
 });

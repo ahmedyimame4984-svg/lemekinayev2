@@ -8,6 +8,7 @@ import { optimizeListingImage } from '@/lib/optimize-listing-image';
 import type { ListingMediaReadiness } from '@/lib/seller-listing-readiness';
 import {
   listingMediaLimit,
+  normalizeMediaMimeType,
   putFileToR2, validateListingFile,
   type ListingMediaKind, type ListingMediaPolicy,
 } from '@/lib/seller-listing-upload';
@@ -31,6 +32,7 @@ type PendingFile = {
   status: PendingStatus;
   percent: number;
   error?: string;
+  assetId?: string;
 };
 
 const control = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a71920] disabled:cursor-not-allowed disabled:opacity-50';
@@ -218,12 +220,16 @@ function safeRandomId(): string {
           const uploadFile = row.kind === 'IMAGE' ? await optimizeListingImage(row.file) : row.file;
           const checked = validateListingFile(uploadFile, policy!);
           if ('error' in checked) throw new Error(checked.error);
+          const uploadMimeType = normalizeMediaMimeType(uploadFile.type, uploadFile.name);
           const signed = await postJson<{
             assetId: string; uploadUrl: string; mimeType: string;
           }>(`${base}/presign`, {
-            mimeType: uploadFile.type, sizeBytes: uploadFile.size, fileName: uploadFile.name,
+            mimeType: uploadMimeType,
+            sizeBytes: uploadFile.size,
+            fileName: uploadFile.name,
+            ...(row.assetId ? { replaceDraftAssetId: row.assetId } : {}),
           });
-          stage(row.id, { status: 'uploading', percent: 0 });
+          stage(row.id, { assetId: signed.assetId, status: 'uploading', percent: 0 });
           await putFileToR2(signed.uploadUrl, uploadFile, signed.mimeType, percent => {
             stage(row.id, { percent });
           });
@@ -336,6 +342,10 @@ function safeRandomId(): string {
 
   function removeSelected(id: string) {
     if (busy) return;
+    const item = pending.find(row => row.id === id);
+    if (item?.assetId) {
+      postJson(`${base}/${item.assetId}/remove`, {}).catch(() => {});
+    }
     discardPreview(id);
     setPending(rows => rows.filter(row => row.id !== id));
   }
@@ -400,8 +410,8 @@ function safeRandomId(): string {
     onPendingChange?.(busy || pending.some(row => row.status !== 'saved'));
   }, [busy, pending, onPendingChange]);
   const fileAccept = [
-    ...(policy?.image !== 'NOT_APPLICABLE' ? ['image/jpeg', 'image/png', 'image/webp'] : []),
-    ...(policy?.document !== 'NOT_APPLICABLE' ? ['application/pdf'] : []),
+    ...(policy?.image !== 'NOT_APPLICABLE' ? ['image/jpeg', 'image/png', 'image/webp', '.jpg', '.jpeg', '.png', '.webp'] : []),
+    ...(policy?.document !== 'NOT_APPLICABLE' ? ['application/pdf', '.pdf'] : []),
   ].join(',');
 
   return (

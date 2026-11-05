@@ -81,7 +81,8 @@ export class SellerR2StorageService {
         message: 'Cloudflare R2 is temporarily unavailable for media verification.',
       });
     }
-    if (!head.ok || head.headers.get('content-type')?.split(';')[0]?.trim() !== mimeType ||
+    const headContentType = head.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+    if (!head.ok || headContentType !== mimeType.toLowerCase() ||
         Number(head.headers.get('content-length')) !== expectedSize) {
       throw new Error('R2 object metadata does not match the requested file.');
     }
@@ -117,11 +118,15 @@ export class SellerR2StorageService {
     if (!looksLike) throw new Error('File contents do not match the declared type.');
     if (mimeType === 'image/webp') {
       if (signature.length < 12) {
-        throw new Error('WebP RIFF length does not match the object.');
+        throw new Error('WebP signature is too short.');
       }
-      const riffPayloadSize = new DataView(signature.buffer, signature.byteOffset + 4, 4).getUint32(0, true);
+      const riffSize = new DataView(signature.buffer, signature.byteOffset + 4, 4).getUint32(0, true);
       // In RIFF, payload is expectedSize - 8, but if payload was odd, a 1-byte 0x00 pad is added to expectedSize.
-      if (riffPayloadSize !== expectedSize - 8 && riffPayloadSize !== expectedSize - 9) {
+      const validRiffSize =
+        riffSize === expectedSize - 8 ||
+        riffSize === expectedSize - 9 ||
+        riffSize === ((expectedSize & ~1) - 8);
+      if (!validRiffSize) {
         throw new Error('WebP RIFF length does not match the object.');
       }
     }
@@ -131,20 +136,21 @@ export class SellerR2StorageService {
     });
     if (tailResponse.status !== 206) throw new Error('R2 did not return bounded object footer.');
     const tail = new Uint8Array(await tailResponse.arrayBuffer());
-    const hasJpegEoi = (bytes: Uint8Array) => {
-      for (let i = bytes.length - 2; i >= 0; i--) {
-        if (bytes[i] === 0xff && bytes[i + 1] === 0xd9) return true;
+    let footerValid = true;
+    if (mimeType === 'image/jpeg') {
+      let foundEoi = false;
+      for (let i = 0; i < tail.length - 1; i++) {
+        if (tail[i] === 255 && tail[i + 1] === 217) {
+          foundEoi = true;
+          break;
+        }
       }
-      return false;
-    };
-    const footerValid = mimeType === 'image/jpeg'
-      ? hasJpegEoi(tail)
-      : mimeType === 'image/png'
-      ? tail.length >= 12 &&
-        Buffer.from(tail.slice(-12)).toString('hex') === '0000000049454e44ae426082'
-      : mimeType === 'application/pdf'
-      ? new TextDecoder('latin1').decode(tail).includes('%%EOF')
-      : true;
+      footerValid = foundEoi;
+    } else if (mimeType === 'image/png') {
+      footerValid = Buffer.from(tail).toString('hex').includes('0000000049454e44ae426082');
+    } else if (mimeType === 'application/pdf') {
+      footerValid = new TextDecoder('latin1').decode(tail).includes('%%EOF');
+    }
     if (!footerValid) throw new Error('Uploaded file is truncated or has an invalid footer.');
   }
 

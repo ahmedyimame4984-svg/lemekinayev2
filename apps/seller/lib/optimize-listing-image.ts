@@ -1,11 +1,14 @@
-import { MAX_LISTING_MEDIA_BYTES } from './seller-listing-upload';
+import { MAX_LISTING_MEDIA_BYTES, normalizeMediaMimeType } from './seller-listing-upload';
 
 /**
  * Re-encoding via canvas drops camera EXIF metadata and preserves the complete
  * image (including edge-mounted part numbers). Never crop Seller evidence.
+ * If optimization fails or is unsupported for any reason, gracefully falls back
+ * to the original file to prevent upload failures.
  */
 export async function optimizeListingImage(file: File): Promise<File> {
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return file;
+  const normalizedType = normalizeMediaMimeType(file.type, file.name);
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(normalizedType)) return file;
   if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return file;
 
   try {
@@ -21,42 +24,44 @@ export async function optimizeListingImage(file: File): Promise<File> {
       if (!context) return file;
       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 
-      // Preserve PNG as PNG, WebP as WebP, JPEG as JPEG.
-      // Keeping JPEG as JPEG avoids browser WebP canvas fallback bugs (e.g. Safari returning PNG).
-      const targetType = file.type === 'image/png'
+      // Keep original format where possible; never force JPEG into WebP which breaks on browsers
+      // that do not support canvas WebP encoding (e.g. Safari returning a PNG blob).
+      const outputType = normalizedType === 'image/png'
         ? 'image/png'
-        : file.type === 'image/webp'
+        : normalizedType === 'image/webp'
         ? 'image/webp'
         : 'image/jpeg';
-      const quality = targetType === 'image/png' ? undefined : 0.88;
+      const quality = outputType === 'image/png' ? undefined : 0.88;
 
       const blob = await new Promise<Blob | null>(resolve => {
-        canvas.toBlob(resolve, targetType, quality);
+        canvas.toBlob(resolve, outputType, quality);
       });
 
-      if (!blob) return file;
+      if (!blob || blob.size === 0) return file;
+
+      // Never trade legibility for a larger file.
       if (blob.size > MAX_LISTING_MEDIA_BYTES) {
-        if (file.size <= MAX_LISTING_MEDIA_BYTES) return file;
-        throw new Error('Optimized image exceeds 8 MB. Choose a smaller image.');
+        return file;
       }
 
-      // Determine actual MIME type from the encoded blob (handles any browser fallback)
-      const actualType = blob.type && ['image/jpeg', 'image/png', 'image/webp'].includes(blob.type)
+      // Respect the actual format produced by the browser's canvas (handles Safari PNG fallback).
+      const finalType = blob.type && ['image/jpeg', 'image/png', 'image/webp'].includes(blob.type)
         ? blob.type
-        : targetType;
-      const ext = actualType === 'image/jpeg' ? '.jpg' : actualType === 'image/png' ? '.png' : '.webp';
+        : outputType;
+      const ext = finalType === 'image/png' ? '.png' : finalType === 'image/webp' ? '.webp' : '.jpg';
+      const baseName = file.name.replace(/\.[^.]+$/, '') || 'photo';
 
-      return new File([blob], file.name.replace(/\.[^.]+$/, '') + ext, {
-        type: actualType,
+      return new File([blob], `${baseName}${ext}`, {
+        type: finalType,
         lastModified: Date.now(),
       });
     } finally {
       bitmap.close();
     }
   } catch (error) {
-    if (file.size <= MAX_LISTING_MEDIA_BYTES) {
-      return file;
-    }
-    throw error;
+    // If canvas or createImageBitmap fails (e.g. unusual format or browser memory limits),
+    // fall back to the original file so the seller can still upload their image.
+    console.warn('Listing image optimization skipped, using original file:', error);
+    return file;
   }
 }
