@@ -13,6 +13,11 @@ import {
   ProductTypeIdentifierRequirement,
   ProductTypeRequirementLevel,
   VehicleBodyType,
+  VehicleCombustionEngineRole,
+  VehicleDriveUnitIntegrationKind,
+  VehicleElectricMachineFunction,
+  VehicleElectricMotorPosition,
+  VehicleEnergyStorageKind,
   VehicleEnergyStorageRole,
   VehicleExternalChargingCapability,
   VehicleMarketKind,
@@ -762,7 +767,93 @@ export class ReferenceDataUpserter {
         return 'APPLIED';
       }
 
+      case 'VehicleBatteryPack': {
+        const fields = {
+          code: record.code ?? null, name: record.name,
+          storageKind: (record.storageKind as VehicleEnergyStorageKind) ?? null,
+          chemistry: record.chemistry ?? null,
+          grossCapacityKwh: record.grossCapacityKwh ?? null,
+          usableCapacityKwh: record.usableCapacityKwh ?? null,
+          nominalVoltageV: record.nominalVoltageV ?? null,
+          coolingType: record.coolingType ?? null,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.vehicleBatteryPack.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
+        });
+        return 'APPLIED';
+      }
+      case 'VehicleChargingSystem': {
+        const fields = {
+          code: record.code ?? null, name: record.name,
+          acConnector: record.acConnector ?? null, dcConnector: record.dcConnector ?? null,
+          maxAcPowerKw: record.maxAcPowerKw ?? null,
+          maxDcPowerKw: record.maxDcPowerKw ?? null,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.vehicleChargingSystem.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
+        });
+        return 'APPLIED';
+      }
+      case 'VehicleElectricMotor': {
+        const fields = {
+          code: record.code ?? null, name: record.name,
+          family: record.family ?? null, technology: record.technology ?? null,
+          ratedPowerKw: record.ratedPowerKw ?? null,
+          peakPowerKw: record.peakPowerKw ?? null,
+          torqueNm: record.torqueNm ?? null,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.vehicleElectricMotor.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
+        });
+        return 'APPLIED';
+      }
+      case 'VehicleDriveUnit': {
+        const fields = {
+          code: record.code ?? null, name: record.name,
+          integrationKind: (record.integrationKind as VehicleDriveUnitIntegrationKind) ?? null,
+          gearType: record.gearType ?? null, gearCount: record.gearCount ?? null,
+          reductionRatio: record.reductionRatio ?? null,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.vehicleDriveUnit.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
+        });
+        return 'APPLIED';
+      }
       case 'VehicleConfiguration': {
+        // An independently approved ACTIVE revision owns its component links.
+        // Replacing associations transactionally avoids mixed old/new motors.
+        const electricMotors = Array.isArray(record.electricMotors)
+          ? record.electricMotors.map((item: Record<string, any>) => ({
+            electricMotorId: item.electricMotorId,
+            position: (item.position as VehicleElectricMotorPosition) ??
+              VehicleElectricMotorPosition.UNKNOWN,
+            quantity: item.quantity ?? 1,
+            functionRoles: (item.functionRoles as VehicleElectricMachineFunction[]) ?? [],
+          })) : undefined;
+        const driveUnits = Array.isArray(record.driveUnits)
+          ? record.driveUnits.map((item: Record<string, any>) => ({
+            driveUnitId: item.driveUnitId,
+            position: (item.position as VehicleElectricMotorPosition) ??
+              VehicleElectricMotorPosition.UNKNOWN,
+            quantity: item.quantity ?? 1,
+            functionRoles: (item.functionRoles as VehicleElectricMachineFunction[]) ?? [],
+          })) : undefined;
         await tx.vehicleConfiguration.upsert({
           where: { id: record.id },
           create: {
@@ -777,6 +868,11 @@ export class ReferenceDataUpserter {
             transmissionId: record.transmissionId ?? null,
             powertrainType: (record.powertrainType as VehiclePowertrainType) ?? null,
             propulsionTopology: (record.propulsionTopology as VehiclePropulsionTopology) ?? null,
+            engineRole: (record.engineRole as VehicleCombustionEngineRole) ?? null,
+            batteryPackId: record.batteryPackId ?? null,
+            chargingSystemId: record.chargingSystemId ?? null,
+            ...(electricMotors ? { electricMotors: { create: electricMotors } } : {}),
+            ...(driveUnits ? { driveUnits: { create: driveUnits } } : {}),
             energyStorageRole: (record.energyStorageRole as VehicleEnergyStorageRole) ?? null,
             externalChargingCapability:
               (record.externalChargingCapability as VehicleExternalChargingCapability) ?? null,
@@ -809,6 +905,11 @@ export class ReferenceDataUpserter {
             transmissionId: record.transmissionId ?? null,
             powertrainType: (record.powertrainType as VehiclePowertrainType) ?? null,
             propulsionTopology: (record.propulsionTopology as VehiclePropulsionTopology) ?? null,
+            engineRole: (record.engineRole as VehicleCombustionEngineRole) ?? null,
+            ...(record.batteryPackId !== undefined ? { batteryPackId: record.batteryPackId } : {}),
+            ...(record.chargingSystemId !== undefined ? { chargingSystemId: record.chargingSystemId } : {}),
+            ...(electricMotors ? { electricMotors: { deleteMany: {}, create: electricMotors } } : {}),
+            ...(driveUnits ? { driveUnits: { deleteMany: {}, create: driveUnits } } : {}),
             energyStorageRole: (record.energyStorageRole as VehicleEnergyStorageRole) ?? null,
             externalChargingCapability:
               (record.externalChargingCapability as VehicleExternalChargingCapability) ?? null,
