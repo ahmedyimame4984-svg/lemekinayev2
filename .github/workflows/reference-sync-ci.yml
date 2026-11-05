@@ -1,0 +1,54 @@
+name: LemekinayeV2 Canonical Reference Sync CI
+
+on:
+  push:
+    branches:
+      - feat/autotechdoc-reference-sync
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-reference-sync:
+    name: Reference sync contract, API and PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgresql://lemekinaye:lemekinaye@localhost:5432/lemekinaye_ci?schema=public
+      NEXT_TELEMETRY_DISABLED: '1'
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: lemekinaye
+          POSTGRES_PASSWORD: lemekinaye
+          POSTGRES_DB: lemekinaye_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lemekinaye -d lemekinaye_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install pinned workspace dependencies
+        run: npm ci
+      - name: Validate and generate database types
+        run: npm run db:validate && npm run db:generate
+      - name: API unit tests including EV reference sync
+        run: npm run test -w api
+      - name: API typecheck
+        run: npx tsc --noEmit -p apps/api/tsconfig.json
+      - name: Apply migrations to disposable PostgreSQL
+        run: npm run db:migrate
+      - name: API integration tests
+        run: npm run test:e2e -w api
+      - name: Build API
+        run: npm run build -w api
