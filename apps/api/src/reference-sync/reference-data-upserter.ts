@@ -426,6 +426,13 @@ export class ReferenceDataUpserter {
           },
         });
 
+        if (existing?.origin === ProductTypeAttributeAssignmentOrigin.MANUAL) {
+          // This is a marketplace-owned assignment. A source suggestion must
+          // not seize ownership or change its status, ordering, rules or
+          // version. The sync service still records the source/local ID
+          // mapping so archival only clears source tracking, not this row.
+          return 'SKIPPED';
+        }
         if (existing) {
           // NON-NEGOTIABLE REQUIREMENT:
           // Preserve consumer-owned customizations (requirement, displayMode, validationRule,
@@ -1016,8 +1023,11 @@ export class ReferenceDataUpserter {
         });
         break;
       case 'ProductTypeAttributeAssignment':
+        // Canonical tombstones must never retire a manually created
+        // marketplace assignment even if it shares the same source composite
+        // Product Type + Attribute identity.
         await tx.productTypeAttributeAssignment.updateMany({
-          where: { id },
+          where: { id, origin: ProductTypeAttributeAssignmentOrigin.CANONICAL },
           data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
         });
         break;

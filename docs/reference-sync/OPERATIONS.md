@@ -38,9 +38,11 @@ with bounded backoff. The snapshot expiry is visible in Admin monitoring.
 A source-managed identity that is no longer in a completed replacement
 snapshot is archived, not hard-deleted. Imported records track a local UUID
 mapping when preexisting marketplace attribute assignments share the same
-Product Type/Attribute pair but not the source row ID. Attribute assignment
-requirement, visibility, seller-editable, searchable/filterable settings and
-other commercial overrides are preserved across source updates.
+Product Type/Attribute pair but not the source row ID. A pre-existing MANUAL marketplace assignment retains its ownership,
+status, display order and commercial rules even when the matching canonical
+suggestion is published or archived. Source-owned CANONICAL assignments remain
+subject to archival. Imported source records still track their canonical IDs
+and optional local UUID mapping for deterministic replay.
 
 **Important:** canonical Product Type v3 suggested schemas are mirrored to
 reference_sync_canonical_product_type_schemas and must NOT overwrite the

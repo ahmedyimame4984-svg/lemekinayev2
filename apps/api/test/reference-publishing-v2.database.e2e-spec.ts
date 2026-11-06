@@ -264,7 +264,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     });
     expect(local).toMatchObject({
       id: localId, requirement: 'MANDATORY', searchable: true,
-      sellerEditable: false, displayOrder: 8, status: 'ACTIVE',
+      sellerEditable: false, displayOrder: 0, status: 'ACTIVE', origin: 'MANUAL',
     });
     const map = await db.referenceSyncImportedRecord.findUniqueOrThrow({
       where: {
@@ -285,7 +285,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     expect(await db.productTypeAttributeAssignment.findUniqueOrThrow({
       where: { id: localId },
     })).toMatchObject({
-      id: localId, status: 'ARCHIVED',
+      id: localId, status: 'ACTIVE', origin: 'MANUAL',
       requirement: 'MANDATORY', searchable: true, sellerEditable: false,
     });
     expect((await db.referenceSyncImportedRecord.findUniqueOrThrow({
@@ -298,6 +298,27 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     expect((await db.referenceSyncCheckpoint.findUniqueOrThrow({
       where: { id: DEFAULT_CHECKPOINT_ID },
     })).feedCursor).toBe('8');
+
+    // A separate *source-owned* assignment must still retire on withdrawal.
+    const sourceOnlyAttrId = randomUUID();
+    const sourceOnlyId = randomUUID();
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'AttributeDefinition', {
+        id: sourceOnlyAttrId, code: 'SRC_' + fixture.slice(0, 22),
+        name: 'ATD-07 source-owned attribute', dataType: 'TEXT',
+        scope: 'PRODUCT', status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'ProductTypeAttributeAssignment', {
+        id: sourceOnlyId, productTypeId, attributeId: sourceOnlyAttrId,
+        displayOrder: 3, status: 'ACTIVE', version: 1,
+      });
+      await upserter.archiveRecord(tx, 'ProductTypeAttributeAssignment', sourceOnlyId);
+    });
+    expect(await db.productTypeAttributeAssignment.findUniqueOrThrow({
+      where: { id: sourceOnlyId },
+    })).toMatchObject({
+      origin: 'CANONICAL', status: 'ARCHIVED',
+    });
   });
 
 });
