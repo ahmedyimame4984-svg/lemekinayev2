@@ -896,6 +896,7 @@ model ProductType {
   attributeAssignments ProductTypeAttributeAssignment[]
   criteriaTemplateTargets ProductTypeCriteriaTemplateTarget[]
   schemaVersions ProductTypeSchemaVersion[] @relation("ProductTypeSchemaVersions")
+  canonicalReferenceSchemas ReferenceSyncCanonicalProductTypeSchema[]
   currentSchemaVersion ProductTypeSchemaVersion? @relation("ProductTypeCurrentSchema", fields: [currentSchemaVersionId], references: [id], onDelete: Restrict)
   products Product[]
 
@@ -2780,4 +2781,24 @@ model ReferenceSyncImportedRecord {
   @@id([entityType, entityId])
   @@index([checkpointId, entityType, snapshotId, active])
   @@map("reference_sync_imported_records")
+}
+
+
+/** AutotechDoc Product Type v3 suggestions are reference data. They must never
+ * replace marketplace ProductTypeSchemaVersion snapshots bound to Articles.
+ */
+model ReferenceSyncCanonicalProductTypeSchema {
+  id            String      @id @db.Uuid
+  productTypeId String      @map("product_type_id") @db.Uuid
+  schemaVersion Int         @map("schema_version")
+  schemaHash    String      @map("schema_hash") @db.Char(64)
+  snapshot      Json
+  publishedAt   DateTime    @map("published_at")
+  active        Boolean     @default(true)
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  productType   ProductType @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([productTypeId, schemaVersion])
+  @@index([productTypeId, active, schemaVersion])
+  @@map("reference_sync_canonical_product_type_schemas")
 }

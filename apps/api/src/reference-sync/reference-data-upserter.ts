@@ -462,26 +462,25 @@ export class ReferenceDataUpserter {
       }
 
       case 'ProductTypeSchemaVersion': {
-        await tx.productTypeSchemaVersion.upsert({
-          where: {
-            productTypeId_schemaVersion: {
-              productTypeId: record.productTypeId,
-              schemaVersion: record.schemaVersion,
-            },
-          },
+        // Canonical schema v3 contains suggestions ONLY. It is not the
+        // marketplace's commercial schema: Articles retain frozen local
+        // ProductTypeSchemaVersion references across canonical releases.
+        if (record.snapshot?.contractVersion !== 3 ||
+            record.snapshot?.attributePolicy !== 'SUGGESTED' ||
+            !Number.isInteger(record.schemaVersion) || record.schemaVersion < 1 ||
+            !/^[a-f0-9]{64}$/iu.test(String(record.schemaHash))) {
+          throw new Error('Refusing incompatible canonical Product Type schema');
+        }
+        await tx.referenceSyncCanonicalProductTypeSchema.upsert({
+          where: { id: record.id },
           create: {
-            id: record.id,
-            productTypeId: record.productTypeId,
-            schemaVersion: record.schemaVersion,
-            schemaHash: record.schemaHash,
-            snapshot: record.snapshot,
-            publishedById: actorId,
+            id: record.id, productTypeId: record.productTypeId,
+            schemaVersion: record.schemaVersion, schemaHash: record.schemaHash,
+            snapshot: record.snapshot, active: true,
             publishedAt: record.publishedAt ? new Date(record.publishedAt) : new Date(),
           },
           update: {
-            schemaHash: record.schemaHash,
-            snapshot: record.snapshot,
-            publishedById: actorId,
+            schemaHash: record.schemaHash, snapshot: record.snapshot, active: true,
             publishedAt: record.publishedAt ? new Date(record.publishedAt) : new Date(),
           },
         });
@@ -1000,6 +999,13 @@ export class ReferenceDataUpserter {
         await tx.productTypeAttributeAssignment.updateMany({
           where: { id },
           data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'ProductTypeSchemaVersion':
+        // Retain immutable source history but withdraw stale suggestions.
+        // Never archive marketplace Article-bound schema versions.
+        await tx.referenceSyncCanonicalProductTypeSchema.updateMany({
+          where: { id }, data: { active: false },
         });
         break;
       case 'VehicleMake':

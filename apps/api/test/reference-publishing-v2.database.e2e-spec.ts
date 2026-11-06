@@ -148,5 +148,66 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
       where: { id: DEFAULT_CHECKPOINT_ID },
     })).feedCursor).toBe('6');
     expect(await db.brand.count({ where: { id: { in: ids } } })).toBe(2);
+  }); 
+  it('keeps marketplace Article schema snapshots intact when a matching canonical v3 version is imported', async () => {
+    const id = randomUUID();
+    const categoryId = randomUUID();
+    const productTypeId = randomUUID();
+    const canonicalSchemaId = randomUUID();
+    const upserter = new ReferenceDataUpserter();
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'Category', {
+        id: categoryId, code: 'ATD_' + id.replaceAll('-', '').slice(0, 15),
+        slug: 'atd-' + id, name: 'ATD-07 schema fixture', status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'ProductType', {
+        id: productTypeId, categoryId, code: 'PT_' + id.replaceAll('-', '').slice(0, 15),
+        slug: 'pt-' + id, name: 'ATD-07 schema fixture', status: 'ACTIVE', version: 1,
+      });
+    });
+    const actor = await db.user.findFirstOrThrow({
+      where: { email: 'system-sync@lemekinaye.internal' },
+    });
+    const commercialId = randomUUID();
+    const commercialSnapshot = {
+      contractVersion: 3, marketplacePolicies: { minimumImageCount: 7 },
+    };
+    await db.productTypeSchemaVersion.create({
+      data: {
+        id: commercialId, productTypeId, schemaVersion: 1,
+        schemaHash: 'a'.repeat(64), snapshot: commercialSnapshot,
+        publishedById: actor.id,
+      },
+    });
+    const canonical = {
+      id: canonicalSchemaId, productTypeId, schemaVersion: 1,
+      schemaHash: 'b'.repeat(64), snapshot: {
+        contractVersion: 3, attributePolicy: 'SUGGESTED', attributes: [],
+      },
+      publishedAt: new Date().toISOString(),
+    };
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'ProductTypeSchemaVersion', canonical);
+    });
+    const intact = await db.productTypeSchemaVersion.findUniqueOrThrow({
+      where: { id: commercialId },
+    });
+    expect(intact.snapshot).toEqual(commercialSnapshot);
+    expect(intact.schemaHash).toBe('a'.repeat(64));
+    expect(await db.referenceSyncCanonicalProductTypeSchema.findUniqueOrThrow({
+      where: { id: canonicalSchemaId },
+    })).toMatchObject({
+      productTypeId, active: true, schemaHash: 'b'.repeat(64),
+    });
+    await db.$transaction(async tx => {
+      await upserter.archiveRecord(tx, 'ProductTypeSchemaVersion', canonicalSchemaId);
+    });
+    expect((await db.referenceSyncCanonicalProductTypeSchema.findUniqueOrThrow({
+      where: { id: canonicalSchemaId },
+    })).active).toBe(false);
+    expect((await db.productTypeSchemaVersion.findUniqueOrThrow({
+      where: { id: commercialId },
+    })).snapshot).toEqual(commercialSnapshot);
   });
+
 });
