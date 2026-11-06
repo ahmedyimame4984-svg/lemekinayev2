@@ -5,6 +5,11 @@ import { useCallback, useEffect, useState } from 'react';
 type State = {
   isConfigured: boolean;
   snapshotStatus: string;
+  snapshotId: string | null;
+  snapshotThrough: string | null;
+  snapshotExpiresAt: string | null;
+  batchThrough: string | null;
+  entityStates: Array<{ entityType: string; status: string; recordCount: number }>;
   feedCursor: string | null;
   lastSnapshotAt: string | null;
   lastIncrementalAt: string | null;
@@ -178,7 +183,12 @@ export default function ReferenceSyncPage() {
               <dt>Skipped records</dt><dd>{status?.totalSkipped ?? 0}</dd>
               <dt>Failed runs</dt><dd>{status?.totalFailed ?? 0}</dd>
               <dt>Last error</dt><dd>{status?.lastError ?? 'None'}</dd>
-              <dt>Checkpoint cursor</dt><dd style={{ overflowWrap: 'anywhere' }}>{status?.feedCursor ?? 'Beginning of feed'}</dd>
+              <dt>Committed journal sequence</dt><dd style={{ overflowWrap: 'anywhere' }}>{status?.feedCursor ?? 'Not initialized'}</dd>
+              <dt>Current feed batch through</dt><dd>{status?.batchThrough ?? 'No partial batch'}</dd>
+              <dt>Frozen snapshot watermark</dt><dd>{status?.snapshotThrough ?? 'Not yet'}</dd>
+              <dt>Snapshot ID</dt><dd style={{ overflowWrap: 'anywhere' }}>{status?.snapshotId ?? 'Not yet'}</dd>
+              <dt>Snapshot expiry</dt><dd>{date(status?.snapshotExpiresAt)}</dd>
+              <dt>Entity tables completed</dt><dd>{status?.entityStates?.filter((entity) => entity.status === 'COMPLETED').length ?? 0} / {status?.entityStates?.length ?? 0}</dd>
             </dl>
             <button type="button" onClick={() => void refresh()}>Refresh status</button>
           </div>
