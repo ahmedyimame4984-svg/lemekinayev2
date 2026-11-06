@@ -77,6 +77,24 @@ npm run notify:reference-publications -w api. A signed HMAC notification only
 wakes a pull; the journal is authoritative and scheduled polling recovers
 missed hints. Duplicate hints are expected and safe.
 
+## Producer publishing contract dependency gap (review blocker)
+
+The current source v2 allowlist exposes only 24 entity types. Certain published
+records can still reference source masters absent from that allowlist:
+
+- AttributeUnit.dimensionId and AttributeDefinition.unitDimensionId require
+  UnitDimension; synthesizing a placeholder would violate canonical ownership.
+- AttributeDefinition.optionSetId requires AttributeOptionSet.
+- VehicleGeneration.derivativeId requires VehicleModelDerivative.
+- Configuration market-applicability junctions are also not part of the v2
+  projected VehicleConfiguration payload.
+
+The consumer fails safely for missing referenced parents, retains the last
+committed checkpoint, and does NOT create fake canonical data. Real source
+records using these relationships require a separately reviewed producer
+contract extension (and an upgraded consumer allowlist), plus an independent
+integration test. Do not silently null the foreign keys or fall back to v1.
+
 ## Validation and release restrictions
 
 GitHub Actions consumer workflow validates Prisma, runs all API unit tests,

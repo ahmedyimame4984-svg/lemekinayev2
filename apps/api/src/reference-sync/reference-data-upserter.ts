@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import {
   AccountStatus,
   AccountType,
@@ -203,16 +203,13 @@ export class ReferenceDataUpserter {
             select: { id: true },
           });
           if (!dim) {
-            await tx.unitDimension.create({
-              data: {
-                id: record.dimensionId,
-                code: `DIM_${record.dimensionId.slice(0, 8).toUpperCase()}`,
-                name: `Dimension for ${record.code}`,
-                status: MasterDataStatus.ACTIVE,
-                createdById: actorId,
-                updatedById: actorId,
-              },
-            });
+            // A synthetic "Dimension for ..." master falsely claims to be
+            // approved AutotechDoc reference data. The producer must publish
+            // this dependency before the consumer can import its child.
+            throw new ServiceUnavailableException(
+              'Unpublished UnitDimension reference ' + record.dimensionId +
+              ' required by AttributeUnit ' + record.id,
+            );
           }
         }
 
@@ -251,6 +248,22 @@ export class ReferenceDataUpserter {
       }
 
       case 'AttributeDefinition': {
+        // Unpublished referenced masters may not be fabricated locally.
+        // Source ATD-06 v2 must publish AttributeOptionSet and UnitDimension.
+        if (record.optionSetId && !(await tx.attributeOptionSet.findUnique({
+          where: { id: record.optionSetId }, select: { id: true },
+        }))) {
+          throw new ServiceUnavailableException(
+            'Unpublished AttributeOptionSet reference ' + record.optionSetId,
+          );
+        }
+        if (record.unitDimensionId && !(await tx.unitDimension.findUnique({
+          where: { id: record.unitDimensionId }, select: { id: true },
+        }))) {
+          throw new ServiceUnavailableException(
+            'Unpublished UnitDimension reference ' + record.unitDimensionId,
+          );
+        }
         await tx.attributeDefinition.upsert({
           where: { id: record.id },
           create: {
@@ -571,6 +584,13 @@ export class ReferenceDataUpserter {
       }
 
       case 'VehicleGeneration': {
+        if (record.derivativeId && !(await tx.vehicleModelDerivative.findUnique({
+          where: { id: record.derivativeId }, select: { id: true },
+        }))) {
+          throw new ServiceUnavailableException(
+            'Unpublished VehicleModelDerivative reference ' + record.derivativeId,
+          );
+        }
         await tx.vehicleGeneration.upsert({
           where: { id: record.id },
           create: {
