@@ -47,6 +47,8 @@ jobs:
         run: npm run test -w api
       - name: API typecheck
         run: npx tsc --noEmit -p apps/api/tsconfig.json
+      - name: API type-aware lint
+        run: npm run lint -w api
       - name: Apply migrations to disposable PostgreSQL
         run: npm run db:migrate
       - name: API integration tests
@@ -58,5 +60,7 @@ jobs:
         run: npm run test -w admin
       - name: Admin TypeScript contract check
         run: npm run typecheck -w admin
+      - name: Admin type-aware lint
+        run: npm run lint -w admin
       - name: Admin production build
         run: npm run build -w admin
