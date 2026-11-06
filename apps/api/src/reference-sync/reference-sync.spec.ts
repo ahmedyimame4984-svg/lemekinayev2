@@ -70,6 +70,7 @@ function harness() {
   db.referenceSyncEntityState = {
     findUnique: vi.fn(async ({ where }: any) =>
       entityStates.get(where.checkpointId_entityType.entityType) ?? null),
+    findMany: vi.fn(async () => [...entityStates.values()].map(state => ({ ...state }))),
     create: vi.fn(async ({ data }: any) => {
       const value = { ...data, lastCompletedCursor: null, recordCount: 0, updatedAt: new Date() };
       entityStates.set(data.entityType, value);
@@ -300,15 +301,30 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
     expect(h.client.createSnapshot).toHaveBeenCalledTimes(1);
     expect(h.cp.feedCursor).toBe('12');
   });
-  it('does not commit a successful bootstrap if the producer total disagrees with the imported identity count', async () => {
+  it('rejects a truncated replacement snapshot without archiving valid imported references', async () => {
+    h.cp.snapshotStatus = 'COMPLETED';
+    h.cp.feedCursor = '17';
+    h.imported.set('Brand:keep', {
+      checkpointId: DEFAULT_CHECKPOINT_ID, entityType: 'Brand',
+      entityId: 'keep', snapshotId: 'previous', active: true,
+    });
+    h.local.set('Brand:keep', { id: 'keep', status: 'ACTIVE' });
+
+    // The server advertises two published identities, but returns only one.
+    // The old behavior archived Brand:keep before checking the global count.
     const s = { ...snapshot('incomplete', '50'), recordCount: 2 };
     h.client.createSnapshot.mockResolvedValue(s);
     h.client.fetchSnapshotPage.mockImplementation(async (_id: string, type: string) =>
       page(s, type, type === 'Brand' ? [{ id: 'only-one' }] : []));
-    await expect(h.sync.executeSnapshot()).rejects.toThrow('Frozen snapshot count mismatch');
+
+    await expect(h.sync.executeSnapshot({ forceFull: true }))
+      .rejects.toThrow('Frozen snapshot count mismatch');
     expect(h.cp.snapshotStatus).toBe('IN_PROGRESS');
-    expect(h.cp.feedCursor).toBeNull();
+    expect(h.cp.feedCursor).toBe('17');
     expect(h.cp.snapshotRecordCount).toBe(2);
+    expect(h.local.get('Brand:keep').status).toBe('ACTIVE');
+    expect(h.imported.get('Brand:keep').active).toBe(true);
+    expect(h.upserter.archiveRecord).not.toHaveBeenCalled();
   });
 
 });
