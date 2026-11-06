@@ -53,3 +53,10 @@ jobs:
         run: npm run test:e2e -w api
       - name: Build API
         run: npm run build -w api
+
+      - name: Admin synchronization monitoring UI tests
+        run: npm run test -w admin
+      - name: Admin TypeScript contract check
+        run: npm run typecheck -w admin
+      - name: Admin production build
+        run: npm run build -w admin
