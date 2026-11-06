@@ -1,5 +1,6 @@
 'use client';
 
+import { SellerListingCommercialFields } from './seller-listing-commercial-fields';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ClientApiError, getJson, postJson } from '@/lib/client-api';
@@ -27,6 +28,7 @@ export function SellerListProductModal({
     description: '',
     warranty: '',
     delivery: '',
+    commercialDetails: {},
   });
   const [requirements, setRequirements] = useState<SellerOfferRequirements | null>(null);
   const [loading, setLoading] = useState(true);
@@ -223,7 +225,10 @@ export function SellerListProductModal({
               <textarea className={fieldClass} maxLength={5000} rows={2} disabled={saving}
                 value={details.delivery} onChange={event => change('delivery', event.target.value)}/>
             </label>
-            <label className="block text-sm font-medium text-slate-800">Listing description
+            <SellerListingCommercialFields value={details.commercialDetails ?? {}}
+                 policy={requirements?.commercial}
+                 disabled={saving} onChange={commercialDetails => change('commercialDetails', commercialDetails)}/>
+             <label className="block text-sm font-medium text-slate-800">Listing description
               <textarea className={fieldClass} maxLength={5000} rows={3} disabled={saving}
                 value={details.description} onChange={event => change('description', event.target.value)}/>
             </label>

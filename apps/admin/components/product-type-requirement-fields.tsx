@@ -21,6 +21,11 @@ export type ProductTypeRequirementValues = {
   stockRequirement: ProductTypeRequirementLevel;
   conditionRequirement: ProductTypeRequirementLevel;
   warrantyRequirement: ProductTypeRequirementLevel;
+  packageDimensionsRequirement: ProductTypeRequirementLevel;
+  packageWeightRequirement: ProductTypeRequirementLevel;
+  discountRequirement: ProductTypeRequirementLevel;
+  transportRequirement: ProductTypeRequirementLevel;
+  specialHandlingRequirement: ProductTypeRequirementLevel;
 };
 
 export const DEFAULT_PRODUCT_TYPE_REQUIREMENTS: ProductTypeRequirementValues = {
@@ -39,6 +44,11 @@ export const DEFAULT_PRODUCT_TYPE_REQUIREMENTS: ProductTypeRequirementValues = {
   stockRequirement: 'REQUIRED',
   conditionRequirement: 'REQUIRED',
   warrantyRequirement: 'OPTIONAL',
+  packageDimensionsRequirement: 'OPTIONAL',
+  packageWeightRequirement: 'OPTIONAL',
+  discountRequirement: 'OPTIONAL',
+  transportRequirement: 'OPTIONAL',
+  specialHandlingRequirement: 'OPTIONAL',
 };
 
 export function ProductTypeRequirementFields({
@@ -62,7 +72,12 @@ export function ProductTypeRequirementFields({
       | 'priceRequirement'
       | 'stockRequirement'
       | 'conditionRequirement'
-      | 'warrantyRequirement',
+      | 'warrantyRequirement'
+      | 'packageDimensionsRequirement'
+      | 'packageWeightRequirement'
+      | 'discountRequirement'
+      | 'transportRequirement'
+      | 'specialHandlingRequirement',
     requirement: ProductTypeRequirementLevel,
   ) {
     onChange({
@@ -295,6 +310,41 @@ export function ProductTypeRequirementFields({
             disabled={disabled}
             onChange={(next) => setRequirement('warrantyRequirement', next)}
             hint="Controls whether the seller listing must state warranty terms or explicitly provide them."
+          />
+          <RequirementSelect
+            label="Package length, width & height"
+            value={value.packageDimensionsRequirement}
+            disabled={disabled}
+            onChange={(next) => setRequirement('packageDimensionsRequirement', next)}
+            hint="Shipping package dimensions, not technical part dimensions."
+          />
+          <RequirementSelect
+            label="Gross package weight"
+            value={value.packageWeightRequirement}
+            disabled={disabled}
+            onChange={(next) => setRequirement('packageWeightRequirement', next)}
+            hint="Weight of one packaged selling unit."
+          />
+          <RequirementSelect
+            label="Discount"
+            value={value.discountRequirement}
+            disabled={disabled}
+            onChange={(next) => setRequirement('discountRequirement', next)}
+            hint="Percentage or fixed ETB reduction."
+          />
+          <RequirementSelect
+            label="Transport methods for one selling unit"
+            value={value.transportRequirement}
+            disabled={disabled}
+            onChange={(next) => setRequirement('transportRequirement', next)}
+            hint="Seller-declared choices; no automatic guarantee for multiple items."
+          />
+          <RequirementSelect
+            label="Special handling notes"
+            value={value.specialHandlingRequirement}
+            disabled={disabled}
+            onChange={(next) => setRequirement('specialHandlingRequirement', next)}
+            hint="Fragile, battery, liquid or other handling instructions."
           />
         </div>
       </section>

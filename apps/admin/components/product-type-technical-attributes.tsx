@@ -92,6 +92,11 @@ export function ProductTypeTechnicalAttributes({
       stockRequirement: initialProductType.stockRequirement,
       conditionRequirement: initialProductType.conditionRequirement,
       warrantyRequirement: initialProductType.warrantyRequirement,
+      packageDimensionsRequirement: initialProductType.packageDimensionsRequirement,
+      packageWeightRequirement: initialProductType.packageWeightRequirement,
+      discountRequirement: initialProductType.discountRequirement,
+      transportRequirement: initialProductType.transportRequirement,
+      specialHandlingRequirement: initialProductType.specialHandlingRequirement,
     });
   const [requirementsSaving, setRequirementsSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -122,6 +127,11 @@ export function ProductTypeTechnicalAttributes({
       stockRequirement: initialProductType.stockRequirement,
       conditionRequirement: initialProductType.conditionRequirement,
       warrantyRequirement: initialProductType.warrantyRequirement,
+      packageDimensionsRequirement: initialProductType.packageDimensionsRequirement,
+      packageWeightRequirement: initialProductType.packageWeightRequirement,
+      discountRequirement: initialProductType.discountRequirement,
+      transportRequirement: initialProductType.transportRequirement,
+      specialHandlingRequirement: initialProductType.specialHandlingRequirement,
     });
   }, [initialProductType]);
 
@@ -654,6 +664,11 @@ export function ProductTypeTechnicalAttributes({
         stockRequirement: updated.stockRequirement,
         conditionRequirement: updated.conditionRequirement,
         warrantyRequirement: updated.warrantyRequirement,
+        packageDimensionsRequirement: updated.packageDimensionsRequirement,
+        packageWeightRequirement: updated.packageWeightRequirement,
+        discountRequirement: updated.discountRequirement,
+        transportRequirement: updated.transportRequirement,
+        specialHandlingRequirement: updated.specialHandlingRequirement,
       });
       setNotice('Article & listing requirements saved.');
     } catch (error) {

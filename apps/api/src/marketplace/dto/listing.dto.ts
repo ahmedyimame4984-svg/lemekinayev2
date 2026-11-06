@@ -1,4 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
+import { SellerListingCommercialDto } from './seller-listing-commercial.dto.js';
 import {
   InventoryAvailabilityStatus,
   InventoryLocationType,
@@ -108,6 +111,10 @@ export class CreateSellerListingDto {
   @MaxLength(5000)
   deliveryInformation?: string;
 
+  @ApiPropertyOptional({ type: SellerListingCommercialDto })
+  @IsOptional() @ValidateNested() @Type(() => SellerListingCommercialDto)
+  commercialDetails?: SellerListingCommercialDto;
+
   @ApiPropertyOptional({ maxLength: 5000 })
   @IsOptional()
   @IsString()
@@ -187,6 +194,10 @@ export class UpdateSellerListingDto {
   @IsString()
   @MaxLength(5000)
   deliveryInformation?: string | null;
+
+  @ApiPropertyOptional({ type: SellerListingCommercialDto, nullable: true })
+  @IsOptional() @ValidateNested() @Type(() => SellerListingCommercialDto)
+  commercialDetails?: SellerListingCommercialDto | null;
 
   @ApiPropertyOptional({ maxLength: 5000, nullable: true })
   @IsOptional()
@@ -310,6 +321,9 @@ export class SellerListingResponseDto {
 
   @ApiPropertyOptional({ nullable: true })
   deliveryInformation!: string | null;
+
+  @ApiPropertyOptional({ type: SellerListingCommercialDto, nullable: true })
+  commercialDetails!: SellerListingCommercialDto | null;
 
   @ApiPropertyOptional({ nullable: true })
   commercialTerms!: string | null;

@@ -168,6 +168,11 @@ const productTypeResponseSelect = {
   stockRequirement: true,
   conditionRequirement: true,
   warrantyRequirement: true,
+  packageDimensionsRequirement: true,
+  packageWeightRequirement: true,
+  discountRequirement: true,
+  transportRequirement: true,
+  specialHandlingRequirement: true,
   status: true,
   version: true,
   currentSchemaVersionId: true,
@@ -1215,6 +1220,11 @@ export class CatalogService {
               stockRequirement: input.stockRequirement,
               conditionRequirement: input.conditionRequirement,
               warrantyRequirement: input.warrantyRequirement,
+              packageDimensionsRequirement: input.packageDimensionsRequirement,
+              packageWeightRequirement: input.packageWeightRequirement,
+              discountRequirement: input.discountRequirement,
+              transportRequirement: input.transportRequirement,
+              specialHandlingRequirement: input.specialHandlingRequirement,
               status: input.status,
               version: { increment: 1 },
               updatedById: actorId,
@@ -1920,6 +1930,11 @@ export class CatalogService {
       input.stockRequirement !== undefined ||
       input.conditionRequirement !== undefined ||
       input.warrantyRequirement !== undefined ||
+      input.packageDimensionsRequirement !== undefined ||
+      input.packageWeightRequirement !== undefined ||
+      input.discountRequirement !== undefined ||
+      input.transportRequirement !== undefined ||
+      input.specialHandlingRequirement !== undefined ||
       input.status !== undefined
     );
   }
@@ -1950,6 +1965,11 @@ export class CatalogService {
       stockRequirement: productType.stockRequirement,
       conditionRequirement: productType.conditionRequirement,
       warrantyRequirement: productType.warrantyRequirement,
+      packageDimensionsRequirement: productType.packageDimensionsRequirement,
+      packageWeightRequirement: productType.packageWeightRequirement,
+      discountRequirement: productType.discountRequirement,
+      transportRequirement: productType.transportRequirement,
+      specialHandlingRequirement: productType.specialHandlingRequirement,
       status: productType.status,
       version: productType.version,
       currentSchemaVersionId: productType.currentSchemaVersionId,
@@ -1982,6 +2002,11 @@ export class CatalogService {
       stockRequirement: productType.stockRequirement,
       conditionRequirement: productType.conditionRequirement,
       warrantyRequirement: productType.warrantyRequirement,
+      packageDimensionsRequirement: productType.packageDimensionsRequirement,
+      packageWeightRequirement: productType.packageWeightRequirement,
+      discountRequirement: productType.discountRequirement,
+      transportRequirement: productType.transportRequirement,
+      specialHandlingRequirement: productType.specialHandlingRequirement,
       status: productType.status,
       version: productType.version,
       currentSchemaVersionId: productType.currentSchemaVersionId,
