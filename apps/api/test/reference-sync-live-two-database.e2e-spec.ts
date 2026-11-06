@@ -1,3 +1,4 @@
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import type { DatabaseService } from '../src/database/database.service.js';
@@ -338,4 +339,83 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       where: { id: DEFAULT_CHECKPOINT_ID },
     })).snapshotStatus).toBe('COMPLETED');
   }, 180_000);
+
+  it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
+    'rejects revoked, expired and wrong-scope machine keys through real source HTTP', async () => {
+      // Only the CI-issued B2B key is modified. This opt-in is restricted by
+      // beforeAll to two separate disposable, loopback PostgreSQL databases.
+      const keyHash = createHash('sha256').update(producerToken!).digest('hex');
+      const original = await source.$queryRaw<Array<{
+        id: string; client_id: string; created_by_id: string;
+      }>>`
+        SELECT "id", "client_id", "created_by_id"
+        FROM "b2b_api_keys" WHERE "key_hash" = ${keyHash}
+      `;
+      expect(original).toHaveLength(1);
+      const owner = original[0];
+
+      // The read-only key can read journal pages but cannot create snapshots.
+      const readonlyToken = 'atd_live_' + randomBytes(32).toString('base64url');
+      const readonlyHash = createHash('sha256').update(readonlyToken).digest('hex');
+      await source.$executeRaw`
+        INSERT INTO "b2b_api_keys"
+          ("id", "client_id", "name", "key_prefix", "key_hash",
+           "scopes", "status", "created_by_id")
+        VALUES
+          (${randomUUID()}::uuid, ${owner.client_id}::uuid, 'Disposable read-only CI',
+           ${readonlyToken.slice(0, 16)}, ${readonlyHash},
+           ARRAY['reference:read']::text[], 'ACTIVE', ${owner.created_by_id}::uuid)
+      `;
+      const readonly = new AutotechdocSyncClient({
+        baseUrl: producerUrl, token: readonlyToken, maxRetries: 1,
+      });
+      const checkpoint = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+      });
+      expect((await readonly.fetchChangeFeed(checkpoint.feedCursor, null, 10))
+        .contractVersion).toBe('2.0.0');
+      await expect(readonly.createSnapshot()).rejects.toThrow();
+
+      // A separate replacement key must continue to work after the original
+      // CI credential is revoked, and expire immediately when withdrawn.
+      const replacementToken = 'atd_live_' + randomBytes(32).toString('base64url');
+      const replacementHash = createHash('sha256').update(replacementToken).digest('hex');
+      const replacementId = randomUUID();
+      await source.$executeRaw`
+        INSERT INTO "b2b_api_keys"
+          ("id", "client_id", "name", "key_prefix", "key_hash",
+           "scopes", "status", "created_by_id")
+        VALUES
+          (${replacementId}::uuid, ${owner.client_id}::uuid,
+           'Disposable replacement CI', ${replacementToken.slice(0, 16)},
+           ${replacementHash}, ARRAY['reference:read','reference:snapshot']::text[],
+           'ACTIVE', ${owner.created_by_id}::uuid)
+      `;
+      const replacement = new AutotechdocSyncClient({
+        baseUrl: producerUrl, token: replacementToken, maxRetries: 1,
+      });
+      expect((await replacement.createSnapshot()).contractVersion).toBe('2.0.0');
+
+      await source.$executeRaw`
+        UPDATE "b2b_api_keys"
+        SET "status" = 'REVOKED', "revoked_at" = NOW(),
+            "revoked_reason" = 'Disposable live integration test'
+        WHERE "id" = ${owner.id}::uuid
+      `;
+      await expect(remote.createSnapshot()).rejects.toThrow();
+      expect((await replacement.fetchChangeFeed(checkpoint.feedCursor, null, 10))
+        .contractVersion).toBe('2.0.0');
+
+      await source.$executeRaw`
+        UPDATE "b2b_api_keys"
+        SET "expires_at" = NOW() - INTERVAL '1 minute'
+        WHERE "id" = ${replacementId}::uuid
+      `;
+      await expect(replacement.createSnapshot()).rejects.toThrow();
+      // Consumer state must remain unchanged by failed credential requests.
+      expect((await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+      })).feedCursor).toBe(checkpoint.feedCursor);
+    }, 180_000,
+  );
 });
