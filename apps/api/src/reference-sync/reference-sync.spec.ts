@@ -33,7 +33,7 @@ const change = (sequence: string, id: string, operation: 'UPSERT' | 'ARCHIVE' = 
 function harness() {
   const cp: any = {
     id: DEFAULT_CHECKPOINT_ID, snapshotStatus: 'NOT_STARTED', snapshotId: null,
-    snapshotThrough: null, snapshotExpiresAt: null, batchThrough: null, feedCursor: null,
+    snapshotThrough: null, snapshotRecordCount: null, snapshotExpiresAt: null, batchThrough: null, feedCursor: null,
     scheduleEnabled: true, intervalMinutes: 5, lastSnapshotAt: null, lastIncrementalAt: null,
     lastSuccessAt: null, lastFailureAt: null, lastError: null, appliedCount: 0,
     skippedCount: 0, failedCount: 0, workerId: null, lockedUntil: null,
@@ -80,6 +80,9 @@ function harness() {
     deleteMany: vi.fn(async () => { entityStates.clear(); return { count: 0 }; }),
   };
   db.referenceSyncImportedRecord = {
+    count: vi.fn(async ({ where }: any) => [...imported.values()]
+      .filter(x => x.checkpointId === where.checkpointId &&
+        x.snapshotId === where.snapshotId && x.active === where.active).length),
     findMany: vi.fn(async ({ where, take }: any) => [...imported.values()]
       .filter(x => x.entityType === where.entityType && x.active &&
         x.snapshotId !== where.OR[0].snapshotId.not).slice(0, take)
@@ -129,7 +132,7 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
   });
 
   it('creates exactly one immutable snapshot and starts incremental replay at its through', async () => {
-    const s = snapshot('s-initial', '27');
+    const s = { ...snapshot('s-initial', '27'), recordCount: 1 };
     h.client.createSnapshot.mockResolvedValue(s);
     h.client.fetchSnapshotPage.mockImplementation(async (_id: string, type: string) =>
       page(s, type, type === 'Brand' ? [{ id: 'b1', code: 'BMW', name: 'BMW' }] : []));
@@ -143,11 +146,16 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
   });
 
   it('keeps one snapshot across pages and resumes after restart without a new source snapshot', async () => {
-    const s = snapshot('frozen', '9');
+    const s = { ...snapshot('frozen', '9'), recordCount: 2 };
     h.cp.snapshotId = s.snapshotId;
     h.cp.snapshotStatus = 'IN_PROGRESS';
     h.cp.snapshotThrough = s.through;
+    h.cp.snapshotRecordCount = s.recordCount;
     h.cp.snapshotExpiresAt = new Date(s.expiresAt);
+    h.imported.set('Brand:b1', {
+      checkpointId: DEFAULT_CHECKPOINT_ID, entityType: 'Brand', entityId: 'b1',
+      snapshotId: 'frozen', active: true,
+    });
     h.entityStates.set('Brand', {
       checkpointId: DEFAULT_CHECKPOINT_ID, entityType: 'Brand',
       status: 'IN_PROGRESS', recordCount: 1, lastCompletedCursor: 'b1',
@@ -292,4 +300,15 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
     expect(h.client.createSnapshot).toHaveBeenCalledTimes(1);
     expect(h.cp.feedCursor).toBe('12');
   });
+  it('does not commit a successful bootstrap if the producer total disagrees with the imported identity count', async () => {
+    const s = { ...snapshot('incomplete', '50'), recordCount: 2 };
+    h.client.createSnapshot.mockResolvedValue(s);
+    h.client.fetchSnapshotPage.mockImplementation(async (_id: string, type: string) =>
+      page(s, type, type === 'Brand' ? [{ id: 'only-one' }] : []));
+    await expect(h.sync.executeSnapshot()).rejects.toThrow('Frozen snapshot count mismatch');
+    expect(h.cp.snapshotStatus).toBe('IN_PROGRESS');
+    expect(h.cp.feedCursor).toBeNull();
+    expect(h.cp.snapshotRecordCount).toBe(2);
+  });
+
 });

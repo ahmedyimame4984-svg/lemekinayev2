@@ -151,6 +151,7 @@ export class ReferenceSyncService {
       snapshotStatus: checkpoint.snapshotStatus,
       snapshotId: checkpoint.snapshotId,
       snapshotThrough: checkpoint.snapshotThrough,
+      snapshotRecordCount: checkpoint.snapshotRecordCount,
       snapshotExpiresAt: checkpoint.snapshotExpiresAt,
       batchThrough: checkpoint.batchThrough,
       feedCursor: checkpoint.feedCursor,
@@ -181,7 +182,8 @@ export class ReferenceSyncService {
         !Array.isArray(snapshot.entityTypes) ||
         snapshot.entityTypes.join(',') !== SYNCHRONIZATION_ORDER.join(',') ||
         !/^(?:0|[1-9][0-9]*)$/u.test(snapshot.through) ||
-        !snapshot.snapshotId || !Number.isFinite(Date.parse(snapshot.expiresAt)) ||
+        !snapshot.snapshotId || !Number.isSafeInteger(snapshot.recordCount) ||
+        snapshot.recordCount < 0 || !Number.isFinite(Date.parse(snapshot.expiresAt)) ||
         Date.parse(snapshot.expiresAt) <= Date.now()) {
       throw new ServiceUnavailableException('Incompatible or expired ATD-06 v2 frozen snapshot contract');
     }
@@ -195,7 +197,7 @@ export class ReferenceSyncService {
   ): void {
     if (page.contractVersion !== '2.0.0' || page.productTypeSchemaContract !== 3 ||
         page.snapshotId !== snapshot.snapshotId || page.through !== snapshot.through ||
-        page.entityType !== entityType || !Array.isArray(page.items) ||
+        page.recordCount !== snapshot.recordCount || page.entityType !== entityType || !Array.isArray(page.items) ||
         !Array.isArray(snapshot.entityTypes) ||
         page.items.some(item => !item || typeof item !== 'object' ||
           typeof (item as { id?: unknown }).id !== 'string') ||
@@ -285,6 +287,7 @@ export class ReferenceSyncService {
         const resume = !options?.forceFull && renewalAttempt === 0 &&
           checkpoint.snapshotStatus === 'IN_PROGRESS' &&
           checkpoint.snapshotId && checkpoint.snapshotThrough && checkpoint.snapshotExpiresAt &&
+          checkpoint.snapshotRecordCount !== null &&
           checkpoint.snapshotExpiresAt.getTime() > Date.now();
         if (resume) {
           snapshot = {
@@ -294,7 +297,7 @@ export class ReferenceSyncService {
             contractVersion: '2.0.0',
             productTypeSchemaContract: 3,
             entityTypes: [...SYNCHRONIZATION_ORDER],
-            recordCount: 0,
+            recordCount: checkpoint.snapshotRecordCount!,
           };
         } else {
           snapshot = await this.syncClient.createSnapshot();
@@ -310,6 +313,7 @@ export class ReferenceSyncService {
                 snapshotStatus: 'IN_PROGRESS',
                 snapshotId: snapshot.snapshotId,
                 snapshotThrough: snapshot.through,
+                snapshotRecordCount: snapshot.recordCount,
                 snapshotExpiresAt: new Date(snapshot.expiresAt),
                 // Keep the last healthy feed cursor until the full import commits.
                 batchThrough: null,
@@ -377,6 +381,23 @@ export class ReferenceSyncService {
                 data: { status: 'COMPLETED' },
               });
             });
+          }
+          // The last source page alone is insufficient proof of completeness.
+          // Comparing source-frozen count against the locally tracked active
+          // identities prevents a malformed/missing page from advancing the
+          // canonical replay cursor or hiding a partial import.
+          const actualCount = await this.database.referenceSyncImportedRecord.count({
+            where: {
+              checkpointId: DEFAULT_CHECKPOINT_ID,
+              snapshotId: snapshot.snapshotId,
+              active: true,
+            },
+          });
+          if (actualCount !== snapshot.recordCount) {
+            throw new ServiceUnavailableException(
+              'Frozen snapshot count mismatch: expected ' + snapshot.recordCount +
+              ', imported ' + actualCount + '; feed checkpoint was not advanced',
+            );
           }
           const completedAt = new Date();
           await this.database.$transaction(async tx => {

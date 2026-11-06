@@ -21,6 +21,12 @@ AutotechDoc Admin with reference:read + reference:snapshot scopes):
   returns monotonically increasing, replayable committed sequence positions.
 
 Never call legacy /manifest, /feed?since, /entities or timestamp-based v1.
+Before completion, the consumer verifies that the active, source-managed
+imported-identity count exactly equals the producer's frozen recordCount.
+Any mismatch fails closed without advancing the replay cursor. No upstream
+signed checksum exists in v2, so a checksum cannot yet be independently
+compared; this remains a producer contract review gate.
+
 After the last snapshot entity has completed, checkpoint feedCursor is set to
 snapshot.through in one database transaction. Each incremental page commits
 canonical writes, per-entity import identity, current sequence and pinned

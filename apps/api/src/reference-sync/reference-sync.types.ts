@@ -101,6 +101,7 @@ export interface SyncStatusReport {
   snapshotStatus: string;
   snapshotId: string | null;
   snapshotThrough: string | null;
+  snapshotRecordCount: number | null;
   snapshotExpiresAt: Date | null;
   batchThrough: string | null;
   feedCursor: string | null;

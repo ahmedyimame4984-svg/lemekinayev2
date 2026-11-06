@@ -7,6 +7,7 @@ type State = {
   snapshotStatus: string;
   snapshotId: string | null;
   snapshotThrough: string | null;
+  snapshotRecordCount: number | null;
   snapshotExpiresAt: string | null;
   batchThrough: string | null;
   entityStates: Array<{ entityType: string; status: string; recordCount: number }>;
@@ -186,6 +187,7 @@ export default function ReferenceSyncPage() {
               <dt>Committed journal sequence</dt><dd style={{ overflowWrap: 'anywhere' }}>{status?.feedCursor ?? 'Not initialized'}</dd>
               <dt>Current feed batch through</dt><dd>{status?.batchThrough ?? 'No partial batch'}</dd>
               <dt>Frozen snapshot watermark</dt><dd>{status?.snapshotThrough ?? 'Not yet'}</dd>
+              <dt>Frozen record count</dt><dd>{status?.snapshotRecordCount ?? 'Not yet'}</dd>
               <dt>Snapshot ID</dt><dd style={{ overflowWrap: 'anywhere' }}>{status?.snapshotId ?? 'Not yet'}</dd>
               <dt>Snapshot expiry</dt><dd>{date(status?.snapshotExpiresAt)}</dd>
               <dt>Entity tables completed</dt><dd>{status?.entityStates?.filter((entity) => entity.status === 'COMPLETED').length ?? 0} / {status?.entityStates?.length ?? 0}</dd>
