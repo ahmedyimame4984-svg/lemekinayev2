@@ -329,6 +329,65 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
   });
 
 
+  it('reconstructs approved unit dimensions and option catalogs without synthetic data', async () => {
+    const upserter = new ReferenceDataUpserter();
+    const suffix = randomUUID().replaceAll('-', '').slice(0, 14);
+    const dimensionId = randomUUID();
+    const unitId = randomUUID();
+    const optionSetId = randomUUID();
+    const optionValueId = randomUUID();
+    const attributeId = randomUUID();
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'UnitDimension', {
+        id: dimensionId, code: 'DIM_' + suffix, name: 'Length',
+        description: 'Approved distance dimension', status: 'ACTIVE',
+      });
+      await upserter.upsertRecord(tx, 'AttributeUnit', {
+        id: unitId, dimensionId, code: 'MM_' + suffix, name: 'Millimetres',
+        symbol: 'mm', status: 'ACTIVE',
+      });
+      await upserter.upsertRecord(tx, 'AttributeOptionSet', {
+        id: optionSetId, code: 'FINISH_' + suffix,
+        name: 'Approved finish set', status: 'ACTIVE',
+      });
+      await upserter.upsertRecord(tx, 'AttributeOptionValue', {
+        id: optionValueId, optionSetId, code: 'MATTE_' + suffix,
+        label: 'Matte finish', status: 'ACTIVE',
+      });
+      await upserter.upsertRecord(tx, 'AttributeDefinition', {
+        id: attributeId, code: 'ATTR_' + suffix, name: 'Finish',
+        scope: 'PRODUCT', dataType: 'TEXT', optionSetId,
+        unitDimensionId: dimensionId, defaultUnitId: unitId,
+        status: 'ACTIVE',
+      });
+    });
+    const attribute = await db.attributeDefinition.findUniqueOrThrow({
+      where: { id: attributeId },
+      include: { optionSet: { include: { values: true } },
+        unitDimension: true, defaultUnit: true },
+    });
+    expect(attribute.optionSet?.id).toBe(optionSetId);
+    expect(attribute.optionSet?.values).toEqual([
+      expect.objectContaining({ id: optionValueId, label: 'Matte finish' }),
+    ]);
+    expect(attribute.defaultUnit?.dimensionId).toBe(dimensionId);
+    expect(attribute.unitDimension?.id).toBe(dimensionId);
+
+    await db.$transaction(async tx => {
+      await upserter.archiveRecord(tx, 'AttributeOptionValue', optionValueId);
+      await upserter.archiveRecord(tx, 'AttributeOptionSet', optionSetId);
+    });
+    expect((await db.attributeOptionValue.findUniqueOrThrow({
+      where: { id: optionValueId },
+    })).status).toBe('ARCHIVED');
+    expect((await db.attributeOptionSet.findUniqueOrThrow({
+      where: { id: optionSetId },
+    })).status).toBe('ARCHIVED');
+    // Source-managed reference archival must not cascade to commercial records.
+    expect(await db.attributeDefinition.findUnique({ where: { id: attributeId } }))
+      .not.toBeNull();
+  });
+
   it('stores and updates BEV multi-motor and drive-unit relationships in real PostgreSQL', async () => {
     const upserter = new ReferenceDataUpserter();
     const makeId = randomUUID();
@@ -354,8 +413,13 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
         id: modelId, makeId, code: code('MODEL', modelId),
         name: 'ATD07 electric model', status: 'ACTIVE', version: 1,
       });
+      const derivativeId = randomUUID();
+      await upserter.upsertRecord(tx, 'VehicleModelDerivative', {
+        id: derivativeId, modelId, code: code('DERIV', derivativeId),
+        name: 'Approved derivative', status: 'ACTIVE', version: 1,
+      });
       await upserter.upsertRecord(tx, 'VehicleGeneration', {
-        id: generationId, modelId, code: code('GEN', generationId),
+        id: generationId, modelId, derivativeId, code: code('GEN', generationId),
         name: 'ATD07 generation', status: 'ACTIVE', version: 1,
       });
       await upserter.upsertRecord(tx, 'VehicleTrim', {
@@ -411,6 +475,32 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
         }],
       });
     });
+    const applicabilityId = randomUUID();
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'VehicleConfigurationMarketApplicability', {
+        id: applicabilityId, configurationId: configId, marketId,
+        role: 'TARGET', status: 'ACTIVE', version: 1,
+      });
+    });
+    const applicability = await db.vehicleConfigurationMarketApplicability.findUniqueOrThrow({
+      where: { id: applicabilityId },
+      include: { configuration: true, market: true },
+    });
+    expect(applicability).toMatchObject({
+      configurationId: configId, marketId, role: 'TARGET', status: 'ACTIVE',
+    });
+    expect(applicability.configuration.id).toBe(configId);
+    expect(applicability.market.id).toBe(marketId);
+    await db.$transaction(async tx => {
+      await upserter.archiveRecord(tx, 'VehicleConfigurationMarketApplicability', applicabilityId);
+    });
+    expect((await db.vehicleConfigurationMarketApplicability.findUniqueOrThrow({
+      where: { id: applicabilityId },
+    })).status).toBe('ARCHIVED');
+    expect((await db.vehicleConfiguration.findUniqueOrThrow({
+      where: { id: configId },
+    })).status).toBe('ACTIVE');
+
     const before = await db.vehicleConfiguration.findUniqueOrThrow({
       where: { id: configId },
       include: { electricMotors: true, driveUnits: true },
