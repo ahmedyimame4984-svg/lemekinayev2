@@ -7,10 +7,12 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
-import { AutotechdocSyncClient } from './autotechdoc-sync-client.js';
+import { AutotechdocSyncClient, SnapshotExpiredError } from './autotechdoc-sync-client.js';
 import { ReferenceDataUpserter } from './reference-data-upserter.js';
 import {
+  CanonicalSnapshotCheckpoint,
   CanonicalSnapshotPageResponse,
+  CanonicalChangeFeedResponse,
   CanonicalSyncEntityType,
   SYNCHRONIZATION_ORDER,
   SyncResult,
@@ -148,6 +150,9 @@ export class ReferenceSyncService {
       checkpointId: checkpoint.id,
       snapshotStatus: checkpoint.snapshotStatus,
       snapshotId: checkpoint.snapshotId,
+      snapshotThrough: checkpoint.snapshotThrough,
+      snapshotExpiresAt: checkpoint.snapshotExpiresAt,
+      batchThrough: checkpoint.batchThrough,
       feedCursor: checkpoint.feedCursor,
       lastSnapshotAt: checkpoint.lastSnapshotAt,
       lastIncrementalAt: checkpoint.lastIncrementalAt,
@@ -170,399 +175,392 @@ export class ReferenceSyncService {
     };
   }
 
-  async executeSnapshot(options?: {
-    forceFull?: boolean;
-    batchSize?: number;
-  }): Promise<SyncResult> {
-    const workerId = `snapshot-worker-${randomUUID()}`;
+
+  private validateSnapshot(snapshot: CanonicalSnapshotCheckpoint): void {
+    if (snapshot.contractVersion !== '2.0.0' || snapshot.productTypeSchemaContract !== 3 ||
+        !Array.isArray(snapshot.entityTypes) ||
+        snapshot.entityTypes.join(',') !== SYNCHRONIZATION_ORDER.join(',') ||
+        !/^(?:0|[1-9][0-9]*)$/u.test(snapshot.through) ||
+        !snapshot.snapshotId || !Number.isFinite(Date.parse(snapshot.expiresAt)) ||
+        Date.parse(snapshot.expiresAt) <= Date.now()) {
+      throw new ServiceUnavailableException('Incompatible or expired ATD-06 v2 frozen snapshot contract');
+    }
+  }
+
+  private assertPage(
+    snapshot: CanonicalSnapshotCheckpoint,
+    entityType: CanonicalSyncEntityType,
+    cursor: string | null,
+    page: CanonicalSnapshotPageResponse,
+  ): void {
+    if (page.contractVersion !== '2.0.0' || page.productTypeSchemaContract !== 3 ||
+        page.snapshotId !== snapshot.snapshotId || page.through !== snapshot.through ||
+        page.entityType !== entityType || !Array.isArray(page.items) ||
+        !Array.isArray(snapshot.entityTypes) ||
+        page.items.some(item => !item || typeof item !== 'object' ||
+          typeof (item as { id?: unknown }).id !== 'string') ||
+        (page.hasMore && (!page.nextCursor || page.items.length === 0 ||
+          page.nextCursor === cursor))) {
+      throw new ServiceUnavailableException('AutotechDoc returned an inconsistent v2 snapshot page');
+    }
+  }
+
+  /**
+   * A source-managed row absent from a completed frozen entity page is archived
+   * only after that entity's entire snapshot has been applied. Marketplace
+   * articles, offers, prices, stock and consumer attribute rules are untouched.
+   */
+  private async archiveMissingFromSnapshot(
+    workerId: string, entityType: CanonicalSyncEntityType, snapshotId: string,
+  ): Promise<number> {
+    let count = 0;
+    while (true) {
+      const stale = await this.database.referenceSyncImportedRecord.findMany({
+        where: {
+          checkpointId: DEFAULT_CHECKPOINT_ID, entityType, active: true,
+          OR: [{ snapshotId: { not: snapshotId } }, { snapshotId: null }],
+        },
+        select: { entityId: true },
+        take: 100,
+      });
+      if (stale.length === 0) return count;
+      await this.database.$transaction(async tx => {
+        await this.renewLease(tx, workerId);
+        for (const row of stale) {
+          await this.upserter.archiveRecord(tx, entityType, row.entityId);
+          await tx.referenceSyncImportedRecord.update({
+            where: { entityType_entityId: { entityType, entityId: row.entityId } },
+            data: { active: false },
+          });
+          count++;
+        }
+      }, { timeout: 60_000 });
+    }
+  }
+
+  async executeSnapshot(options?: { forceFull?: boolean; batchSize?: number }): Promise<SyncResult> {
+    const workerId = 'snapshot-worker-' + randomUUID();
     const startTime = Date.now();
     let processedCount = 0;
     let appliedCount = 0;
     let skippedCount = 0;
-
+    const batchSize = options?.batchSize ?? 100;
+    if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 500) {
+      throw new BadRequestException('Snapshot batch size must be between 1 and 500');
+    }
     await this.acquireLock(workerId);
-    this.logger.log(`Acquired sync lock as ${workerId} for initial/resumed snapshot`);
-
     try {
-      const manifest = await this.syncClient.fetchManifest();
-      if (!/^1\./u.test(manifest.schemaVersion)) {
-        throw new ServiceUnavailableException(
-          `Unsupported Autotechdoc reference schema version: ${manifest.schemaVersion}`,
-        );
-      }
-      const batchSize = options?.batchSize ?? 100;
-
-      if (options?.forceFull) {
-        await this.database.referenceSyncEntityState.deleteMany({
-          where: { checkpointId: DEFAULT_CHECKPOINT_ID },
-        });
-        await this.database.referenceSyncCheckpoint.update({
+      for (let renewalAttempt = 0; renewalAttempt < 2; renewalAttempt++) {
+        const checkpoint = await this.database.referenceSyncCheckpoint.findUniqueOrThrow({
           where: { id: DEFAULT_CHECKPOINT_ID },
-          data: { snapshotStatus: 'IN_PROGRESS' },
         });
-      }
-
-      for (const entityType of SYNCHRONIZATION_ORDER) {
-        let entityState = await this.database.referenceSyncEntityState.findUnique({
-          where: {
-            checkpointId_entityType: {
-              checkpointId: DEFAULT_CHECKPOINT_ID,
-              entityType,
-            },
-          },
-        });
-
-        if (!entityState) {
-          entityState = await this.database.referenceSyncEntityState.create({
-            data: {
-              checkpointId: DEFAULT_CHECKPOINT_ID,
-              entityType,
-              status: 'IN_PROGRESS',
-              recordCount: 0,
-            },
+        let snapshot: CanonicalSnapshotCheckpoint;
+        const resume = !options?.forceFull && renewalAttempt === 0 &&
+          checkpoint.snapshotStatus === 'IN_PROGRESS' &&
+          checkpoint.snapshotId && checkpoint.snapshotThrough && checkpoint.snapshotExpiresAt &&
+          checkpoint.snapshotExpiresAt.getTime() > Date.now();
+        if (resume) {
+          snapshot = {
+            snapshotId: checkpoint.snapshotId!,
+            through: checkpoint.snapshotThrough!,
+            expiresAt: checkpoint.snapshotExpiresAt!.toISOString(),
+            contractVersion: '2.0.0',
+            productTypeSchemaContract: 3,
+            entityTypes: [...SYNCHRONIZATION_ORDER],
+            recordCount: 0,
+          };
+        } else {
+          snapshot = await this.syncClient.createSnapshot();
+          this.validateSnapshot(snapshot);
+          await this.database.$transaction(async tx => {
+            await this.renewLease(tx, workerId);
+            await tx.referenceSyncEntityState.deleteMany({
+              where: { checkpointId: DEFAULT_CHECKPOINT_ID },
+            });
+            await tx.referenceSyncCheckpoint.update({
+              where: { id: DEFAULT_CHECKPOINT_ID },
+              data: {
+                snapshotStatus: 'IN_PROGRESS',
+                snapshotId: snapshot.snapshotId,
+                snapshotThrough: snapshot.through,
+                snapshotExpiresAt: new Date(snapshot.expiresAt),
+                // Keep the last healthy feed cursor until the full import commits.
+                batchThrough: null,
+              },
+            });
           });
         }
-
-        if (entityState.status === 'COMPLETED' && !options?.forceFull) {
-          this.logger.debug(`Entity ${entityType} already completed, skipping`);
-          continue;
-        }
-
-        let cursor: string | null = entityState.lastCompletedCursor;
-        let hasMore = true;
-
-        this.logger.log(`Starting snapshot for ${entityType} from cursor ${cursor ?? 'BEGIN'}`);
-
-        while (hasMore) {
-          const page = await this.syncClient.fetchSnapshotPage(entityType, cursor, batchSize);
-
-          if (page.items.length > 0) {
-            await this.database.$transaction(
-              async (tx) => {
+        this.validateSnapshot(snapshot);
+        try {
+          for (const entityType of SYNCHRONIZATION_ORDER) {
+            let state = await this.database.referenceSyncEntityState.findUnique({
+              where: {
+                checkpointId_entityType: { checkpointId: DEFAULT_CHECKPOINT_ID, entityType },
+              },
+            });
+            if (state?.status === 'COMPLETED') continue;
+            if (!state) {
+              state = await this.database.referenceSyncEntityState.create({
+                data: { checkpointId: DEFAULT_CHECKPOINT_ID, entityType, status: 'IN_PROGRESS' },
+              });
+            }
+            let cursor = state.lastCompletedCursor;
+            while (true) {
+              const page = await this.syncClient.fetchSnapshotPage(snapshot.snapshotId, entityType, cursor, batchSize);
+              this.assertPage(snapshot, entityType, cursor, page);
+              await this.database.$transaction(async tx => {
                 await this.renewLease(tx, workerId);
                 for (const item of page.items) {
-                  const outcome = await this.upserter.upsertRecord(
-                    tx,
-                    entityType,
-                    item as Record<string, any>,
-                  );
+                  const record = item as Record<string, any>;
+                  const outcome = await this.upserter.upsertRecord(tx, entityType, record);
                   if (outcome === 'APPLIED') appliedCount++;
                   else skippedCount++;
                   processedCount++;
+                  await tx.referenceSyncImportedRecord.upsert({
+                    where: { entityType_entityId: { entityType, entityId: record.id } },
+                    create: {
+                      checkpointId: DEFAULT_CHECKPOINT_ID, entityType, entityId: record.id,
+                      snapshotId: snapshot.snapshotId, active: true,
+                    },
+                    update: { snapshotId: snapshot.snapshotId, active: true },
+                  });
                 }
-
-                const lastId = (page.items[page.items.length - 1] as any).id;
                 await tx.referenceSyncEntityState.update({
                   where: {
-                    checkpointId_entityType: {
-                      checkpointId: DEFAULT_CHECKPOINT_ID,
-                      entityType,
-                    },
+                    checkpointId_entityType: { checkpointId: DEFAULT_CHECKPOINT_ID, entityType },
                   },
                   data: {
-                    lastCompletedCursor: lastId,
+                    lastCompletedCursor: page.nextCursor ??
+                      (page.items.length > 0 ? String((page.items[page.items.length - 1] as any).id) : cursor),
                     recordCount: { increment: page.items.length },
-                    status: page.hasMore ? 'IN_PROGRESS' : 'COMPLETED',
+                    // Completion waits until missing previous source records are archived.
+                    status: 'IN_PROGRESS',
                   },
                 });
-              },
-              { timeout: 60_000 },
-            );
-          } else {
-            await this.database.referenceSyncEntityState.update({
-              where: {
-                checkpointId_entityType: {
-                  checkpointId: DEFAULT_CHECKPOINT_ID,
-                  entityType,
-                },
-              },
-              data: { status: 'COMPLETED' },
+              }, { timeout: 60_000 });
+              if (!page.hasMore) break;
+              cursor = page.nextCursor;
+            }
+            appliedCount += await this.archiveMissingFromSnapshot(workerId, entityType, snapshot.snapshotId);
+            await this.database.$transaction(async tx => {
+              await this.renewLease(tx, workerId);
+              await tx.referenceSyncEntityState.update({
+                where: { checkpointId_entityType: { checkpointId: DEFAULT_CHECKPOINT_ID, entityType } },
+                data: { status: 'COMPLETED' },
+              });
             });
           }
-
-          hasMore = page.hasMore;
-          cursor = page.nextCursor;
+          const completedAt = new Date();
+          await this.database.$transaction(async tx => {
+            await this.renewLease(tx, workerId);
+            await tx.referenceSyncCheckpoint.update({
+              where: { id: DEFAULT_CHECKPOINT_ID },
+              data: {
+                snapshotStatus: 'COMPLETED',
+                feedCursor: snapshot.through,
+                batchThrough: null,
+                lastSnapshotAt: completedAt,
+                lastSuccessAt: completedAt,
+                lastError: null,
+                appliedCount: { increment: appliedCount },
+                skippedCount: { increment: skippedCount },
+              },
+            });
+          });
+          await this.database.referenceSyncLog.create({
+            data: {
+              syncType: 'SNAPSHOT', status: 'SUCCESS', completedAt,
+              recordsProcessed: processedCount, recordsApplied: appliedCount,
+              recordsSkipped: skippedCount, cursorAfter: snapshot.through,
+            },
+          });
+          return {
+            syncType: 'SNAPSHOT', status: 'SUCCESS', processedCount, appliedCount,
+            skippedCount, cursorAfter: snapshot.through, durationMs: Date.now() - startTime,
+          };
+        } catch (error) {
+          if (error instanceof SnapshotExpiredError && renewalAttempt === 0) {
+            this.logger.warn('Frozen snapshot expired; discarding incomplete page cursors and resnapshotting');
+            continue;
+          }
+          throw error;
         }
-
-        this.logger.log(`Completed snapshot for ${entityType}`);
       }
-
-      const completedAt = new Date();
-      await this.database.referenceSyncCheckpoint.update({
-        where: { id: DEFAULT_CHECKPOINT_ID },
-        data: {
-          snapshotStatus: 'COMPLETED',
-          snapshotId: manifest.serverTime,
-          // Replay the current published feed from its beginning after a live snapshot.
-          // The paginated snapshot is not point-in-time consistent, so starting at
-          // manifest.serverTime could silently skip records changed during paging.
-          feedCursor: null,
-          lastSnapshotAt: completedAt,
-          lastSuccessAt: completedAt,
-          lastError: null,
-          appliedCount: { increment: appliedCount },
-          skippedCount: { increment: skippedCount },
-        },
-      });
-
-      await this.database.referenceSyncLog.create({
-        data: {
-          syncType: 'SNAPSHOT',
-          status: 'SUCCESS',
-          completedAt,
-          recordsProcessed: processedCount,
-          recordsApplied: appliedCount,
-          recordsSkipped: skippedCount,
-          cursorAfter: null,
-        },
-      });
-
-      return {
-        syncType: 'SNAPSHOT',
-        status: 'SUCCESS',
-        processedCount,
-        appliedCount,
-        skippedCount,
-        cursorAfter: null,
-        durationMs: Date.now() - startTime,
-      };
+      throw new ServiceUnavailableException('Frozen snapshot expired repeatedly');
     } catch (err: any) {
-      this.logger.error(`Snapshot sync failed: ${err.message}`, err.stack);
+      this.logger.error('Snapshot sync failed: ' + err.message);
       await this.database.referenceSyncCheckpoint.update({
         where: { id: DEFAULT_CHECKPOINT_ID },
-        data: {
-          lastFailureAt: new Date(),
-          lastError: err.message,
-          failedCount: { increment: 1 },
-        },
+        data: { lastFailureAt: new Date(), lastError: err.message, failedCount: { increment: 1 } },
       });
-
       await this.database.referenceSyncLog.create({
         data: {
-          syncType: 'SNAPSHOT',
-          status: 'FAILED',
-          completedAt: new Date(),
-          recordsProcessed: processedCount,
-          recordsApplied: appliedCount,
-          recordsSkipped: skippedCount,
-          error: err.message,
+          syncType: 'SNAPSHOT', status: 'FAILED', completedAt: new Date(),
+          recordsProcessed: processedCount, recordsApplied: appliedCount,
+          recordsSkipped: skippedCount, error: err.message,
         },
       });
-
       throw err;
     } finally {
       await this.releaseLock(workerId);
+    }
+  }
+
+  private assertFeed(feed: CanonicalChangeFeedResponse, after: string, through: string | null): void {
+    if (feed.contractVersion !== '2.0.0' || feed.productTypeSchemaContract !== 3 ||
+        !/^(?:0|[1-9][0-9]*)$/u.test(feed.nextCursor) ||
+        !/^(?:0|[1-9][0-9]*)$/u.test(feed.through) ||
+        (through !== null && through !== feed.through) ||
+        BigInt(feed.nextCursor) < BigInt(after) ||
+        BigInt(feed.nextCursor) > BigInt(feed.through) ||
+        !Array.isArray(feed.changes)) {
+      throw new ServiceUnavailableException('Invalid ATD-06 v2 committed feed cursor or contract');
+    }
+    let previous = BigInt(after);
+    for (const change of feed.changes) {
+      if (!/^(?:0|[1-9][0-9]*)$/u.test(change.sequence) ||
+          BigInt(change.sequence) <= previous ||
+          BigInt(change.sequence) > BigInt(feed.nextCursor) ||
+          !(SYNCHRONIZATION_ORDER as readonly string[]).includes(change.entityType) ||
+          !['UPSERT', 'ARCHIVE'].includes(change.operation) ||
+          (change.operation === 'UPSERT' &&
+            (!change.data || change.data.id !== change.entityId))) {
+        throw new ServiceUnavailableException('Non-monotonic, unsafe or malformed AutotechDoc journal event');
+      }
+      previous = BigInt(change.sequence);
+    }
+    if (feed.hasMore && BigInt(feed.nextCursor) <= BigInt(after)) {
+      throw new ServiceUnavailableException('AutotechDoc v2 feed did not advance a nonfinal page');
     }
   }
 
   async executeIncrementalSync(options?: { batchSize?: number }): Promise<SyncResult> {
-    const workerId = `incremental-worker-${randomUUID()}`;
+    const workerId = 'incremental-worker-' + randomUUID();
     const startTime = Date.now();
     let processedCount = 0;
     let appliedCount = 0;
     let skippedCount = 0;
-
+    const batchSize = options?.batchSize ?? 100;
+    if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 500) {
+      throw new BadRequestException('Incremental batch size must be between 1 and 500');
+    }
     await this.acquireLock(workerId);
-
     try {
       const checkpoint = await this.database.referenceSyncCheckpoint.findUniqueOrThrow({
         where: { id: DEFAULT_CHECKPOINT_ID },
       });
-
-      if (checkpoint.snapshotStatus !== 'COMPLETED') {
-        this.logger.warn('Initial snapshot not completed. Initiating snapshot first.');
+      if (checkpoint.snapshotStatus !== 'COMPLETED' || !checkpoint.feedCursor ||
+          !/^(?:0|[1-9][0-9]*)$/u.test(checkpoint.feedCursor)) {
+        // Includes pre-v2 timestamp checkpoints: never try to replay them as
+        // numeric sequences, and never discard prior marketplace customizations.
         await this.releaseLock(workerId);
-        return this.executeSnapshot();
+        return this.executeSnapshot({ forceFull: checkpoint.snapshotStatus === 'COMPLETED' });
       }
-
       let currentCursor = checkpoint.feedCursor;
       const initialCursor = currentCursor;
+      let through = checkpoint.batchThrough ?? null;
       let hasMore = true;
-      const batchSize = options?.batchSize ?? 100;
-
-      while (hasMore) {
-        const feed = await this.syncClient.fetchChangeFeed(currentCursor, batchSize);
-
-        if (feed.changes.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        let pageAppliedCount = 0;
-        let pageSkippedCount = 0;
-        await this.database.$transaction(
-          async (tx) => {
-            await this.renewLease(tx, workerId);
-            for (const change of feed.changes) {
-              if (change.operation === 'ARCHIVE') {
-                await this.upserter.archiveRecord(tx, change.entityType, change.entityId);
-                appliedCount++;
-                pageAppliedCount++;
-              } else {
-                const outcome = await this.upserter.upsertRecord(
-                  tx,
-                  change.entityType,
-                  change.data,
-                );
-                if (outcome === 'APPLIED') { appliedCount++; pageAppliedCount++; }
-                else { skippedCount++; pageSkippedCount++; }
-              }
-              processedCount++;
+      do {
+        const feed = await this.syncClient.fetchChangeFeed(currentCursor, through, batchSize);
+        this.assertFeed(feed, currentCursor, through);
+        let pageApplied = 0;
+        let pageSkipped = 0;
+        await this.database.$transaction(async tx => {
+          await this.renewLease(tx, workerId);
+          for (const change of feed.changes) {
+            if (change.operation === 'ARCHIVE') {
+              await this.upserter.archiveRecord(tx, change.entityType, change.entityId);
+              pageApplied++;
+              await tx.referenceSyncImportedRecord.upsert({
+                where: { entityType_entityId: { entityType: change.entityType, entityId: change.entityId } },
+                create: {
+                  checkpointId: DEFAULT_CHECKPOINT_ID, entityType: change.entityType,
+                  entityId: change.entityId, active: false, lastSequence: change.sequence,
+                },
+                update: { active: false, lastSequence: change.sequence },
+              });
+            } else {
+              const outcome = await this.upserter.upsertRecord(tx, change.entityType, change.data);
+              if (outcome === 'APPLIED') pageApplied++;
+              else pageSkipped++;
+              await tx.referenceSyncImportedRecord.upsert({
+                where: { entityType_entityId: { entityType: change.entityType, entityId: change.entityId } },
+                create: {
+                  checkpointId: DEFAULT_CHECKPOINT_ID, entityType: change.entityType,
+                  entityId: change.entityId, active: true, lastSequence: change.sequence,
+                },
+                update: { active: true, lastSequence: change.sequence },
+              });
             }
-
-            const nextCursor = feed.nextCursor ?? feed.serverTime;
-            await tx.referenceSyncCheckpoint.update({
-              where: { id: DEFAULT_CHECKPOINT_ID },
-              data: {
-                feedCursor: nextCursor,
-                lastIncrementalAt: new Date(),
-                lastSuccessAt: new Date(),
-                lastError: null,
-                appliedCount: { increment: pageAppliedCount },
-                skippedCount: { increment: pageSkippedCount },
-              },
-            });
-          },
-          { timeout: 60_000 },
-        );
-
+          }
+          await tx.referenceSyncCheckpoint.update({
+            where: { id: DEFAULT_CHECKPOINT_ID },
+            data: {
+              feedCursor: feed.nextCursor,
+              batchThrough: feed.hasMore ? feed.through : null,
+              lastIncrementalAt: new Date(), lastSuccessAt: new Date(), lastError: null,
+              appliedCount: { increment: pageApplied }, skippedCount: { increment: pageSkipped },
+            },
+          });
+        }, { timeout: 60_000 });
         currentCursor = feed.nextCursor;
-        hasMore = feed.hasMore && Boolean(feed.nextCursor);
-      }
-
+        through = feed.hasMore ? feed.through : null;
+        hasMore = feed.hasMore;
+        appliedCount += pageApplied;
+        skippedCount += pageSkipped;
+        processedCount += feed.changes.length;
+      } while (hasMore);
       await this.database.referenceSyncLog.create({
         data: {
-          syncType: 'INCREMENTAL',
-          status: 'SUCCESS',
-          completedAt: new Date(),
-          cursorBefore: initialCursor,
-          cursorAfter: currentCursor,
-          recordsProcessed: processedCount,
-          recordsApplied: appliedCount,
-          recordsSkipped: skippedCount,
+          syncType: 'INCREMENTAL', status: 'SUCCESS', completedAt: new Date(),
+          cursorBefore: initialCursor, cursorAfter: currentCursor,
+          recordsProcessed: processedCount, recordsApplied: appliedCount, recordsSkipped: skippedCount,
         },
       });
-
       return {
-        syncType: 'INCREMENTAL',
-        status: 'SUCCESS',
-        processedCount,
-        appliedCount,
-        skippedCount,
-        cursorBefore: initialCursor,
-        cursorAfter: currentCursor,
-        durationMs: Date.now() - startTime,
+        syncType: 'INCREMENTAL', status: 'SUCCESS', processedCount,
+        appliedCount, skippedCount, cursorBefore: initialCursor,
+        cursorAfter: currentCursor, durationMs: Date.now() - startTime,
       };
     } catch (err: any) {
-      this.logger.error(`Incremental sync failed: ${err.message}`, err.stack);
+      this.logger.error('Incremental sync failed: ' + err.message);
       await this.database.referenceSyncCheckpoint.update({
         where: { id: DEFAULT_CHECKPOINT_ID },
-        data: {
-          lastFailureAt: new Date(),
-          lastError: err.message,
-          failedCount: { increment: 1 },
-        },
+        data: { lastFailureAt: new Date(), lastError: err.message, failedCount: { increment: 1 } },
       });
-
       await this.database.referenceSyncLog.create({
         data: {
-          syncType: 'INCREMENTAL',
-          status: 'FAILED',
-          completedAt: new Date(),
-          recordsProcessed: processedCount,
-          recordsApplied: appliedCount,
-          recordsSkipped: skippedCount,
-          error: err.message,
+          syncType: 'INCREMENTAL', status: 'FAILED', completedAt: new Date(),
+          recordsProcessed: processedCount, recordsApplied: appliedCount,
+          recordsSkipped: skippedCount, error: err.message,
         },
       });
-
       throw err;
     } finally {
       await this.releaseLock(workerId);
     }
   }
 
+  /** Reconciliation is a new frozen snapshot, not a timestamp-derived manifest. */
   async executeReconciliation(): Promise<{
     reconciledEntities: Record<string, { remoteCount: number; localCount: number; repaired: number }>;
     durationMs: number;
   }> {
-    const workerId = `reconciliation-worker-${randomUUID()}`;
-    const startTime = Date.now();
-    await this.acquireLock(workerId);
-
-    const reconciledEntities: Record<
-      string,
-      { remoteCount: number; localCount: number; repaired: number }
-    > = {};
-
-    try {
-      const manifest = await this.syncClient.fetchManifest();
-      if (!/^1\./u.test(manifest.schemaVersion)) {
-        throw new ServiceUnavailableException(
-          `Unsupported Autotechdoc reference schema version: ${manifest.schemaVersion}`,
-        );
-      }
-
-      for (const entityType of SYNCHRONIZATION_ORDER) {
-        const remoteManifest = manifest.entities[entityType];
-        if (!remoteManifest) continue;
-
-        const localCount = await this.getLocalEntityCount(entityType);
-        let repaired = 0;
-
-        // Counts alone cannot detect stale values, versions, or archive flags.
-        // Refresh every published source record, including when counts match.
-        if (localCount !== remoteManifest.count) {
-          this.logger.warn(
-            `Count drift for ${entityType}: remote=${remoteManifest.count}, local=${localCount}`,
-          );
-        }
-        let cursor: string | null = null;
-        let hasMore = true;
-        while (hasMore) {
-          const page: CanonicalSnapshotPageResponse =
-            await this.syncClient.fetchSnapshotPage(entityType, cursor, 100);
-          if (page.items.length > 0) {
-            await this.database.$transaction(async (tx) => {
-              await this.renewLease(tx, workerId);
-              for (const item of page.items) {
-                await this.upserter.upsertRecord(
-                  tx, entityType, item as Record<string, any>,
-                );
-                repaired++;
-              }
-            });
-          }
-          hasMore = page.hasMore;
-          cursor = page.nextCursor;
-        }
-
-        reconciledEntities[entityType] = {
-          remoteCount: remoteManifest.count,
-          localCount,
-          repaired,
-        };
-      }
-
-      await this.database.referenceSyncLog.create({
-        data: {
-          syncType: 'RECONCILIATION',
-          status: 'SUCCESS',
-          completedAt: new Date(),
-          details: reconciledEntities,
-        },
-      });
-
-      return {
-        reconciledEntities,
-        durationMs: Date.now() - startTime,
+    const start = Date.now();
+    const before = await this.getStatus();
+    const result = await this.executeSnapshot({ forceFull: true });
+    const after = await this.getStatus();
+    const reconciledEntities: Record<string, { remoteCount: number; localCount: number; repaired: number }> = {};
+    for (const state of after.entityStates) {
+      const type = state.entityType as CanonicalSyncEntityType;
+      const previouslyImported = before.entityStates.find(row => row.entityType === type)?.recordCount ?? 0;
+      reconciledEntities[type] = {
+        remoteCount: state.recordCount,
+        localCount: previouslyImported,
+        repaired: Math.max(0, state.recordCount - previouslyImported),
       };
-    } catch (err: any) {
-      this.logger.error(`Reconciliation failed: ${err.message}`, err.stack);
-      throw err;
-    } finally {
-      await this.releaseLock(workerId);
     }
+    return { reconciledEntities, durationMs: Date.now() - start + result.durationMs * 0 };
   }
 
   private async getLocalEntityCount(entityType: CanonicalSyncEntityType): Promise<number> {
