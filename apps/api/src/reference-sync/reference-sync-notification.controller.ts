@@ -6,6 +6,7 @@ import {
 import { IsIn, IsUUID } from 'class-validator';
 import { Public } from '../auth/auth.decorators.js';
 import { ReferenceSyncService } from './reference-sync.service.js';
+import { DatabaseService } from '../database/database.service.js';
 
 export class PublicationNotificationDto {
   @IsUUID()
@@ -24,7 +25,10 @@ export class PublicationNotificationDto {
 export class ReferenceSyncNotificationController {
   private readonly logger = new Logger(ReferenceSyncNotificationController.name);
 
-  constructor(private readonly sync: ReferenceSyncService) {}
+  constructor(
+    private readonly sync: ReferenceSyncService,
+    private readonly database: DatabaseService,
+  ) {}
 
   @Post('publication')
   @HttpCode(HttpStatus.ACCEPTED)
@@ -53,6 +57,32 @@ export class ReferenceSyncNotificationController {
     if (!/^[a-f0-9]{64}$/i.test(received) ||
       !timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(received, 'hex'))) {
       throw new UnauthorizedException('Invalid publication signature');
+    }
+
+    // The signature includes a unique publisher event ID. Persist it before
+    // acknowledging so replayed signed requests cannot repeatedly wake the
+    // worker across replicas, restarts, or the five-minute HMAC window.
+    try {
+      await this.database.referenceSyncNotificationReceipt.create({
+        data: { eventId: body.eventId },
+      });
+    } catch (err: unknown) {
+      if ((err as { code?: string })?.code === 'P2002') {
+        return { accepted: true }; // Idempotent duplicate, no extra worker.
+      }
+      // A database outage is not silently acknowledged: source retries and
+      // scheduled polling remain independent recovery mechanisms.
+      throw err;
+    }
+
+    // Receipts need to outlive the entire five-minute HMAC freshness window.
+    // Cleanup is best effort: inability to prune never bypasses uniqueness.
+    try {
+      await this.database.referenceSyncNotificationReceipt.deleteMany({
+        where: { receivedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      });
+    } catch {
+      this.logger.warn('Unable to prune old publication notification receipts');
     }
 
     // This is a low-latency signal, never the only delivery mechanism.

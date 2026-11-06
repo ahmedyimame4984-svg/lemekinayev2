@@ -88,7 +88,12 @@ LEMEKINAYEV2_PUBLICATION_WEBHOOK_URL (HTTPS) and
 LEMEKINAYEV2_PUBLICATION_WEBHOOK_SECRET, and the command
 npm run notify:reference-publications -w api. A signed HMAC notification only
 wakes a pull; the journal is authoritative and scheduled polling recovers
-missed hints. Duplicate hints are expected and safe.
+missed hints. Duplicate hints are expected and safe: each signed eventId is recorded
+in a unique PostgreSQL receipt table before the pull is scheduled. Replays
+within the signature window are acknowledged without another worker run;
+receipts older than 24 hours are pruned opportunistically. If receipt
+persistence is unavailable, the webhook fails closed and scheduled polling
+still recovers source changes.
 
 ## Producer publishing contract dependency gap (review blocker)
 

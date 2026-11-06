@@ -2804,3 +2804,14 @@ model ReferenceSyncCanonicalProductTypeSchema {
   @@index([productTypeId, active, schemaVersion])
   @@map("reference_sync_canonical_product_type_schemas")
 }
+
+/** Signed webhook event IDs are kept across worker processes to prevent
+ * repeated authenticated hints from amplifying synchronization requests.
+ */
+model ReferenceSyncNotificationReceipt {
+  eventId     String   @id @map("event_id") @db.Uuid
+  receivedAt  DateTime @default(now()) @map("received_at")
+
+  @@index([receivedAt])
+  @@map("reference_sync_notification_receipts")
+}

@@ -487,6 +487,21 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     })).toBeNull();
   });
 
+  it('enforces durable notification event ID uniqueness on PostgreSQL', async () => {
+    const eventId = randomUUID();
+    const first = await db.referenceSyncNotificationReceipt.create({
+      data: { eventId },
+    });
+    expect(first.eventId).toBe(eventId);
+    await expect(db.referenceSyncNotificationReceipt.create({
+      data: { eventId },
+    })).rejects.toMatchObject({ code: 'P2002' });
+    const after = await db.referenceSyncNotificationReceipt.findMany({
+      where: { eventId },
+    });
+    expect(after).toHaveLength(1);
+  });
+
   it('recovers an interrupted two-page journal at the exact PostgreSQL checkpoint without duplicates', async () => {
     const ids = [randomUUID(), randomUUID(), randomUUID()];
     changes = ids.map((id, index) => ({
