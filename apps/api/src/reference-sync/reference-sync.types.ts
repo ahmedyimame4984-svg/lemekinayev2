@@ -27,27 +27,36 @@ export const SYNCHRONIZATION_ORDER = [
 
 export type CanonicalSyncEntityType = (typeof SYNCHRONIZATION_ORDER)[number];
 
-export interface CanonicalEntityManifest {
-  count: number;
-  latestVersion: number;
-  latestUpdatedAt: string | null;
+export interface CanonicalSnapshotCheckpoint {
+  contractVersion: string;
+  productTypeSchemaContract: number;
+  snapshotId: string;
+  through: string;
+  recordCount: number;
+  expiresAt: string;
+  entityTypes: CanonicalSyncEntityType[];
 }
 
+/** Legacy v1 type retained only for migration of older tests; never fetched by v2 client. */
 export interface CanonicalManifestResponse {
   schemaVersion: string;
   source: string;
   serverTime: string;
   totalPublishedRecords: number;
-  entities: Record<CanonicalSyncEntityType, CanonicalEntityManifest>;
+  entities: Record<CanonicalSyncEntityType, { count: number; latestVersion: number; latestUpdatedAt: string | null }>;
 }
 
 export interface CanonicalSnapshotPageResponse<T = Record<string, unknown>> {
+  contractVersion: string;
+  productTypeSchemaContract: number;
+  snapshotId: string;
   entityType: CanonicalSyncEntityType;
   items: T[];
   nextCursor: string | null;
   hasMore: boolean;
-  totalCount: number;
-  snapshotId: string;
+  through: string;
+  recordCount: number;
+  expiresAt: string;
 }
 
 export type ChangeOperation = 'UPSERT' | 'ARCHIVE';
@@ -58,15 +67,18 @@ export interface CanonicalChangeRecord {
   entityId: string;
   operation: ChangeOperation;
   version: number;
-  timestamp: string;
+  recordedAt?: string;
+  timestamp?: string;
   data: Record<string, unknown>;
 }
 
 export interface CanonicalChangeFeedResponse {
   changes: CanonicalChangeRecord[];
-  nextCursor: string | null;
+  nextCursor: string;
   hasMore: boolean;
-  serverTime: string;
+  through: string;
+  contractVersion: string;
+  productTypeSchemaContract: number;
 }
 
 export interface SyncResult {
@@ -88,6 +100,9 @@ export interface SyncStatusReport {
   checkpointId: string;
   snapshotStatus: string;
   snapshotId: string | null;
+  snapshotThrough: string | null;
+  snapshotExpiresAt: Date | null;
+  batchThrough: string | null;
   feedCursor: string | null;
   lastSnapshotAt: Date | null;
   lastIncrementalAt: Date | null;

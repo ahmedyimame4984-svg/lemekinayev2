@@ -2708,6 +2708,10 @@ model ReferenceSyncCheckpoint {
   scheduleEnabled   Boolean                    @default(true) @map("schedule_enabled")
   intervalMinutes   Int                        @default(5) @map("interval_minutes")
   snapshotId        String?                    @map("snapshot_id") @db.VarChar(60)
+  snapshotThrough   String?                    @map("snapshot_through") @db.VarChar(30)
+  snapshotExpiresAt DateTime?                  @map("snapshot_expires_at")
+  batchThrough      String?                    @map("batch_through") @db.VarChar(30)
+  importedRecords   ReferenceSyncImportedRecord[]
   feedCursor        String?                    @map("feed_cursor") @db.VarChar(200)
   lastSnapshotAt    DateTime?                  @map("last_snapshot_at")
   lastIncrementalAt DateTime?                  @map("last_incremental_at")
@@ -2759,3 +2763,21 @@ model ReferenceSyncLog {
   @@map("reference_sync_logs")
 }
 
+
+
+// Source-managed identities only. Never touches local articles, listings, stock or
+// consumer-customized Product Type/Attribute policies when a source row retires.
+model ReferenceSyncImportedRecord {
+  entityType   String                     @map("entity_type") @db.VarChar(60)
+  entityId     String                     @map("entity_id") @db.Uuid
+  checkpointId String                     @default("autotechdoc-canonical-sync") @map("checkpoint_id") @db.VarChar(60)
+  snapshotId   String?                    @map("snapshot_id") @db.VarChar(60)
+  active       Boolean                    @default(true)
+  lastSequence String?                    @map("last_sequence") @db.VarChar(30)
+  updatedAt    DateTime                   @updatedAt @map("updated_at")
+  checkpoint   ReferenceSyncCheckpoint    @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@id([entityType, entityId])
+  @@index([checkpointId, entityType, snapshotId, active])
+  @@map("reference_sync_imported_records")
+}

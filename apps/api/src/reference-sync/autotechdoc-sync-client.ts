@@ -8,10 +8,18 @@ import {
 } from '@nestjs/common';
 import {
   CanonicalChangeFeedResponse,
-  CanonicalManifestResponse,
+  CanonicalSnapshotCheckpoint,
   CanonicalSnapshotPageResponse,
   CanonicalSyncEntityType,
 } from './reference-sync.types.js';
+
+/** A frozen source snapshot is no longer available. Never reuse its page cursor. */
+export class SnapshotExpiredError extends Error {
+  constructor() {
+    super('AutotechDoc snapshot expired (HTTP 410); create a new consistent snapshot');
+    this.name = 'SnapshotExpiredError';
+  }
+}
 
 export interface SyncClientConfig {
   baseUrl?: string;
@@ -33,12 +41,13 @@ export class AutotechdocSyncClient {
       config?.baseUrl ??
       process.env.AUTOTECHDOC_SYNC_BASE_URL ??
       'http://127.0.0.1:4000/api/v1'
-    )
-      .trim()
-      .replace(/\/$/u, '');
+    ).trim().replace(/\/$/u, '');
     this.token = (config?.token ?? process.env.AUTOTECHDOC_SYNC_TOKEN)?.trim();
     this.timeoutMs = config?.timeoutMs ?? 15_000;
     this.maxRetries = config?.maxRetries ?? 4;
+    if (!Number.isInteger(this.maxRetries) || this.maxRetries < 1 || this.maxRetries > 10) {
+      throw new Error('AutotechDoc client maxRetries must be between 1 and 10');
+    }
   }
 
   isConfigured(): boolean {
@@ -47,18 +56,13 @@ export class AutotechdocSyncClient {
 
   private async requestWithRetry<T>(path: string, options?: RequestInit): Promise<T> {
     if (!this.isConfigured()) {
-      throw new ServiceUnavailableException(
-        'AutotechDoc synchronization is not configured: AUTOTECHDOC_SYNC_TOKEN is missing or too short',
-      );
+      throw new ServiceUnavailableException('AUTOTECHDOC_SYNC_TOKEN must be a provisioned B2B machine key');
     }
-
-    const url = `${this.baseUrl}${path}`;
+    const url = this.baseUrl + path;
     let lastError: Error | null = null;
-
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
       try {
         const response = await fetch(url, {
           ...options,
@@ -66,97 +70,66 @@ export class AutotechdocSyncClient {
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
-            Authorization: `Bearer ${this.token}`,
+            Authorization: 'Bearer ' + this.token,
             ...options?.headers,
           },
         });
-
-        clearTimeout(timer);
-
-        if (response.ok) {
-          return (await response.json()) as T;
-        }
-
+        if (response.ok) return (await response.json()) as T;
+        if (response.status === 410) throw new SnapshotExpiredError();
         if (response.status === 401 || response.status === 403) {
-          throw new UnauthorizedException(
-            `AutotechDoc rejected credentials with status ${response.status}`,
-          );
+          throw new UnauthorizedException('AutotechDoc B2B credentials rejected (HTTP ' + response.status + ')');
         }
-
         if (response.status === 400) {
-          const body = await response.text();
-          throw new BadRequestException(`AutotechDoc bad request: ${body}`);
+          throw new BadRequestException('AutotechDoc rejected v2 contract request: ' + (await response.text()).slice(0, 500));
         }
-
-        // Retryable status: 429 or 5xx
-        if (response.status === 429 || response.status >= 500) {
-          const body = await response.text();
-          lastError = new Error(`HTTP ${response.status} from AutotechDoc: ${body}`);
-          this.logger.warn(
-            `Request to ${path} failed with HTTP ${response.status} (attempt ${attempt}/${this.maxRetries})`,
-          );
-        } else {
-          const body = await response.text();
-          throw new Error(`Unexpected HTTP ${response.status} from AutotechDoc: ${body}`);
+        if (response.status !== 429 && response.status < 500) {
+          throw new Error('AutotechDoc non-retryable response: HTTP ' + response.status);
         }
-      } catch (err: any) {
+        // Do not log B2B tokens, bodies, or canonical record contents.
+        lastError = new Error('AutotechDoc temporary HTTP ' + response.status);
+        this.logger.warn('AutotechDoc ' + path.split('?')[0] + ' returned HTTP ' + response.status +
+          ' (attempt ' + attempt + '/' + this.maxRetries + ')');
+      } catch (err: unknown) {
+        if (err instanceof SnapshotExpiredError || err instanceof UnauthorizedException ||
+            err instanceof BadRequestException) throw err;
+        lastError = err instanceof Error ? err : new Error('Network failure');
+      } finally {
         clearTimeout(timer);
-        if (err instanceof UnauthorizedException || err instanceof BadRequestException) {
-          throw err;
-        }
-        lastError = err;
-        this.logger.warn(
-          `Request to ${path} encountered network error: ${err.message} (attempt ${attempt}/${this.maxRetries})`,
-        );
       }
-
       if (attempt < this.maxRetries) {
-        // Exponential backoff with jitter: 2^(attempt) * 100ms + [0, 50ms)
-        const delayMs = Math.pow(2, attempt) * 100 + Math.floor(Math.random() * 50);
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await new Promise(resolve => setTimeout(resolve, Math.min(5000, 200 * 2 ** (attempt - 1)) +
+          Math.floor(Math.random() * 100)));
       }
     }
-
-    throw lastError ?? new Error(`Request to ${path} failed after ${this.maxRetries} attempts`);
+    throw lastError ?? new Error('AutotechDoc v2 request exhausted retries');
   }
 
-  async fetchManifest(): Promise<CanonicalManifestResponse> {
-    return this.requestWithRetry<CanonicalManifestResponse>('/reference-data/export/manifest');
+  createSnapshot(): Promise<CanonicalSnapshotCheckpoint> {
+    return this.requestWithRetry('/reference-data/export/v2/snapshots', { method: 'POST' });
   }
 
-  async fetchSnapshotPage<T = Record<string, unknown>>(
+  fetchSnapshotPage<T = Record<string, unknown>>(
+    snapshotId: string,
     entityType: CanonicalSyncEntityType,
     cursor?: string | null,
     limit = 100,
   ): Promise<CanonicalSnapshotPageResponse<T>> {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ limit: String(limit) });
     if (cursor) params.set('cursor', cursor);
-    if (limit) params.set('limit', String(limit));
-
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.requestWithRetry<CanonicalSnapshotPageResponse<T>>(
-      `/reference-data/export/snapshot/${entityType}${query}`,
+    return this.requestWithRetry(
+      '/reference-data/export/v2/snapshots/' + encodeURIComponent(snapshotId) +
+      '/' + encodeURIComponent(entityType) + '?' + params.toString(),
     );
   }
 
-  async fetchChangeFeed(
-    since?: string | null,
+  fetchChangeFeed(
+    after?: string | null,
+    through?: string | null,
     limit = 100,
   ): Promise<CanonicalChangeFeedResponse> {
-    const params = new URLSearchParams();
-    if (since) params.set('since', since);
-    if (limit) params.set('limit', String(limit));
-
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.requestWithRetry<CanonicalChangeFeedResponse>(
-      `/reference-data/export/feed${query}`,
-    );
-  }
-
-  async fetchEntity<T = Record<string, unknown>>(
-    entityType: CanonicalSyncEntityType,
-    id: string,
-  ): Promise<T> {
-    return this.requestWithRetry<T>(`/reference-data/export/entities/${entityType}/${id}`);
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (after !== undefined && after !== null) params.set('after', after);
+    if (through !== undefined && through !== null) params.set('through', through);
+    return this.requestWithRetry('/reference-data/export/v2/changes?' + params.toString());
   }
 }
