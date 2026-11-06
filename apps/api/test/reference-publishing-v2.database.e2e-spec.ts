@@ -457,6 +457,27 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     });
     expect(retired.status).toBe(MasterDataStatus.ARCHIVED);
     expect(retired.electricMotors).toHaveLength(1);
+
+    // Restoring BEV compatibility must not weaken the historical ICE identity
+    // guard. An ACTIVE ICE vehicle without its engine/transmission is invalid.
+    const invalidId = randomUUID();
+    const actor = await db.user.findFirstOrThrow({
+      where: { email: 'system-sync@lemekinaye.internal' },
+      select: { id: true },
+    });
+    await expect(db.vehicleConfiguration.create({
+      data: {
+        id: invalidId,
+        identityCode: 'VC-' + invalidId.replaceAll('-', '').toUpperCase(),
+        makeId, modelId, generationId, trimId, bodyTypeId, marketId,
+        steeringSide: 'LHD', productionStartYear: 2025,
+        powertrainType: 'ICE', engineId: null, transmissionId: null,
+        status: 'ACTIVE', createdById: actor.id, updatedById: actor.id,
+      },
+    })).rejects.toThrow();
+    expect(await db.vehicleConfiguration.findUnique({
+      where: { id: invalidId },
+    })).toBeNull();
   });
 
 });

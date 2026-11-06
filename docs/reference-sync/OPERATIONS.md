@@ -103,6 +103,19 @@ records using these relationships require a separately reviewed producer
 contract extension (and an upgraded consumer allowlist), plus an independent
 integration test. Do not silently null the foreign keys or fall back to v1.
 
+## Active vehicle powertrain identity parity
+
+The consumer's prior `vehicle_configurations_active_identity_check` was an
+ICE-era check that rejected approved BEVs with NULL combustion engine and
+conventional transmission IDs. ATD-07 adds a transactional, forward migration
+mirroring the independently accepted AutotechDoc Phase C six-class identity
+constraint (20261105120000). It preserves generation, trim, body type, market,
+steering side and production-start-year requirements for all ACTIVE records.
+Unknown and ICE powertrains still require the combustion engine and
+transmission; BEV allows those IDs to be NULL. Real disposable PostgreSQL
+acceptance verifies BEV motor/drive-unit revisions and rejects malformed ICE
+identity. Do not loosen canonical source governance to make imports pass.
+
 ## Validation and release restrictions
 
 GitHub Actions consumer workflow validates Prisma, runs all API unit tests,
