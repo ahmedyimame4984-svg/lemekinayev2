@@ -147,17 +147,31 @@ The suite refuses remote databases, non-test database names, identical DBs,
 non-loopback producer APIs, missing test credentials and pre-existing consumer
 sync checkpoints. It verifies producer authentication rejection, real HTTP
 snapshot/import counts, exact published source identities and FK relations,
-BEV identity, v3 schema isolation, live feed replay, a fresh worker service
-and a replacement snapshot. This is a test of the **real producer HTTP API**
-and the **real consumer synchronization service**, but does not itself start
-both independent application processes or test Admin browser flows.
+BEV identity, v3 schema isolation, real producer PostgreSQL journal revisions
+and archives, a fresh worker service and replacement snapshot.
 
-Full ATD-07 acceptance still requires review of deliberately introduced
-post-snapshot revisions and archives, on-the-wire credential rotation/
-revocation, crash injection, missed-event recovery, HMAC replay, key expiry,
-429/5xx, 410, desktop/mobile Admin operation, and large data performance
-using the actual two-app environment. Do not mark any of those gates PASS
-merely because this opt-in suite is defined.
+**Verified cross-project CI (2026-11-07):** AutotechDoc runs this opt-in
+suite from `.github/workflows/atd-06-07-live-two-database.yml` using its
+actual Nest HTTP producer, a **separate running LemekinayeV2 Nest API**, two
+distinct migrated disposable PostgreSQL DBs, a test-only scoped machine key,
+and independently seeded BEV/v3/29-entity source fixtures. The five live
+snapshot/journal/credential-lifecycle tests passed, and an additional
+HTTP-to-HTTP check proved signed HMAC 401 rejection, duplicate receipt
+persistence and publication-hint-triggered VehicleMake convergence:
+[run 42314922360](https://github.com/ahmedyimame4984-svg/autotechdoc/actions/runs/42314922360).
+Consumer code tested: `5e8872c793d83d88cc09010743e18a906b56ffa6`;
+source code tested: `761cb115262489a8c04b4969543af516b56add65`.
+Fixture seeding and direct journal/key mutations are CI-only and gated to
+disposable loopback test databases; they are **not** production governance.
+
+Disposable CI has now exercised real post-snapshot revisions/archives,
+on-the-wire key scope/rotation/revocation/expiry, and real consumer HTTP HMAC
+replay and positive source-to-mirror convergence. Remaining release gates:
+independent human Admin desktop/mobile operation, larger snapshot performance,
+full dual-process crash/failure recovery and missed-hint/outage fault injection,
+source licensing/provenance approval, and an independently verifiable signed
+snapshot checksum. No production key action, migration, deployment or merge
+is authorized by these test passes.
 
 ## Active vehicle powertrain identity parity
 
@@ -178,9 +192,10 @@ GitHub Actions consumer workflow validates Prisma, runs all API unit tests,
 typechecks, applies migrations ONLY to disposable PostgreSQL and exercises
 v2 HTTP client + real consumer DB migrations and checkpoint/restart replay.
 It is a simulated v2 HTTP producer, NOT a running AutotechDoc producer with
-a second real database. Source-to-consumer E2E, browser Admin confirmation,
-data license approval, high-volume snapshot performance, and real credential
-rotation/revocation remain external review gates until independently proven.
+a second real database. Real source-to-consumer E2E and test-only credential lifecycle have
+passed in the separate producer-hosted live workflow; browser Admin evidence,
+data license approval, high-volume snapshot performance, and **production**
+credential governance remain external review gates.
 Do not mark them PASS based only on source code or mocked HTTP responses.
 
 For local proof, provision two **separate disposable** PostgreSQL databases,
