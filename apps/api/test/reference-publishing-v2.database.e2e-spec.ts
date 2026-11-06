@@ -16,6 +16,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
   let snapshotId: string;
   let watermark = '4';
   let rows: Array<{ id: string; code: string; name: string; status: string; version: number }> = [];
+  let advertisedRecordCount: number | null = null;
   let changes: any[] = [];
   let created = 0;
   let failPage = false;
@@ -25,7 +26,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
   const contract = () => ({
     contractVersion: '2.0.0', productTypeSchemaContract: 3,
-    snapshotId, through: watermark, recordCount: rows.length,
+    snapshotId, through: watermark, recordCount: advertisedRecordCount ?? rows.length,
     expiresAt: new Date(Date.now() + 3600_000).toISOString(),
     entityTypes: [...SYNCHRONIZATION_ORDER],
   });
@@ -62,7 +63,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
         return response({
           contractVersion: '2.0.0', productTypeSchemaContract: 3,
           snapshotId, through: watermark, expiresAt: contract().expiresAt,
-          recordCount: rows.length, entityType: type, items, hasMore,
+          recordCount: contract().recordCount, entityType: type, items, hasMore,
           nextCursor: hasMore ? items[items.length - 1].id : null,
         });
       }
@@ -646,6 +647,48 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     expect((await db.referenceSyncCheckpoint.findUniqueOrThrow({
       where: { id: DEFAULT_CHECKPOINT_ID },
     })).feedCursor).toBe('11');
+  });
+
+  it('keeps old published identities ACTIVE when a replacement snapshot fails the frozen count proof', async () => {
+    const existingId = randomUUID();
+    snapshotId = randomUUID();
+    watermark = '16';
+    changes = [];
+    advertisedRecordCount = null;
+    rows = [{
+      id: existingId, code: 'ATD_' + existingId.replaceAll('-', ''),
+      name: 'Retain verified reference on invalid snapshot', status: 'ACTIVE', version: 1,
+    }];
+    await sync.executeSnapshot({ forceFull: true });
+    expect((await db.brand.findUniqueOrThrow({ where: { id: existingId } })).status)
+      .toBe(MasterDataStatus.ACTIVE);
+
+    const incomingId = randomUUID();
+    snapshotId = randomUUID();
+    watermark = '17';
+    rows = [{
+      id: incomingId, code: 'ATD_' + incomingId.replaceAll('-', ''),
+      name: 'Incomplete replacement page', status: 'ACTIVE', version: 1,
+    }];
+    // The producer advertises two identities but only one page item is sent.
+    // An invalid replacement must not archive the last verified source mirror.
+    advertisedRecordCount = 2;
+    try {
+      await expect(sync.executeSnapshot({ forceFull: true }))
+        .rejects.toThrow(/Frozen snapshot count mismatch/u);
+      expect((await db.brand.findUniqueOrThrow({ where: { id: existingId } })).status)
+        .toBe(MasterDataStatus.ACTIVE);
+      expect(await db.referenceSyncImportedRecord.findUniqueOrThrow({
+        where: { entityType_entityId: { entityType: 'Brand', entityId: existingId } },
+      })).toMatchObject({ active: true });
+      expect(await db.referenceSyncCheckpoint.findUniqueOrThrow({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+      })).toMatchObject({
+        snapshotStatus: 'IN_PROGRESS', feedCursor: '16', snapshotRecordCount: 2,
+      });
+    } finally {
+      advertisedRecordCount = null;
+    }
   });
 
 });
