@@ -360,11 +360,11 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       await source.$executeRaw`
         INSERT INTO "b2b_api_keys"
           ("id", "client_id", "name", "key_prefix", "key_hash",
-           "scopes", "status", "created_by_id")
+           "scopes", "status", "created_by_id", "updated_at")
         VALUES
           (${randomUUID()}::uuid, ${owner.client_id}::uuid, 'Disposable read-only CI',
            ${readonlyToken.slice(0, 16)}, ${readonlyHash},
-           ARRAY['reference:read']::text[], 'ACTIVE', ${owner.created_by_id}::uuid)
+           ARRAY['reference:read']::text[], 'ACTIVE', ${owner.created_by_id}::uuid, NOW())
       `;
       const readonly = new AutotechdocSyncClient({
         baseUrl: producerUrl, token: readonlyToken, maxRetries: 1,
@@ -384,12 +384,12 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       await source.$executeRaw`
         INSERT INTO "b2b_api_keys"
           ("id", "client_id", "name", "key_prefix", "key_hash",
-           "scopes", "status", "created_by_id")
+           "scopes", "status", "created_by_id", "updated_at")
         VALUES
           (${replacementId}::uuid, ${owner.client_id}::uuid,
            'Disposable replacement CI', ${replacementToken.slice(0, 16)},
            ${replacementHash}, ARRAY['reference:read','reference:snapshot']::text[],
-           'ACTIVE', ${owner.created_by_id}::uuid)
+           'ACTIVE', ${owner.created_by_id}::uuid, NOW())
       `;
       const replacement = new AutotechdocSyncClient({
         baseUrl: producerUrl, token: replacementToken, maxRetries: 1,
