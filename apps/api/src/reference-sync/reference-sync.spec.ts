@@ -14,7 +14,7 @@ const page = (s: ReturnType<typeof snapshot>, type: string, items: any[] = [],
   nextCursor: string | null = null) => ({
     contractVersion: '2.0.0', productTypeSchemaContract: 3,
     snapshotId: s.snapshotId, through: s.through, expiresAt: s.expiresAt,
-    entityType: type, items, nextCursor, hasMore: nextCursor !== null, recordCount: 0,
+    entityType: type, items, nextCursor, hasMore: nextCursor !== null, recordCount: s.recordCount,
 });
 const feed = (after: string, through = '15', changes: any[] = [], hasMore = false,
   nextCursor = changes.length ? changes[changes.length - 1].sequence : after) => ({
