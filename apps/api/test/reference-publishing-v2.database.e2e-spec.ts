@@ -19,6 +19,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
   let changes: any[] = [];
   let created = 0;
   let failPage = false;
+  let failFeedPage = false;
   const token = 'atd_live_' + 'x'.repeat(43);
   const response = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -67,12 +68,18 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
       }
       if (target.pathname.endsWith('/reference-data/export/v2/changes')) {
         const after = BigInt(target.searchParams.get('after') ?? '0');
-        const through = BigInt(target.searchParams.get('through') ?? '8');
-        const page = changes.filter(event =>
+        const through = BigInt(target.searchParams.get('through') ?? '12');
+        const limit = Number(target.searchParams.get('limit') ?? '100');
+        if (failFeedPage && after === 10n) {
+          failFeedPage = false;
+          return response({ code: 'TEMP_UNAVAILABLE' }, 503);
+        }
+        const matching = changes.filter(event =>
           BigInt(event.sequence) > after && BigInt(event.sequence) <= through);
+        const page = matching.slice(0, limit);
         return response({
           contractVersion: '2.0.0', productTypeSchemaContract: 3,
-          through: through.toString(), changes: page, hasMore: false,
+          through: through.toString(), changes: page, hasMore: matching.length > limit,
           nextCursor: page.length ? page[page.length - 1].sequence : after.toString(),
         });
       }
@@ -478,6 +485,62 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     expect(await db.vehicleConfiguration.findUnique({
       where: { id: invalidId },
     })).toBeNull();
+  });
+
+  it('recovers an interrupted two-page journal at the exact PostgreSQL checkpoint without duplicates', async () => {
+    const ids = [randomUUID(), randomUUID(), randomUUID()];
+    changes = ids.map((id, index) => ({
+      sequence: String(index + 9),
+      entityType: 'Brand', entityId: id,
+      operation: 'UPSERT', version: 1, recordedAt: new Date().toISOString(),
+      data: { id, code: 'ATD_' + id.replaceAll('-', ''),
+        name: 'ATD07 journal restart ' + index, status: 'ACTIVE', version: 1 },
+    }));
+    await db.referenceSyncCheckpoint.update({
+      where: { id: DEFAULT_CHECKPOINT_ID },
+      data: { snapshotStatus: 'COMPLETED', feedCursor: '8', batchThrough: null },
+    });
+    failFeedPage = true;
+    await expect(sync.executeIncrementalSync({ batchSize: 2 }))
+      .rejects.toThrow(/HTTP 503/u);
+
+    // The first complete page and the pinned source watermark persist together.
+    expect(await db.referenceSyncCheckpoint.findUniqueOrThrow({
+      where: { id: DEFAULT_CHECKPOINT_ID },
+    })).toMatchObject({
+      feedCursor: '10', batchThrough: '12',
+    });
+    for (const id of ids.slice(0, 2)) {
+      expect((await db.brand.findUniqueOrThrow({ where: { id } })).status)
+        .toBe(MasterDataStatus.ACTIVE);
+    }
+    expect(await db.brand.findUnique({ where: { id: ids[2] } })).toBeNull();
+
+    // A new process makes the next GET with after=10 and through=12.
+    sync = makeSync();
+    const resumed = await sync.executeIncrementalSync({ batchSize: 2 });
+    expect(resumed).toMatchObject({
+      cursorBefore: '10', cursorAfter: '11',
+      processedCount: 1, appliedCount: 1,
+    });
+    expect(await db.referenceSyncCheckpoint.findUniqueOrThrow({
+      where: { id: DEFAULT_CHECKPOINT_ID },
+    })).toMatchObject({
+      feedCursor: '11', batchThrough: null,
+    });
+    for (const [index, id] of ids.entries()) {
+      expect(await db.brand.findUniqueOrThrow({ where: { id } }))
+        .toMatchObject({ name: 'ATD07 journal restart ' + index, status: 'ACTIVE' });
+      expect(await db.referenceSyncImportedRecord.findUniqueOrThrow({
+        where: { entityType_entityId: { entityType: 'Brand', entityId: id } },
+      })).toMatchObject({ lastSequence: String(index + 9), active: true });
+    }
+    // An empty subsequent poll consumes no new events and cannot duplicate rows.
+    const empty = await sync.executeIncrementalSync({ batchSize: 2 });
+    expect(empty.processedCount).toBe(0);
+    expect((await db.referenceSyncCheckpoint.findUniqueOrThrow({
+      where: { id: DEFAULT_CHECKPOINT_ID },
+    })).feedCursor).toBe('11');
   });
 
 });
