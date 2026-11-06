@@ -326,6 +326,10 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     const upserter = new ReferenceDataUpserter();
     const makeId = randomUUID();
     const modelId = randomUUID();
+    const generationId = randomUUID();
+    const trimId = randomUUID();
+    const bodyTypeId = randomUUID();
+    const marketId = randomUUID();
     const batteryId = randomUUID();
     const chargingId = randomUUID();
     const motorAId = randomUUID();
@@ -343,9 +347,26 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
         id: modelId, makeId, code: code('MODEL', modelId),
         name: 'ATD07 electric model', status: 'ACTIVE', version: 1,
       });
+      await upserter.upsertRecord(tx, 'VehicleGeneration', {
+        id: generationId, modelId, code: code('GEN', generationId),
+        name: 'ATD07 generation', status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'VehicleTrim', {
+        id: trimId, generationId, code: code('TRIM', trimId),
+        name: 'ATD07 BEV trim', status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'VehicleBodyType', {
+        id: bodyTypeId, code: code('BODY', bodyTypeId),
+        name: 'ATD07 crossover', status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'VehicleMarket', {
+        id: marketId, code: code('MARKET', marketId),
+        name: 'ATD07 market', kind: 'SPECIFICATION',
+        status: 'ACTIVE', version: 1,
+      });
       await upserter.upsertRecord(tx, 'VehicleBatteryPack', {
         id: batteryId, code: code('PACK', batteryId),
-        name: 'ATD07 battery', usableCapacityKwh: 74,
+        name: 'ATD07 battery', usableCapacityKwh: 74, storageKind: 'BATTERY',
         status: 'ACTIVE', version: 1,
       });
       await upserter.upsertRecord(tx, 'VehicleChargingSystem', {
@@ -361,12 +382,15 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
       }
       await upserter.upsertRecord(tx, 'VehicleDriveUnit', {
         id: driveId, code: code('DRIVE', driveId),
-        name: 'ATD07 reduction gear', gearCount: 1,
+        name: 'ATD07 reduction gear', gearCount: 1, integrationKind: 'INTEGRATED_E_DRIVE',
         status: 'ACTIVE', version: 1,
       });
       await upserter.upsertRecord(tx, 'VehicleConfiguration', {
-        id: configId, identityCode: code('ATD07_BEV', configId),
-        makeId, modelId, powertrainType: 'BEV',
+        id: configId, identityCode: 'VC-' + configId.replaceAll('-', '').toUpperCase(),
+        makeId, modelId, generationId, trimId, bodyTypeId, marketId,
+        steeringSide: 'LHD', productionStartYear: 2025,
+        powertrainType: 'BEV', propulsionTopology: 'ELECTRIC_ONLY',
+        energyStorageRole: 'PROPULSION', externalChargingCapability: 'PLUG_IN',
         engineId: null, transmissionId: null,
         batteryPackId: batteryId, chargingSystemId: chargingId,
         status: 'ACTIVE', version: 1,
@@ -399,8 +423,11 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     // must delete prior motors/drive units atomically, never append duplicates.
     await db.$transaction(async tx => {
       await upserter.upsertRecord(tx, 'VehicleConfiguration', {
-        id: configId, identityCode: code('ATD07_BEV', configId),
-        makeId, modelId, powertrainType: 'BEV',
+        id: configId, identityCode: 'VC-' + configId.replaceAll('-', '').toUpperCase(),
+        makeId, modelId, generationId, trimId, bodyTypeId, marketId,
+        steeringSide: 'LHD', productionStartYear: 2025,
+        powertrainType: 'BEV', propulsionTopology: 'ELECTRIC_ONLY',
+        energyStorageRole: 'PROPULSION', externalChargingCapability: 'PLUG_IN',
         engineId: null, transmissionId: null,
         batteryPackId: batteryId, chargingSystemId: chargingId,
         status: 'ACTIVE', version: 2,
