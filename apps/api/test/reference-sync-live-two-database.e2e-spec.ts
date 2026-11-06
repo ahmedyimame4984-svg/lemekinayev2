@@ -54,6 +54,26 @@ const DELEGATES: Record<CanonicalSyncEntityType, string> = {
   VehicleConfigurationMarketApplicability: 'vehicleConfigurationMarketApplicability',
 };
 
+type TechnicalLink = {
+  electricMotorId?: string;
+  driveUnitId?: string;
+  position?: string;
+  quantity?: number;
+  functionRoles?: string[];
+};
+
+function technicalLinkSignatures(
+  links: TechnicalLink[],
+  idKey: 'electricMotorId' | 'driveUnitId',
+): string[] {
+  return links.map(link => JSON.stringify([
+    link[idKey],
+    link.position ?? 'UNKNOWN',
+    link.quantity ?? 1,
+    [...(link.functionRoles ?? [])].sort(),
+  ])).sort();
+}
+
 function disposableLocalDatabase(value: string | undefined, label: string): string {
   if (!value) throw new Error(label + ' must be explicitly set for live acceptance');
   const parsed = new URL(value);
@@ -143,6 +163,9 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
 
     const observed = new Map<CanonicalSyncEntityType, number>();
     let sourceTotal = 0;
+    let bevConfigurations = 0;
+    let completeBevConfigurations = 0;
+    let verifiedSuggestedSchemas = 0;
     for (const entityType of SYNCHRONIZATION_ORDER) {
       let cursor: string | undefined;
       let observedCount = 0;
@@ -162,8 +185,12 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
           } }) as Record<string, any> | null;
           expect(local).not.toBeNull();
           if (entityType === 'ProductTypeSchemaVersion') {
-            expect(local?.snapshot?.attributePolicy).toBe('SUGGESTED');
+            expect(record.snapshot?.contractVersion).toBe(3);
+            expect(record.snapshot?.attributePolicy).toBe('SUGGESTED');
+            expect(local?.snapshot).toEqual(record.snapshot);
+            expect(local?.schemaHash).toBe(record.schemaHash);
             expect(local?.active).toBe(true);
+            verifiedSuggestedSchemas++;
           } else {
             expect(local?.status).toBe('ACTIVE');
             for (const relation of ({
@@ -178,10 +205,39 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
               expect(local?.[relation]).toEqual(record[relation]);
             }
           }
-          if (entityType === 'VehicleConfiguration' && record.powertrainType === 'BEV') {
-            expect(local?.powertrainType).toBe('BEV');
-            expect(local?.engineId).toBeNull();
-            expect(local?.transmissionId).toBeNull();
+          if (entityType === 'VehicleConfiguration') {
+            // Verify actual imported technical junctions, not just parent IDs.
+            // A source motor/drive revision must replace its complete local set.
+            const sourceMotors: TechnicalLink[] = Array.isArray(record.electricMotors)
+              ? record.electricMotors : [];
+            const sourceDrives: TechnicalLink[] = Array.isArray(record.driveUnits)
+              ? record.driveUnits : [];
+            const localMotors = await consumer.vehicleConfigurationElectricMotor.findMany({
+              where: { configurationId: record.id },
+              select: {
+                electricMotorId: true, position: true, quantity: true, functionRoles: true,
+              },
+            });
+            const localDrives = await consumer.vehicleConfigurationDriveUnit.findMany({
+              where: { configurationId: record.id },
+              select: {
+                driveUnitId: true, position: true, quantity: true, functionRoles: true,
+              },
+            });
+            expect(technicalLinkSignatures(localMotors, 'electricMotorId'))
+              .toEqual(technicalLinkSignatures(sourceMotors, 'electricMotorId'));
+            expect(technicalLinkSignatures(localDrives, 'driveUnitId'))
+              .toEqual(technicalLinkSignatures(sourceDrives, 'driveUnitId'));
+            if (record.powertrainType === 'BEV') {
+              bevConfigurations++;
+              expect(local?.powertrainType).toBe('BEV');
+              expect(local?.engineId).toBeNull();
+              expect(local?.transmissionId).toBeNull();
+              if (sourceMotors.length && sourceDrives.length &&
+                  record.batteryPackId && record.chargingSystemId) {
+                completeBevConfigurations++;
+              }
+            }
           }
           observedCount++;
         }
@@ -202,10 +258,19 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       'UnitDimension', 'AttributeOptionSet', 'AttributeOptionValue',
       'VehicleModelDerivative', 'VehicleConfigurationMarketApplicability',
       'VehicleConfiguration', 'ProductTypeSchemaVersion',
+      'VehicleElectricMotor', 'VehicleDriveUnit',
+      'VehicleBatteryPack', 'VehicleChargingSystem',
     ] as const) {
       expect(observed.get(required), 'Missing approved source test fixture: ' + required)
         .toBeGreaterThan(0);
     }
+    expect(verifiedSuggestedSchemas, 'No published Product Type v3 schema fixture')
+      .toBeGreaterThan(0);
+    expect(bevConfigurations, 'No published BEV configuration fixture')
+      .toBeGreaterThan(0);
+    expect(completeBevConfigurations,
+      'No published BEV with battery, charging, electric motor and drive-unit junctions')
+      .toBeGreaterThan(0);
   }, 180_000);
 
   it('replays the live feed, restarts the consumer service and reconciles a new snapshot', async () => {

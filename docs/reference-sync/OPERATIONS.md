@@ -136,6 +136,13 @@ From the LemekinayeV2 workspace root:
 npm run test:e2e --workspace=api -- --run test/reference-sync-live-two-database.e2e-spec.ts
 ```
 
+The live acceptance now fails if its published source fixtures omit a BEV
+configuration with battery pack, charging system, electric motor and drive-unit
+junctions, or a Product Type v3 SUGGESTED schema. It compares the complete
+imported motor/drive junction sets (including positions, quantities and roles)
+against the frozen producer snapshot. These checks are SKIPPED unless the
+live environment is explicitly provisioned and the suite actually runs.
+
 The suite refuses remote databases, non-test database names, identical DBs,
 non-loopback producer APIs, missing test credentials and pre-existing consumer
 sync checkpoints. It verifies producer authentication rejection, real HTTP
