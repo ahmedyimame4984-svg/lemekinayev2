@@ -1,94 +1,100 @@
-# Autotechdoc → LemekinayeV2: synchronization triggers
+# AutotechDoc → LemekinayeV2 — ATD-07 v2 synchronization operations
 
-## Services to deploy
+**Status: draft integration only. Do not merge, deploy, or apply production migrations.**
+Producer: AutotechDoc PR #3 at v2 publishing contract. Consumer: LemekinayeV2
+PR #1 on existing synchronization branch.
 
-The existing API endpoints are not a scheduler. Deploy the **dedicated worker process** separately from the API:
+AutotechDoc owns canonical published data; LemekinayeV2 owns local PostgreSQL,
+commercial Articles, Listings, Inventory, prices and marketplace attribute rules.
+Only the versioned HTTP API crosses that boundary. No shared database.
+
+## Source contract and durable import
+
+Required source operations (all under /api/v1, with a B2B key issued by
+AutotechDoc Admin with reference:read + reference:snapshot scopes):
+
+- POST /reference-data/export/v2/snapshots creates the immutable 12-hour
+  bootstrap (snapshotId, through, expiresAt, entityTypes, recordCount).
+- GET /reference-data/export/v2/snapshots/:snapshotId/:entityType?cursor=&limit=
+  returns source-owned records in strict UUID order, frozen to the same snapshot.
+- GET /reference-data/export/v2/changes?after=N&through=M&limit=100
+  returns monotonically increasing, replayable committed sequence positions.
+
+Never call legacy /manifest, /feed?since, /entities or timestamp-based v1.
+After the last snapshot entity has completed, checkpoint feedCursor is set to
+snapshot.through in one database transaction. Each incremental page commits
+canonical writes, per-entity import identity, current sequence and pinned
+through together. A crash replays safely from the last durable checkpoint.
+On HTTP 410 restart an unfinished frozen bootstrap without resetting an
+otherwise healthy incremental cursor. A 401/403 fails closed; 429/5xx retry
+with bounded backoff. The snapshot expiry is visible in Admin monitoring.
+
+A source-managed identity that is no longer in a completed replacement
+snapshot is archived, not hard-deleted. Imported records track a local UUID
+mapping when preexisting marketplace attribute assignments share the same
+Product Type/Attribute pair but not the source row ID. Attribute assignment
+requirement, visibility, seller-editable, searchable/filterable settings and
+other commercial overrides are preserved across source updates.
+
+**Important:** canonical Product Type v3 suggested schemas are mirrored to
+reference_sync_canonical_product_type_schemas and must NOT overwrite the
+marketplace product_type_schema_versions table referenced by Articles.
+Canonical schema snapshots require contractVersion=3,
+attributePolicy=SUGGESTED; historic marketplace schemas and their references
+are retained.
+
+## Worker and credentials
+
+Configure the consumer API process and a dedicated worker with the same
+server-only secrets; never expose the machine key in browser/Next public env:
+
+```env
+AUTOTECHDOC_SYNC_BASE_URL=https://autotechdoc.example/api/v1
+AUTOTECHDOC_SYNC_TOKEN=<issued-atd_live-machine-key>
+AUTOTECHDOC_PUBLICATION_WEBHOOK_SECRET=<distinct-32+-character-secret>
+```
+
+The producer key is provisioned from
+POST /api/v1/admin/b2b/clients/:id/keys under authenticated Admin
+admin.accounts.manage; the secret is displayed once and its digest is stored
+at rest by AutotechDoc. Rotate/revoke only under separate change approval.
 
 ```sh
 npm run sync:reference-data:worker -w api
 ```
 
-Run it under a restartable supervisor (systemd, PM2, container orchestrator).
-The worker checks for a completed initial snapshot and starts/resumes it automatically
-if needed. Its recurrence is stored in the LemekinayeV2 PostgreSQL checkpoint
-and controlled from Admin Pro. The default is every five minutes, every day
-(288 time slots per 24 hours), aligned to :00, :05, :10, etc. rather than
-five minutes after the previous run. Admin can choose 1–1440 minutes or disable
-automatic runs. The worker refreshes configuration every 15 seconds without a
-restart. If a sync takes longer than a slot, overlapping runs are not started;
-the next available cycle catches up from the durable checkpoint. It must have access to the **LemekinayeV2**
-PostgreSQL database; Autotechdoc is contacted only through authenticated HTTP.
+Supervise the worker process for restarts. The default persisted schedule is
+every five minutes (288 slots/day); Admin may configure 1–1440 minutes or
+disable automatic polling. The worker reads the schedule every 15 seconds.
+Admin Pro → Autotechdoc synchronization supports manual incremental, resumable
+snapshot, reconciliation and explicitly confirmed full resync; all API
+operations require ADMIN plus catalog.manage and vehicle.manage.
 
-```env
-AUTOTECHDOC_SYNC_BASE_URL=https://autotechdoc.example/api/v1
-AUTOTECHDOC_SYNC_TOKEN=<same-strong-machine-export-token-as-Autotechdoc>
-AUTOTECHDOC_PUBLICATION_WEBHOOK_SECRET=<distinct-strong-secret-at-least-32-chars>
-```
+The optional AutotechDoc notifier can run with:
+LEMEKINAYEV2_PUBLICATION_WEBHOOK_URL (HTTPS) and
+LEMEKINAYEV2_PUBLICATION_WEBHOOK_SECRET, and the command
+npm run notify:reference-publications -w api. A signed HMAC notification only
+wakes a pull; the journal is authoritative and scheduled polling recovers
+missed hints. Duplicate hints are expected and safe.
 
-Autotechdoc uses `AUTOTECHDOC_REFERENCE_EXPORT_TOKEN` on the source API.
-Never put these tokens in the browser or commit them into Git.
+## Validation and release restrictions
 
-When a full snapshot is interrupted, starting the worker again resumes its
-saved entity cursors. Forced full re-sync is restricted to the Admin interface.
-Ordinary marketplace reads continue using local PostgreSQL when the source is offline.
+GitHub Actions consumer workflow validates Prisma, runs all API unit tests,
+typechecks, applies migrations ONLY to disposable PostgreSQL and exercises
+v2 HTTP client + real consumer DB migrations and checkpoint/restart replay.
+It is a simulated v2 HTTP producer, NOT a running AutotechDoc producer with
+a second real database. Source-to-consumer E2E, browser Admin confirmation,
+data license approval, high-volume snapshot performance, and real credential
+rotation/revocation remain external review gates until independently proven.
+Do not mark them PASS based only on source code or mocked HTTP responses.
 
-## Optional fast notification worker
+For local proof, provision two **separate disposable** PostgreSQL databases,
+start approved source PR #3 and consumer PR #1 apps, seed approved source
+reference data (including BEV motor and drive-unit links and Product Type v3
+suggestions), issue a test-only B2B machine key, run snapshot+incremental+
+reconciliation, verify database counts and entity IDs, kill and restart
+consumer mid-snapshot and mid-feed, replay same cursor, and rotate/revoke
+the test key. Check UI at mobile and desktop widths.
 
-Deploy separately on the **Autotechdoc** side:
-
-```sh
-npm run notify:reference-publications -w api
-```
-
-```env
-LEMEKINAYEV2_PUBLICATION_WEBHOOK_URL=https://lemekinaye.example/api/v1/integrations/autotechdoc/publication
-LEMEKINAYEV2_PUBLICATION_WEBHOOK_SECRET=<same-distinct-webhook-secret-as-Lemekinaye>
-AUTOTECHDOC_NOTIFICATION_POLL_SECONDS=30
-```
-
-This optional worker polls Autotechdoc's published feed and sends a timestamped
-HMAC-SHA256 notification. The receiver checks the signature, accepts the hint,
-and invokes the normal incremental pull. It does not accept the notification's
-content as canonical data. The five-minute worker guarantees *attempted*
-catch-up even if a notification is lost; the current source feed still requires
-a durable publication journal before a no-loss guarantee is justified.
-
-**Current limitation:** this notifier polls the feed rather than being emitted
-atomically by every publication transaction. It is not a durable outbox.
-It can deliver duplicate hints after restart. The receiver is intentionally
-idempotent in effect through the existing sync lock and upserts. Prefer an
-outbox-based publisher in a later reliability milestone.
-
-## Manual Admin operations
-
-The Admin Pro menu now contains **Autotechdoc sync**. Operations use authenticated
-Next.js BFF routes, which forward user credentials to API endpoints protected
-by ADMIN account type and **both** `catalog.manage` and `vehicle.manage`.
-The UI shows last success/failure, checkpoint, counters and active worker status.
-Full resync requires a second confirmation.
-
-The page is an operational UI, not a substitute for the scheduled worker.
-
-## Acceptance still required
-
-- Start two isolated PostgreSQL instances and verify source publication to local sync.
-- Verify first snapshot, resumable interruption and 5-minute periodic pull.
-- Verify notification signature rejection, replay and lost-notification recovery.
-- Verify worker contention, lease timeout, archival, local customizations and
-  source downtime/reconnection.
-- Run API/Admin builds, typechecks, unit/integration tests and migrate validation.
-
-Do not merge or deploy without actual verification.
-
-## Administrator recurrence configuration
-
-Open **Admin Pro → Autotechdoc sync → Automatic synchronization schedule**.
-Set **Enable automatic synchronization** and **Interval in minutes (1–1440)**,
-then save. The API requires an Admin with both `catalog.manage` and
-`vehicle.manage`, and the database enforces the allowed interval range.
-
-For example, **5 minutes means 288 scheduled opportunities per day**;
-15 minutes means 96 per day, and 60 minutes means 24 per day.
-Actual completed runs can be fewer if the source is unreachable or a prior
-run is still active. Manual synchronization works even when the automatic
-schedule is disabled. The managed worker must be deployed and running.
+No PR merge, deployment, production migration, force-push, destruction,
+or credentials outside test environments without explicit approval.

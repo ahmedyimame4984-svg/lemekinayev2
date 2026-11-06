@@ -67,7 +67,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
       }
       if (target.pathname.endsWith('/reference-data/export/v2/changes')) {
         const after = BigInt(target.searchParams.get('after') ?? '0');
-        const through = BigInt(target.searchParams.get('through') ?? '6');
+        const through = BigInt(target.searchParams.get('through') ?? '8');
         const page = changes.filter(event =>
           BigInt(event.sequence) > after && BigInt(event.sequence) <= through);
         return response({
@@ -208,6 +208,96 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     expect((await db.productTypeSchemaVersion.findUniqueOrThrow({
       where: { id: commercialId },
     })).snapshot).toEqual(commercialSnapshot);
+  });
+
+  it('preserves a local assignment identity and seller-owned policy on canonical UPSERT and ARCHIVE', async () => {
+    const upserter = new ReferenceDataUpserter();
+    const fixture = randomUUID().replaceAll('-', '');
+    const categoryId = randomUUID();
+    const productTypeId = randomUUID();
+    const attributeId = randomUUID();
+    const localId = randomUUID();
+    const canonicalId = randomUUID();
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'Category', {
+        id: categoryId, code: 'CAT_' + fixture.slice(0, 22),
+        slug: 'cat-' + fixture, name: 'ATD-07 assignment fixture',
+        status: 'ACTIVE', version: 1, level: 0,
+      });
+      await upserter.upsertRecord(tx, 'ProductType', {
+        id: productTypeId, categoryId,
+        code: 'PT_' + fixture.slice(0, 22),
+        slug: 'pt-' + fixture, name: 'ATD-07 assignment fixture',
+        status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'AttributeDefinition', {
+        id: attributeId, code: 'ATTR_' + fixture.slice(0, 22),
+        name: 'ATD-07 attribute', dataType: 'TEXT',
+        scope: 'PRODUCT', status: 'ACTIVE', version: 1,
+      });
+      const actorId = await upserter.resolveActorId(tx);
+      await tx.productTypeAttributeAssignment.create({
+        data: {
+          id: localId, productTypeId, attributeId,
+          requirement: 'MANDATORY', searchable: true, sellerEditable: false,
+          status: 'ACTIVE', version: 1,
+          createdById: actorId, updatedById: actorId,
+        },
+      });
+    });
+    await db.referenceSyncCheckpoint.update({
+      where: { id: DEFAULT_CHECKPOINT_ID },
+      data: { snapshotStatus: 'COMPLETED', feedCursor: '6', batchThrough: null },
+    });
+    changes = [{
+      sequence: '7', entityType: 'ProductTypeAttributeAssignment',
+      entityId: canonicalId, operation: 'UPSERT', version: 1,
+      recordedAt: new Date().toISOString(),
+      data: {
+        id: canonicalId, productTypeId, attributeId,
+        displayOrder: 8, status: 'ACTIVE', version: 1,
+      },
+    }];
+    await sync.executeIncrementalSync();
+    const local = await db.productTypeAttributeAssignment.findUniqueOrThrow({
+      where: { id: localId },
+    });
+    expect(local).toMatchObject({
+      id: localId, requirement: 'MANDATORY', searchable: true,
+      sellerEditable: false, displayOrder: 8, status: 'ACTIVE',
+    });
+    const map = await db.referenceSyncImportedRecord.findUniqueOrThrow({
+      where: {
+        entityType_entityId: {
+          entityType: 'ProductTypeAttributeAssignment', entityId: canonicalId,
+        },
+      },
+    });
+    expect(map.localEntityId).toBe(localId);
+
+    changes = [{
+      sequence: '8', entityType: 'ProductTypeAttributeAssignment',
+      entityId: canonicalId, operation: 'ARCHIVE', version: 2,
+      recordedAt: new Date().toISOString(),
+      data: { id: canonicalId, status: 'ARCHIVED', version: 2 },
+    }];
+    await sync.executeIncrementalSync();
+    expect(await db.productTypeAttributeAssignment.findUniqueOrThrow({
+      where: { id: localId },
+    })).toMatchObject({
+      id: localId, status: 'ARCHIVED',
+      requirement: 'MANDATORY', searchable: true, sellerEditable: false,
+    });
+    expect((await db.referenceSyncImportedRecord.findUniqueOrThrow({
+      where: {
+        entityType_entityId: {
+          entityType: 'ProductTypeAttributeAssignment', entityId: canonicalId,
+        },
+      },
+    })).active).toBe(false);
+    expect((await db.referenceSyncCheckpoint.findUniqueOrThrow({
+      where: { id: DEFAULT_CHECKPOINT_ID },
+    })).feedCursor).toBe('8');
   });
 
 });

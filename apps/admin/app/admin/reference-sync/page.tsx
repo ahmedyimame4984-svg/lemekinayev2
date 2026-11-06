@@ -191,6 +191,23 @@ export default function ReferenceSyncPage() {
               <dt>Entity tables completed</dt><dd>{status?.entityStates?.filter((entity) => entity.status === 'COMPLETED').length ?? 0} / {status?.entityStates?.length ?? 0}</dd>
             </dl>
             <button type="button" onClick={() => void refresh()}>Refresh status</button>
+            <h3 style={{ marginTop: 22 }}>Snapshot entity progress</h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr><th scope="col">Canonical entity</th><th scope="col">Status</th><th scope="col">Imported</th></tr>
+                </thead>
+                <tbody>
+                  {status?.entityStates?.length ? status.entityStates.map((item) => (
+                    <tr key={item.entityType}>
+                      <th scope="row">{item.entityType}</th>
+                      <td>{item.status}</td>
+                      <td>{item.recordCount}</td>
+                    </tr>
+                  )) : <tr><td colSpan={3}>No snapshot has been started.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}

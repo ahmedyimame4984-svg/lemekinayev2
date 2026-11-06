@@ -2771,6 +2771,7 @@ model ReferenceSyncLog {
 model ReferenceSyncImportedRecord {
   entityType   String                     @map("entity_type") @db.VarChar(60)
   entityId     String                     @map("entity_id") @db.Uuid
+  localEntityId String?                    @map("local_entity_id") @db.Uuid
   checkpointId String                     @default("autotechdoc-canonical-sync") @map("checkpoint_id") @db.VarChar(60)
   snapshotId   String?                    @map("snapshot_id") @db.VarChar(60)
   active       Boolean                    @default(true)

@@ -200,7 +200,16 @@ export class ReferenceSyncService {
         page.items.some(item => !item || typeof item !== 'object' ||
           typeof (item as { id?: unknown }).id !== 'string') ||
         (page.hasMore && (!page.nextCursor || page.items.length === 0 ||
-          page.nextCursor === cursor))) {
+          page.nextCursor === cursor)) ||
+        (!page.hasMore && page.nextCursor !== null) ||
+        page.items.some((record, index) => {
+          const id = String((record as { id?: unknown }).id);
+          const prior = index > 0
+            ? String((page.items[index - 1] as { id: string }).id) : cursor;
+          return !!prior && id <= prior;
+        }) ||
+        (page.hasMore && page.nextCursor !==
+          String((page.items[page.items.length - 1] as { id: string }).id))) {
       throw new ServiceUnavailableException('AutotechDoc returned an inconsistent v2 snapshot page');
     }
   }
@@ -210,6 +219,24 @@ export class ReferenceSyncService {
    * only after that entity's entire snapshot has been applied. Marketplace
    * articles, offers, prices, stock and consumer attribute rules are untouched.
    */
+  // Canonical assignment IDs can differ from a pre-existing marketplace
+  // assignment with the same Product Type + Attribute composite identity.
+  // Preserve that row's commercial overrides and track the actual local key.
+  private async localEntityId(
+    tx: any, type: CanonicalSyncEntityType, record: Record<string, any>,
+  ): Promise<string> {
+    if (type !== 'ProductTypeAttributeAssignment') return record.id;
+    const row = await tx.productTypeAttributeAssignment.findUniqueOrThrow({
+      where: {
+        productTypeId_attributeId: {
+          productTypeId: record.productTypeId, attributeId: record.attributeId,
+        },
+      },
+      select: { id: true },
+    });
+    return row.id;
+  }
+
   private async archiveMissingFromSnapshot(
     workerId: string, entityType: CanonicalSyncEntityType, snapshotId: string,
   ): Promise<number> {
@@ -220,14 +247,14 @@ export class ReferenceSyncService {
           checkpointId: DEFAULT_CHECKPOINT_ID, entityType, active: true,
           OR: [{ snapshotId: { not: snapshotId } }, { snapshotId: null }],
         },
-        select: { entityId: true },
+        select: { entityId: true, localEntityId: true },
         take: 100,
       });
       if (stale.length === 0) return count;
       await this.database.$transaction(async tx => {
         await this.renewLease(tx, workerId);
         for (const row of stale) {
-          await this.upserter.archiveRecord(tx, entityType, row.entityId);
+          await this.upserter.archiveRecord(tx, entityType, row.localEntityId ?? row.entityId);
           await tx.referenceSyncImportedRecord.update({
             where: { entityType_entityId: { entityType, entityId: row.entityId } },
             data: { active: false },
@@ -316,13 +343,14 @@ export class ReferenceSyncService {
                   if (outcome === 'APPLIED') appliedCount++;
                   else skippedCount++;
                   processedCount++;
+                  const localEntityId = await this.localEntityId(tx, entityType, record);
                   await tx.referenceSyncImportedRecord.upsert({
                     where: { entityType_entityId: { entityType, entityId: record.id } },
                     create: {
                       checkpointId: DEFAULT_CHECKPOINT_ID, entityType, entityId: record.id,
-                      snapshotId: snapshot.snapshotId, active: true,
+                      snapshotId: snapshot.snapshotId, active: true, localEntityId,
                     },
-                    update: { snapshotId: snapshot.snapshotId, active: true },
+                    update: { snapshotId: snapshot.snapshotId, active: true, localEntityId },
                   });
                 }
                 await tx.referenceSyncEntityState.update({
@@ -469,27 +497,39 @@ export class ReferenceSyncService {
           await this.renewLease(tx, workerId);
           for (const change of feed.changes) {
             if (change.operation === 'ARCHIVE') {
-              await this.upserter.archiveRecord(tx, change.entityType, change.entityId);
+              const imported = change.entityType === 'ProductTypeAttributeAssignment'
+                ? await tx.referenceSyncImportedRecord.findUnique({
+                    where: {
+                      entityType_entityId: {
+                        entityType: change.entityType, entityId: change.entityId,
+                      },
+                    },
+                    select: { localEntityId: true },
+                  })
+                : null;
+              const localEntityId = imported?.localEntityId ?? change.entityId;
+              await this.upserter.archiveRecord(tx, change.entityType, localEntityId);
               pageApplied++;
               await tx.referenceSyncImportedRecord.upsert({
                 where: { entityType_entityId: { entityType: change.entityType, entityId: change.entityId } },
                 create: {
                   checkpointId: DEFAULT_CHECKPOINT_ID, entityType: change.entityType,
-                  entityId: change.entityId, active: false, lastSequence: change.sequence,
+                  entityId: change.entityId, localEntityId, active: false, lastSequence: change.sequence,
                 },
-                update: { active: false, lastSequence: change.sequence },
+                update: { active: false, localEntityId, lastSequence: change.sequence },
               });
             } else {
               const outcome = await this.upserter.upsertRecord(tx, change.entityType, change.data);
               if (outcome === 'APPLIED') pageApplied++;
               else pageSkipped++;
+              const localEntityId = await this.localEntityId(tx, change.entityType, change.data);
               await tx.referenceSyncImportedRecord.upsert({
                 where: { entityType_entityId: { entityType: change.entityType, entityId: change.entityId } },
                 create: {
                   checkpointId: DEFAULT_CHECKPOINT_ID, entityType: change.entityType,
-                  entityId: change.entityId, active: true, lastSequence: change.sequence,
+                  entityId: change.entityId, localEntityId, active: true, lastSequence: change.sequence,
                 },
-                update: { active: true, lastSequence: change.sequence },
+                update: { active: true, localEntityId, lastSequence: change.sequence },
               });
             }
           }
