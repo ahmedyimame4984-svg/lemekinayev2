@@ -373,7 +373,8 @@ export class ReferenceSyncService {
               if (!page.hasMore) break;
               cursor = page.nextCursor;
             }
-            appliedCount += await this.archiveMissingFromSnapshot(workerId, entityType, snapshot.snapshotId);
+            // Mark page ingestion complete; do not retire previously published
+            // identities until the entire frozen source row count is verified.
             await this.database.$transaction(async tx => {
               await this.renewLease(tx, workerId);
               await tx.referenceSyncEntityState.update({
@@ -382,10 +383,32 @@ export class ReferenceSyncService {
               });
             });
           }
-          // The last source page alone is insufficient proof of completeness.
-          // Comparing source-frozen count against the locally tracked active
-          // identities prevents a malformed/missing page from advancing the
-          // canonical replay cursor or hiding a partial import.
+          // A corrupt or truncated replacement snapshot must not archive
+          // previously valid local references. Page counts are persisted with
+          // each entity checkpoint so this also covers resumed imports.
+          const completedStates = await this.database.referenceSyncEntityState.findMany({
+            where: { checkpointId: DEFAULT_CHECKPOINT_ID },
+            select: { entityType: true, recordCount: true, status: true },
+          });
+          const frozenPageCount = completedStates.reduce((sum, state) => sum + state.recordCount, 0);
+          if (completedStates.length !== SYNCHRONIZATION_ORDER.length ||
+              completedStates.some(state => state.status !== 'COMPLETED') ||
+              !Number.isSafeInteger(frozenPageCount) || frozenPageCount !== snapshot.recordCount) {
+            throw new ServiceUnavailableException(
+              'Frozen snapshot count mismatch: expected ' + snapshot.recordCount +
+              ', paged ' + frozenPageCount + '; existing references were not archived',
+            );
+          }
+
+          // Only after all 29 entity streams pass the frozen count proof may
+          // absent source-managed references be archived. Retrying after a
+          // crash remains idempotent, and commercial records are never deleted.
+          for (const entityType of SYNCHRONIZATION_ORDER) {
+            appliedCount += await this.archiveMissingFromSnapshot(workerId, entityType, snapshot.snapshotId);
+          }
+
+          // Confirm the final active imported identity count after archival,
+          // before replacing the durable incremental replay cursor.
           const actualCount = await this.database.referenceSyncImportedRecord.count({
             where: {
               checkpointId: DEFAULT_CHECKPOINT_ID,
