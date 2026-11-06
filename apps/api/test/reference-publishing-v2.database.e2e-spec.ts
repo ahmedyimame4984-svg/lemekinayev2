@@ -321,4 +321,115 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     });
   });
 
+
+  it('stores and updates BEV multi-motor and drive-unit relationships in real PostgreSQL', async () => {
+    const upserter = new ReferenceDataUpserter();
+    const makeId = randomUUID();
+    const modelId = randomUUID();
+    const batteryId = randomUUID();
+    const chargingId = randomUUID();
+    const motorAId = randomUUID();
+    const motorBId = randomUUID();
+    const driveId = randomUUID();
+    const configId = randomUUID();
+    const code = (prefix: string, id: string) =>
+      prefix + '_' + id.replaceAll('-', '').slice(0, 20);
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'VehicleMake', {
+        id: makeId, code: code('MAKE', makeId),
+        name: 'ATD07 electric make', status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'VehicleModel', {
+        id: modelId, makeId, code: code('MODEL', modelId),
+        name: 'ATD07 electric model', status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'VehicleBatteryPack', {
+        id: batteryId, code: code('PACK', batteryId),
+        name: 'ATD07 battery', usableCapacityKwh: 74,
+        status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'VehicleChargingSystem', {
+        id: chargingId, code: code('CHARGE', chargingId),
+        name: 'ATD07 CCS2', dcConnector: 'CCS2', maxDcPowerKw: 150,
+        status: 'ACTIVE', version: 1,
+      });
+      for (const id of [motorAId, motorBId]) {
+        await upserter.upsertRecord(tx, 'VehicleElectricMotor', {
+          id, code: code('MOTOR', id), name: 'ATD07 traction motor',
+          peakPowerKw: 160, status: 'ACTIVE', version: 1,
+        });
+      }
+      await upserter.upsertRecord(tx, 'VehicleDriveUnit', {
+        id: driveId, code: code('DRIVE', driveId),
+        name: 'ATD07 reduction gear', gearCount: 1,
+        status: 'ACTIVE', version: 1,
+      });
+      await upserter.upsertRecord(tx, 'VehicleConfiguration', {
+        id: configId, identityCode: code('ATD07_BEV', configId),
+        makeId, modelId, powertrainType: 'BEV',
+        engineId: null, transmissionId: null,
+        batteryPackId: batteryId, chargingSystemId: chargingId,
+        status: 'ACTIVE', version: 1,
+        electricMotors: [{
+          electricMotorId: motorAId, position: 'REAR_AXLE',
+          quantity: 2, functionRoles: ['TRACTION'],
+        }],
+        driveUnits: [{
+          driveUnitId: driveId, position: 'REAR_AXLE',
+          quantity: 1, functionRoles: ['TRACTION'],
+        }],
+      });
+    });
+    const before = await db.vehicleConfiguration.findUniqueOrThrow({
+      where: { id: configId },
+      include: { electricMotors: true, driveUnits: true },
+    });
+    expect(before).toMatchObject({
+      powertrainType: 'BEV',
+      engineId: null, transmissionId: null,
+      batteryPackId: batteryId, chargingSystemId: chargingId,
+    });
+    expect(before.electricMotors).toHaveLength(1);
+    expect(before.electricMotors[0]).toMatchObject({
+      electricMotorId: motorAId, quantity: 2,
+    });
+    expect(before.driveUnits[0]).toMatchObject({ driveUnitId: driveId });
+
+    // A canonical EV revision publishes the entire relation set. Replacements
+    // must delete prior motors/drive units atomically, never append duplicates.
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'VehicleConfiguration', {
+        id: configId, identityCode: code('ATD07_BEV', configId),
+        makeId, modelId, powertrainType: 'BEV',
+        engineId: null, transmissionId: null,
+        batteryPackId: batteryId, chargingSystemId: chargingId,
+        status: 'ACTIVE', version: 2,
+        electricMotors: [{
+          electricMotorId: motorBId, position: 'FRONT_AXLE',
+          quantity: 1, functionRoles: ['TRACTION'],
+        }],
+        driveUnits: [],
+      });
+    });
+    const after = await db.vehicleConfiguration.findUniqueOrThrow({
+      where: { id: configId },
+      include: { electricMotors: true, driveUnits: true },
+    });
+    expect(after.electricMotors).toHaveLength(1);
+    expect(after.electricMotors[0]).toMatchObject({
+      electricMotorId: motorBId, quantity: 1,
+    });
+    expect(after.driveUnits).toHaveLength(0);
+    expect(after.version).toBe(2);
+    await db.$transaction(async tx => {
+      await upserter.archiveRecord(tx, 'VehicleConfiguration', configId);
+    });
+    const retired = await db.vehicleConfiguration.findUniqueOrThrow({
+      where: { id: configId },
+      include: { electricMotors: true },
+    });
+    expect(retired.status).toBe(MasterDataStatus.ARCHIVED);
+    expect(retired.electricMotors).toHaveLength(1);
+  });
+
 });
