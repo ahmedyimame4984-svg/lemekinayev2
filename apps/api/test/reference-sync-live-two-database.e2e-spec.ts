@@ -14,7 +14,8 @@ import { SYNCHRONIZATION_ORDER, type CanonicalSyncEntityType } from '../src/refe
  * databases, and approved canonical fixtures. Never reuse production URLs.
  *
  * It uses actual producer HTTP rather than global.fetch stubs. Source database
- * access is READ ONLY; only the disposable consumer database receives writes.
+ * access is READ ONLY by default. An explicit disposable-CI-only opt-in
+ * exercises source journal mutation and archival; no production DB is allowed.
  */
 const enabled = process.env.ATD_LIVE_TWO_DB_ACCEPTANCE === '1';
 const producerUrl = process.env.ATD_LIVE_PRODUCER_BASE_URL;
@@ -272,6 +273,48 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       'No published BEV with battery, charging, electric motor and drive-unit junctions')
       .toBeGreaterThan(0);
   }, 180_000);
+
+  it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
+    'imports real producer PostgreSQL journal revisions and archives over B2B HTTP', async () => {
+      // The source and consumer were already verified as separate, local, test-only
+      // databases in beforeAll. Mutations are allowed only for the specially
+      // seeded transport fixture and are never part of normal consumer behavior.
+      const fixture = await source.brand.findFirst({
+        where: { name: 'B2B transport fixture', status: 'ACTIVE' },
+        select: { id: true, version: true },
+      });
+      expect(fixture, 'Missing disposable producer revision fixture').not.toBeNull();
+      const brandId = fixture!.id;
+      const before = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+      });
+
+      await source.brand.update({
+        where: { id: brandId },
+        data: { name: 'B2B fixture updated over live journal', version: { increment: 1 } },
+      });
+      const revised = await sync.executeIncrementalSync({ batchSize: 10 });
+      expect(revised.status).toBe('SUCCESS');
+      expect(revised.processedCount).toBeGreaterThan(0);
+      expect((await consumer.brand.findUniqueOrThrow({ where: { id: brandId } })))
+        .toMatchObject({ name: 'B2B fixture updated over live journal', status: 'ACTIVE' });
+      expect(BigInt(revised.cursorAfter!)).toBeGreaterThan(BigInt(before.feedCursor!));
+
+      await source.brand.update({
+        where: { id: brandId },
+        data: { status: 'ARCHIVED', version: { increment: 1 } },
+      });
+      const archived = await sync.executeIncrementalSync({ batchSize: 10 });
+      expect(archived.status).toBe('SUCCESS');
+      expect(archived.processedCount).toBeGreaterThan(0);
+      expect(BigInt(archived.cursorAfter!)).toBeGreaterThan(BigInt(revised.cursorAfter!));
+      expect((await consumer.brand.findUniqueOrThrow({ where: { id: brandId } })).status)
+        .toBe('ARCHIVED');
+      expect(await consumer.referenceSyncImportedRecord.findUniqueOrThrow({
+        where: { entityType_entityId: { entityType: 'Brand', entityId: brandId } },
+      })).toMatchObject({ active: false, lastSequence: archived.cursorAfter });
+    }, 180_000,
+  );
 
   it('replays the live feed, restarts the consumer service and reconciles a new snapshot', async () => {
     const initial = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
