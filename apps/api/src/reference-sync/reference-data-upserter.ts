@@ -20,6 +20,7 @@ import {
   VehicleEnergyStorageRole,
   VehicleExternalChargingCapability,
   VehicleMarketKind,
+  VehicleMarketApplicabilityRole,
   VehiclePowertrainType,
   VehicleProductionEndStatus,
   VehiclePropulsionTopology,
@@ -190,6 +191,51 @@ export class ReferenceDataUpserter {
             version: record.version ?? undefined,
             updatedById: actorId,
           },
+        });
+        return 'APPLIED';
+      }
+
+      case 'UnitDimension': {
+        const fields = {
+          code: record.code, name: record.name,
+          description: record.description ?? null,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.unitDimension.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
+        });
+        return 'APPLIED';
+      }
+
+      case 'AttributeOptionSet': {
+        const fields = {
+          code: record.code, name: record.name,
+          description: record.description ?? null,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.attributeOptionSet.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
+        });
+        return 'APPLIED';
+      }
+
+      case 'AttributeOptionValue': {
+        const fields = {
+          optionSetId: record.optionSetId, code: record.code, label: record.label,
+          description: record.description ?? null, sortOrder: record.sortOrder ?? 0,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.attributeOptionValue.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
         });
         return 'APPLIED';
       }
@@ -549,6 +595,20 @@ export class ReferenceDataUpserter {
             version: record.version ?? undefined,
             updatedById: actorId,
           },
+        });
+        return 'APPLIED';
+      }
+
+      case 'VehicleModelDerivative': {
+        const fields = {
+          modelId: record.modelId, code: record.code, name: record.name,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.vehicleModelDerivative.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
         });
         return 'APPLIED';
       }
@@ -958,6 +1018,24 @@ export class ReferenceDataUpserter {
         return 'APPLIED';
       }
 
+      case 'VehicleConfigurationMarketApplicability': {
+        // Keep the source-owned relation independent of commercial vehicle fitment.
+        // The configuration and market must already exist; never synthesize them.
+        const fields = {
+          configurationId: record.configurationId,
+          marketId: record.marketId,
+          role: record.role as VehicleMarketApplicabilityRole,
+          status: (record.status as MasterDataStatus) ?? MasterDataStatus.ACTIVE,
+        };
+        await tx.vehicleConfigurationMarketApplicability.upsert({
+          where: { id: record.id },
+          create: { id: record.id, ...fields, version: record.version ?? 1,
+            createdById: actorId, updatedById: actorId },
+          update: { ...fields, version: record.version ?? undefined, updatedById: actorId },
+        });
+        return 'APPLIED';
+      }
+
       default:
         // An unknown canonical entity must fail closed rather than advance
         // a durable cursor while silently dropping published reference data.
@@ -993,6 +1071,24 @@ export class ReferenceDataUpserter {
         break;
       case 'AttributeGroup':
         await tx.attributeGroup.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'UnitDimension':
+        await tx.unitDimension.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'AttributeOptionSet':
+        await tx.attributeOptionSet.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'AttributeOptionValue':
+        await tx.attributeOptionValue.updateMany({
           where: { id },
           data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
         });
@@ -1045,6 +1141,12 @@ export class ReferenceDataUpserter {
         break;
       case 'VehicleModel':
         await tx.vehicleModel.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'VehicleModelDerivative':
+        await tx.vehicleModelDerivative.updateMany({
           where: { id },
           data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
         });
@@ -1117,6 +1219,12 @@ export class ReferenceDataUpserter {
         break;
       case 'VehicleConfiguration':
         await tx.vehicleConfiguration.updateMany({
+          where: { id },
+          data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'VehicleConfigurationMarketApplicability':
+        await tx.vehicleConfigurationMarketApplicability.updateMany({
           where: { id },
           data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
         });

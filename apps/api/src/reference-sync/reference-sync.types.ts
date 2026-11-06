@@ -3,7 +3,10 @@ export const SYNCHRONIZATION_ORDER = [
   'Category',
   'ProductFamily',
   'AttributeGroup',
+  'UnitDimension',
   'AttributeUnit',
+  'AttributeOptionSet',
+  'AttributeOptionValue',
   'AttributeDefinition',
   'AttributeAllowedValue',
   'ProductType',
@@ -11,6 +14,7 @@ export const SYNCHRONIZATION_ORDER = [
   'ProductTypeSchemaVersion',
   'VehicleMake',
   'VehicleModel',
+  'VehicleModelDerivative',
   'VehicleGenerationFamily',
   'VehicleGeneration',
   'VehicleTrim',
@@ -23,6 +27,7 @@ export const SYNCHRONIZATION_ORDER = [
   'VehicleElectricMotor',
   'VehicleDriveUnit',
   'VehicleConfiguration',
+  'VehicleConfigurationMarketApplicability',
 ] as const;
 
 export type CanonicalSyncEntityType = (typeof SYNCHRONIZATION_ORDER)[number];
