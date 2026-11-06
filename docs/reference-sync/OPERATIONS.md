@@ -62,6 +62,11 @@ AUTOTECHDOC_SYNC_TOKEN=<issued-atd_live-machine-key>
 AUTOTECHDOC_PUBLICATION_WEBHOOK_SECRET=<distinct-32+-character-secret>
 ```
 
+Non-loopback source URLs must be HTTPS, never plaintext HTTP. Only
+localhost/127.0.0.1/::1 are permitted as HTTP development endpoints.
+Redirects are rejected before forwarding machine credentials. The B2B
+token must match the exact 256-bit `atd_live_` key format.
+
 The producer key is provisioned from
 POST /api/v1/admin/b2b/clients/:id/keys under authenticated Admin
 admin.accounts.manage; the secret is displayed once and its digest is stored

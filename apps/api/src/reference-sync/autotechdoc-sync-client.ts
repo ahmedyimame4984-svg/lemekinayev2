@@ -42,6 +42,14 @@ export class AutotechdocSyncClient {
       process.env.AUTOTECHDOC_SYNC_BASE_URL ??
       'http://127.0.0.1:4000/api/v1'
     ).trim().replace(/\/$/u, '');
+    const parsedBase = new URL(this.baseUrl);
+    const localLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(parsedBase.hostname);
+    if (!(parsedBase.protocol === 'https:' ||
+          (parsedBase.protocol === 'http:' && localLoopback)) ||
+        parsedBase.username || parsedBase.password ||
+        parsedBase.search || parsedBase.hash) {
+      throw new Error('AutotechDoc B2B sync requires HTTPS outside localhost and a clean base URL');
+    }
     this.token = (config?.token ?? process.env.AUTOTECHDOC_SYNC_TOKEN)?.trim();
     this.timeoutMs = config?.timeoutMs ?? 15_000;
     this.maxRetries = config?.maxRetries ?? 4;
@@ -51,7 +59,7 @@ export class AutotechdocSyncClient {
   }
 
   isConfigured(): boolean {
-    return Boolean(this.token && this.token.length >= 32);
+    return Boolean(this.token && /^atd_live_[a-zA-Z0-9_-]{43}$/u.test(this.token));
   }
 
   private async requestWithRetry<T>(path: string, options?: RequestInit): Promise<T> {
@@ -67,6 +75,7 @@ export class AutotechdocSyncClient {
         const response = await fetch(url, {
           ...options,
           signal: controller.signal,
+          redirect: 'error', // Never forward a B2B machine key through redirects.
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',

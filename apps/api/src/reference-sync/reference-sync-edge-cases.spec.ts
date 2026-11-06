@@ -35,6 +35,7 @@ describe('ATD-06 v2 HTTP contract, machine security and retry boundaries', () =>
       'https://source.example/api/v1/reference-data/export/v2/changes?limit=50&after=40&through=42',
     ]);
     expect(fetcher.mock.calls[0][1].method).toBe('POST');
+    expect(fetcher.mock.calls[0][1].redirect).toBe('error');
     expect(fetcher.mock.calls[0][1].headers.Authorization).toBe('Bearer ' + token);
   });
 
@@ -69,6 +70,21 @@ describe('ATD-06 v2 HTTP contract, machine security and retry boundaries', () =>
     const unconfigured = new AutotechdocSyncClient({ token: 'short' });
     expect(unconfigured.isConfigured()).toBe(false);
     await expect(unconfigured.createSnapshot()).rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it('requires HTTPS for machine keys outside loopback and rejects invalid credentials', () => {
+    expect(() => new AutotechdocSyncClient({
+      baseUrl: 'http://source.example/api/v1', token,
+    })).toThrow(/requires HTTPS/u);
+    expect(() => new AutotechdocSyncClient({
+      baseUrl: 'https://source.example/api/v1?redirect=https://evil.example', token,
+    })).toThrow(/clean base URL/u);
+    expect(new AutotechdocSyncClient({
+      baseUrl: 'http://127.0.0.1:4000/api/v1', token,
+    }).isConfigured()).toBe(true);
+    expect(new AutotechdocSyncClient({
+      baseUrl: 'https://source.example/api/v1', token: 'x'.repeat(50),
+    }).isConfigured()).toBe(false);
   });
 
   it('never falls back to v1 manifest, timestamp feed or /entities endpoints', () => {
