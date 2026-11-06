@@ -95,23 +95,62 @@ receipts older than 24 hours are pruned opportunistically. If receipt
 persistence is unavailable, the webhook fails closed and scheduled polling
 still recovers source changes.
 
-## Producer publishing contract dependency gap (review blocker)
+## Publishing v2 governed relationship coverage (29 ordered entities)
 
-The current source v2 allowlist exposes only 24 entity types. Certain published
-records can still reference source masters absent from that allowlist:
+The paired draft ATD-06/07 branches now include the previously missing,
+independently governed `UnitDimension`, `AttributeOptionSet`,
+`AttributeOptionValue`, `VehicleModelDerivative` and
+`VehicleConfigurationMarketApplicability` source tables and lifecycle events.
+The consumer imports their IDs and relationships directly; it never fabricates
+stand-in masters or rewrites commercial Articles. Older 24-entity clients
+fail closed until upgraded. Both branches must pass their exact-head CI before
+any downstream acceptance or merge decision.
 
-- AttributeUnit.dimensionId and AttributeDefinition.unitDimensionId require
-  UnitDimension; synthesizing a placeholder would violate canonical ownership.
-- AttributeDefinition.optionSetId requires AttributeOptionSet.
-- VehicleGeneration.derivativeId requires VehicleModelDerivative.
-- Configuration market-applicability junctions are also not part of the v2
-  projected VehicleConfiguration payload.
+## Live source → consumer two-database acceptance (explicit opt-in)
 
-The consumer fails safely for missing referenced parents, retains the last
-committed checkpoint, and does NOT create fake canonical data. Real source
-records using these relationships require a separately reviewed producer
-contract extension (and an upgraded consumer allowlist), plus an independent
-integration test. Do not silently null the foreign keys or fall back to v1.
+There is an executable live HTTP + two-PostgreSQL acceptance suite at
+`apps/api/test/reference-sync-live-two-database.e2e-spec.ts`. It does NOT
+fake `fetch`, open a shared database, apply migrations, create credentials,
+seed, or touch remote/production resources. Its normal CI behavior is SKIPPED,
+not PASS. Provision and migrate two separate **LOCAL disposable** test/CI
+PostgreSQL databases first, run approved AutotechDoc producer against the
+source DB, and provision a scoped TEST machine key. Seed ACTIVE, verified
+canonical records covering every governed relationship, a BEV with EV
+components and a Product Type v3 `SUGGESTED` schema. Use a *fresh* consumer
+database (no existing sync checkpoint).
+
+Set the following **server-only test runner** variables (use an approved local
+secret mechanism; never commit the token):
+
+```env
+ATD_LIVE_TWO_DB_ACCEPTANCE=1
+ATD_LIVE_PRODUCER_BASE_URL=http://127.0.0.1:4000/api/v1
+ATD_LIVE_PRODUCER_B2B_KEY=<test-only-atd_live-key>
+ATD_LIVE_SOURCE_DATABASE_URL=postgresql://<test-user>:<test-password>@127.0.0.1:5432/autotechdoc_test
+REFERENCE_SYNC_TEST_DATABASE_URL=postgresql://<test-user>:<test-password>@127.0.0.1:5432/lemekinaye_test
+```
+
+From the LemekinayeV2 workspace root:
+
+```sh
+npm run test:e2e --workspace=api -- --run test/reference-sync-live-two-database.e2e-spec.ts
+```
+
+The suite refuses remote databases, non-test database names, identical DBs,
+non-loopback producer APIs, missing test credentials and pre-existing consumer
+sync checkpoints. It verifies producer authentication rejection, real HTTP
+snapshot/import counts, exact published source identities and FK relations,
+BEV identity, v3 schema isolation, live feed replay, a fresh worker service
+and a replacement snapshot. This is a test of the **real producer HTTP API**
+and the **real consumer synchronization service**, but does not itself start
+both independent application processes or test Admin browser flows.
+
+Full ATD-07 acceptance still requires review of deliberately introduced
+post-snapshot revisions and archives, on-the-wire credential rotation/
+revocation, crash injection, missed-event recovery, HMAC replay, key expiry,
+429/5xx, 410, desktop/mobile Admin operation, and large data performance
+using the actual two-app environment. Do not mark any of those gates PASS
+merely because this opt-in suite is defined.
 
 ## Active vehicle powertrain identity parity
 
