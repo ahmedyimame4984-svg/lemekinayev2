@@ -38,7 +38,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     sync = makeSync();
     vi.stubGlobal('fetch', vi.fn(async (input: string | URL, options?: RequestInit) => {
       const target = new URL(String(input));
-      expect(options?.headers).toMatchObject({ Authorization: 'Bearer ' + token });
+      expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer ' + token);
       if (target.pathname.endsWith('/reference-data/export/v2/snapshots') &&
           options?.method === 'POST') {
         created++;

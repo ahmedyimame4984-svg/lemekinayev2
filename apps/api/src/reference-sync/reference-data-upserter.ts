@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import {
   AccountStatus,
   AccountType,
@@ -12,7 +12,6 @@ import {
   ProductTypeAttributeRequirement,
   ProductTypeIdentifierRequirement,
   ProductTypeRequirementLevel,
-  VehicleBodyType,
   VehicleCombustionEngineRole,
   VehicleDriveUnitIntegrationKind,
   VehicleElectricMachineFunction,
@@ -32,7 +31,6 @@ export const SYSTEM_SYNC_USER_EMAIL = 'system-sync@lemekinaye.internal';
 
 @Injectable()
 export class ReferenceDataUpserter {
-  private readonly logger = new Logger(ReferenceDataUpserter.name);
   private cachedActorId: string | null = null;
 
   async resolveActorId(tx: Prisma.TransactionClient): Promise<string> {
@@ -961,8 +959,9 @@ export class ReferenceDataUpserter {
       }
 
       default:
-        this.logger.warn(`Unknown sync entity type ${entityType}, skipping`);
-        return 'SKIPPED';
+        // An unknown canonical entity must fail closed rather than advance
+        // a durable cursor while silently dropping published reference data.
+        throw new ServiceUnavailableException('Unsupported canonical synchronization entity');
     }
   }
 

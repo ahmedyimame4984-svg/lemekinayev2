@@ -609,7 +609,7 @@ export class ReferenceSyncService {
   }> {
     const start = Date.now();
     const before = await this.getStatus();
-    const result = await this.executeSnapshot({ forceFull: true });
+    await this.executeSnapshot({ forceFull: true });
     const after = await this.getStatus();
     const reconciledEntities: Record<string, { remoteCount: number; localCount: number; repaired: number }> = {};
     for (const state of after.entityStates) {
@@ -621,7 +621,7 @@ export class ReferenceSyncService {
         repaired: Math.max(0, state.recordCount - previouslyImported),
       };
     }
-    return { reconciledEntities, durationMs: Date.now() - start + result.durationMs * 0 };
+    return { reconciledEntities, durationMs: Date.now() - start };
   }
 
   private async getLocalEntityCount(entityType: CanonicalSyncEntityType): Promise<number> {

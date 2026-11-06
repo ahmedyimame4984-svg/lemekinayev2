@@ -36,7 +36,7 @@ describe('ATD-06 v2 HTTP contract, machine security and retry boundaries', () =>
     ]);
     expect(fetcher.mock.calls[0][1].method).toBe('POST');
     expect(fetcher.mock.calls[0][1].redirect).toBe('error');
-    expect(fetcher.mock.calls[0][1].headers.Authorization).toBe('Bearer ' + token);
+    expect(fetcher.mock.calls[0][1].headers.get('Authorization')).toBe('Bearer ' + token);
   });
 
   it('retries 429 and 503 and succeeds without resetting cursors', async () => {

@@ -28,7 +28,8 @@ beforeEach(() => {
   locked = false;
   failing = false;
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input);
+    const url = typeof input === 'string' ? input
+      : input instanceof URL ? input.toString() : input.url;
     const method = init?.method ?? 'GET';
     requests.push({
       url, method, body: typeof init?.body === 'string' ? init.body : undefined,

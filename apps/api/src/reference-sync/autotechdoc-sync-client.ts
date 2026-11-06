@@ -72,16 +72,17 @@ export class AutotechdocSyncClient {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
       try {
+        // Headers accepts Headers, tuple arrays and plain objects uniformly.
+        // Machine authentication is applied last, never overridden by callers.
+        const headers = new Headers(options?.headers);
+        headers.set('Content-Type', 'application/json');
+        headers.set('Accept', 'application/json');
+        headers.set('Authorization', 'Bearer ' + this.token);
         const response = await fetch(url, {
           ...options,
           signal: controller.signal,
           redirect: 'error', // Never forward a B2B machine key through redirects.
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            Authorization: 'Bearer ' + this.token,
-            ...options?.headers,
-          },
+          headers,
         });
         if (response.ok) return (await response.json()) as T;
         if (response.status === 410) throw new SnapshotExpiredError();
