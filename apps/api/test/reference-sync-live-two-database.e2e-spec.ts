@@ -431,6 +431,85 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
   );
 
   it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
+    'resumes a real 560-plus-record snapshot at a durable page checkpoint after worker failure', async () => {
+      const brandCount = await source.brand.count({ where: { status: 'ACTIVE' } });
+      expect(brandCount).toBeGreaterThan(500); // Strictly real multi-page CI fixtures.
+
+      const before = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+      });
+      const firstClient = new AutotechdocSyncClient({
+        baseUrl: producerUrl, token: producerToken, maxRetries: 1,
+      });
+      const sourcePage = firstClient.fetchSnapshotPage.bind(firstClient);
+      let brandPages = 0;
+      const interrupt = vi.spyOn(firstClient, 'fetchSnapshotPage')
+        .mockImplementation(async (id, entityType, cursor, limit) => {
+          if (entityType === 'Brand' && ++brandPages === 2) {
+            throw new Error('DISPOSABLE_PAGE_TWO_TRANSPORT_INTERRUPTION');
+          }
+          // Every successful page is fetched from the real authenticated
+          // producer HTTP server and independently committed to consumer PG.
+          return sourcePage(id, entityType, cursor, limit);
+        });
+      const firstWorker = new ReferenceSyncService(
+        consumer as unknown as DatabaseService, firstClient, new ReferenceDataUpserter(),
+      );
+      try {
+        await expect(firstWorker.executeSnapshot({ forceFull: true, batchSize: 100 }))
+          .rejects.toThrow('DISPOSABLE_PAGE_TWO_TRANSPORT_INTERRUPTION');
+      } finally {
+        interrupt.mockRestore();
+      }
+      const interrupted = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+      });
+      const firstBrandPage = await consumer.referenceSyncEntityState.findUniqueOrThrow({
+        where: {
+          checkpointId_entityType: {
+            checkpointId: DEFAULT_CHECKPOINT_ID, entityType: 'Brand',
+          },
+        },
+      });
+      expect(brandPages).toBe(2);
+      expect(firstBrandPage.status).toBe('IN_PROGRESS');
+      expect(firstBrandPage.recordCount).toBe(100);
+      expect(firstBrandPage.lastCompletedCursor).toBeTruthy();
+      expect(interrupted.snapshotStatus).toBe('IN_PROGRESS');
+      expect(interrupted.feedCursor).toBe(before.feedCursor);
+      expect(interrupted.snapshotAppliedDigest).toMatch(/^[a-f0-9]{64}$/u);
+      expect(interrupted.snapshotAppliedDigest).not.toBe(interrupted.snapshotContentSha256);
+
+      // This is a new worker object and real HTTP client. It must not mint
+      // another snapshot or double-import the first 100 rows.
+      const restartClient = new AutotechdocSyncClient({
+        baseUrl: producerUrl, token: producerToken, maxRetries: 1,
+      });
+      const mintSnapshot = vi.spyOn(restartClient, 'createSnapshot');
+      const restartWorker = new ReferenceSyncService(
+        consumer as unknown as DatabaseService, restartClient, new ReferenceDataUpserter(),
+      );
+      const resumed = await restartWorker.executeSnapshot({ batchSize: 100 });
+      expect(resumed.status).toBe('SUCCESS');
+      expect(mintSnapshot).not.toHaveBeenCalled();
+      const finished = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+      });
+      expect(finished.snapshotStatus).toBe('COMPLETED');
+      expect(finished.snapshotId).toBe(interrupted.snapshotId);
+      expect(finished.snapshotAppliedDigest).toBe(finished.snapshotContentSha256);
+      expect(finished.feedCursor).toBe(finished.snapshotThrough);
+      expect((await consumer.referenceSyncEntityState.findUniqueOrThrow({
+        where: {
+          checkpointId_entityType: {
+            checkpointId: DEFAULT_CHECKPOINT_ID, entityType: 'Brand',
+          },
+        },
+      })).recordCount).toBe(brandCount);
+    }, 180_000,
+  );
+
+  it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
     'rejects an altered frozen producer payload before modifying the local identity', async () => {
       const make = await source.vehicleMake.findFirstOrThrow({
         where: { name: 'Test EV manufacturer', status: 'ACTIVE' },
