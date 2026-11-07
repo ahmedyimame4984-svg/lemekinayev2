@@ -187,6 +187,10 @@ frozen row were verified on the isolated cross-project CI
 No production key action, migration, deployment or merge
 is authorized by these test passes.
 
+### 2026-11-07 CI acceptance — multi-page checksum and actual process recovery
+
+**Functional integration PASS in disposable CI; not production approval.** AutotechDoc [live workflow 42318964582](https://github.com/ahmedyimame4984-svg/autotechdoc/actions/runs/42318964582) ran two separate PostgreSQL databases, real producer and consumer Nest HTTP processes, and the actual source notifier. Producer SHA `d66e6203122711fa16f80fdea26928d274165046` pinned consumer SHA `c500f4f7389507c0319580f9d48928efd0bde71b`. This verifies 560+ reference paging fixtures, per-item SHA-256 verification **before local writes**, transactional rolling digest and resumed page cursor, final digest/count matching before archival, corruption rejection, durable journal/archive and signed notification convergence. The workflow also injected 503/429/410 HTTP failure cases, terminated/restarted the actual producer process and SIGKILLed a consumer CLI worker while paging; lease fencing, checkpoint preservation and subsequent recovery passed. Browser Admin/mobile operator sessions, licensing/provenance, independently signed manifests, full 200,000-row stress and production credential governance remain separately unaccepted. Seller Articles, inventory, prices and local manual Product Type rules remain marketplace-owned.
+
 ## Active vehicle powertrain identity parity
 
 The consumer's prior `vehicle_configurations_active_identity_check` was an
