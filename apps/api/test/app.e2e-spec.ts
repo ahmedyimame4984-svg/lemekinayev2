@@ -1040,17 +1040,14 @@ describe('API (e2e)', () => {
     expect(response.body).toMatchObject({ code: 'PERMISSION_DENIED' });
   });
 
-  it('POST /api/v1/admin/catalog/categories allows catalog.manage', async () => {
+  it('POST /api/v1/admin/catalog/categories rejects source-owned mutation', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/admin/catalog/categories')
       .set('Authorization', 'Bearer admin-token')
       .send({ code: 'SPARE_PARTS', name: 'Spare Parts', slug: 'spare-parts' })
-      .expect(201);
+      .expect(403);
 
-    expect(catalog.createCategory).toHaveBeenCalledWith(
-      expect.objectContaining({ code: 'SPARE_PARTS' }),
-      'admin-1',
-    );
+
   });
 
 
@@ -1077,7 +1074,7 @@ describe('API (e2e)', () => {
     );
   });
 
-  it('POST /api/v1/admin/catalog/product-types allows catalog.manage', async () => {
+  it('POST /api/v1/admin/catalog/product-types rejects source-owned mutation', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/admin/catalog/product-types')
       .set('Authorization', 'Bearer admin-token')
@@ -1088,30 +1085,19 @@ describe('API (e2e)', () => {
         name: 'Brake Pad',
         slug: 'brake-pad',
       })
-      .expect(201);
+      .expect(403);
 
-    expect(catalog.createProductType).toHaveBeenCalledWith(
-      expect.objectContaining({
-        categoryId: categoryRecord.id,
-        productFamilyId: partGroupId,
-        code: 'BRAKE_PAD',
-      }),
-      'admin-1',
-    );
+
   });
 
-  it('PATCH /api/v1/admin/catalog/product-types/:id validates and forwards versioned updates', async () => {
+  it('PATCH /api/v1/admin/catalog/product-types/:id rejects source-owned mutation', async () => {
     await request(app.getHttpServer())
       .patch(`/api/v1/admin/catalog/product-types/${productTypeRecord.id}`)
       .set('Authorization', 'Bearer admin-token')
       .send({ version: 1, name: 'Front Brake Pad' })
-      .expect(200);
+      .expect(403);
 
-    expect(catalog.updateProductType).toHaveBeenCalledWith(
-      productTypeRecord.id,
-      expect.objectContaining({ version: 1, name: 'Front Brake Pad' }),
-      'admin-1',
-    );
+
   });
 
   it('rejects malformed product type administration input before the service', async () => {
@@ -1124,7 +1110,7 @@ describe('API (e2e)', () => {
         name: ' ',
         slug: 'Not Valid',
       })
-      .expect(400);
+      .expect(403);
   });
 
 
@@ -1324,25 +1310,16 @@ describe('API (e2e)', () => {
     );
   });
 
-  it('POST /api/v1/admin/catalog/product-types/:id/schemas/publish publishes with optimistic Product Type version', async () => {
-    const response = await request(app.getHttpServer())
+  it('POST /api/v1/admin/catalog/product-types/:id/schemas/publish rejects consumer-side canonical publication', async () => {
+    await request(app.getHttpServer())
       .post(
         `/api/v1/admin/catalog/product-types/${productTypeRecord.id}/schemas/publish`,
       )
       .set('Authorization', 'Bearer admin-token')
       .send({ productTypeVersion: 1 })
-      .expect(201);
+      .expect(403);
 
-    expect(response.body).toMatchObject({
-      productTypeId: productTypeRecord.id,
-      schemaVersion: 1,
-      schemaHash: 'a'.repeat(64),
-    });
-    expect(catalogSchemas.publish).toHaveBeenCalledWith(
-      productTypeRecord.id,
-      { productTypeVersion: 1 },
-      'admin-1',
-    );
+
   });
 
   it('rejects malformed Product Type schema publication input', async () => {
@@ -1352,7 +1329,7 @@ describe('API (e2e)', () => {
       )
       .set('Authorization', 'Bearer admin-token')
       .send({ productTypeVersion: 0 })
-      .expect(400);
+      .expect(403);
 
     expect(catalogSchemas.publish).not.toHaveBeenCalledWith(
       productTypeRecord.id,
@@ -1618,7 +1595,7 @@ describe('API (e2e)', () => {
     );
   });
 
-  it('POST /api/v1/admin/catalog/attributes creates approved master definitions', async () => {
+  it('POST /api/v1/admin/catalog/attributes rejects source-owned mutation', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/admin/catalog/attributes')
       .set('Authorization', 'Bearer admin-token')
@@ -1630,19 +1607,12 @@ describe('API (e2e)', () => {
         valueSource: 'STATIC',
         status: 'ACTIVE',
       })
-      .expect(201);
+      .expect(403);
 
-    expect(catalogAttributes.createAttribute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: 'ATTR_FUEL_TYPE',
-        dataType: AttributeDataType.SELECT,
-        valueSource: AttributeValueSource.STATIC,
-      }),
-      'admin-1',
-    );
+
   });
 
-  it('manages static allowed values through the attribute master contract', async () => {
+  it('reads allowed values but denies local canonical mutations', async () => {
     const values = await request(app.getHttpServer())
       .get(`/api/v1/admin/catalog/attributes/${attributeRecord.id}/values`)
       .set('Authorization', 'Bearer admin-token')
@@ -1661,7 +1631,7 @@ describe('API (e2e)', () => {
         label: 'Diesel',
         status: 'ACTIVE',
       })
-      .expect(201);
+      .expect(403);
 
     await request(app.getHttpServer())
       .patch(
@@ -1669,19 +1639,10 @@ describe('API (e2e)', () => {
       )
       .set('Authorization', 'Bearer admin-token')
       .send({ version: 1, label: 'Diesel Fuel' })
-      .expect(200);
+      .expect(403);
 
-    expect(catalogAttributes.createAllowedValue).toHaveBeenCalledWith(
-      attributeRecord.id,
-      expect.objectContaining({ code: 'DIESEL' }),
-      'admin-1',
-    );
-    expect(catalogAttributes.updateAllowedValue).toHaveBeenCalledWith(
-      attributeRecord.id,
-      attributeValueRecord.id,
-      expect.objectContaining({ version: 1, label: 'Diesel Fuel' }),
-      'admin-1',
-    );
+
+
   });
 
   it('rejects malformed attribute master input before the service', async () => {
@@ -1694,7 +1655,7 @@ describe('API (e2e)', () => {
         dataType: 'NOT_A_TYPE',
         scope: 'PRODUCT',
       })
-      .expect(400);
+      .expect(403);
 
     expect(catalogAttributes.createAttribute).not.toHaveBeenCalledWith(
       expect.objectContaining({ code: 'fuel type' }),
@@ -1835,7 +1796,7 @@ describe('API (e2e)', () => {
     expect(vehicleIdentification.resolve).toHaveBeenLastCalledWith(input);
   });
 
-  it('POST /api/v1/admin/vehicles/identifiers requires vehicle.manage', async () => {
+  it('POST /api/v1/admin/vehicles/identifiers blocks source-owned identifier mutations', async () => {
     const input = {
       identifierType: 'CHASSIS',
       rawIdentifier: 'NZE121-0123456',
@@ -1852,25 +1813,13 @@ describe('API (e2e)', () => {
       .send(input)
       .expect(403);
 
-    const response = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/admin/vehicles/identifiers')
       .set('Authorization', 'Bearer admin-token')
       .send(input)
-      .expect(201);
+      .expect(403);
 
-    expect(response.body).toMatchObject({
-      identifierType: 'CHASSIS',
-      normalizedIdentifier: 'NZE1210123456',
-      vehicleConfigurationId: vehicleConfigurationRecord.id,
-    });
-    expect(vehicleIdentification.createMapping).toHaveBeenCalledWith(
-      expect.objectContaining({
-        identifierType: VehicleIdentificationMethod.CHASSIS,
-        verificationState: ProvenanceVerificationState.VERIFIED,
-        status: MasterDataStatus.ACTIVE,
-      }),
-      'admin-1',
-    );
+
   });
 
   it('rejects malformed vehicle identifier mapping input before the service', async () => {
@@ -1882,10 +1831,10 @@ describe('API (e2e)', () => {
         rawIdentifier: '',
         vehicleConfigurationId: 'not-a-uuid',
       })
-      .expect(400);
+      .expect(403);
   });
 
-  it('POST /api/v1/admin/vehicles/configurations requires vehicle.manage', async () => {
+  it('POST /api/v1/admin/vehicles/configurations denies local source-owned configuration creation', async () => {
     const input = {
       code: 'TOYOTA_COROLLA_E140_GLI_2ZRFE_MT',
       makeId: makeRecord.id,
@@ -1907,24 +1856,13 @@ describe('API (e2e)', () => {
       .send(input)
       .expect(403);
 
-    const response = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/admin/vehicles/configurations')
       .set('Authorization', 'Bearer admin-token')
       .send(input)
-      .expect(201);
+      .expect(403);
 
-    expect(response.body).toMatchObject({
-      code: input.code,
-      generationId: generationRecord.id,
-      trimId: trimRecord.id,
-    });
-    expect(vehicleConfigurations.createConfiguration).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: input.code,
-        steeringSide: VehicleSteeringSide.LHD,
-      }),
-      'admin-1',
-    );
+
   });
 
   it('rejects malformed Vehicle Master configuration input before the service', async () => {
@@ -1937,7 +1875,7 @@ describe('API (e2e)', () => {
         modelId: vehicleModelRecord.id,
         modelYear: 1200,
       })
-      .expect(400);
+      .expect(403);
 
     expect(vehicleConfigurations.createConfiguration).not.toHaveBeenCalledWith(
       expect.objectContaining({ code: 'not-valid-code' }),
@@ -1955,7 +1893,7 @@ describe('API (e2e)', () => {
     expect(response.body).toMatchObject({ code: 'PERMISSION_DENIED' });
   });
 
-  it('governs catalog master-data lifecycle with catalog.manage and validated evidence', async () => {
+  it('permits canonical lifecycle inspection but rejects local transitions', async () => {
     await request(app.getHttpServer())
       .get(
         `/api/v1/admin/catalog/lifecycle/CATEGORY/${categoryRecord.id}`,
@@ -1993,12 +1931,12 @@ describe('API (e2e)', () => {
         targetStatus: 'DEPRECATED',
         reason: '     ',
       })
-      .expect(400);
+      .expect(403);
     expect(masterDataLifecycle.transition).toHaveBeenCalledTimes(
       callsBeforeInvalid,
     );
 
-    const transitioned = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .patch(
         `/api/v1/admin/catalog/lifecycle/CATEGORY/${categoryRecord.id}`,
       )
@@ -2009,24 +1947,8 @@ describe('API (e2e)', () => {
         reason: 'Taxonomy replaced by the approved canonical category.',
         sourceReference: 'catalog-governance-42',
       })
-      .expect(200);
-
-    expect(transitioned.body).toMatchObject({
-      entityType: 'CATEGORY',
-      status: 'DEPRECATED',
-      version: 2,
-      sourceReference: 'catalog-governance-42',
-    });
-    expect(masterDataLifecycle.transition).toHaveBeenLastCalledWith(
-      'CATALOG',
-      MasterDataLifecycleEntityType.CATEGORY,
-      categoryRecord.id,
-      expect.objectContaining({
-        version: 1,
-        targetStatus: MasterDataStatus.DEPRECATED,
-      }),
-      'admin-1',
-    );
+      .expect(403);
+    expect(masterDataLifecycle.transition).toHaveBeenCalledTimes(callsBeforeInvalid);
   });
 
   it('protects vehicle master-data lifecycle with vehicle.manage', async () => {
@@ -2056,6 +1978,6 @@ describe('API (e2e)', () => {
       .post('/api/v1/admin/catalog/categories')
       .set('Authorization', 'Bearer admin-token')
       .send({ code: 'not valid', name: ' ', slug: 'Not Valid' })
-      .expect(400);
+      .expect(403);
   });
 });

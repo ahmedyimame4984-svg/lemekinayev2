@@ -67,6 +67,7 @@ describe('Product Master form helpers', () => {
       fitmentRequirement: 'REQUIRED',
       imageRequirement: 'REQUIRED',
       minimumImageCount: 1,
+      maximumImageCount: 20,
       documentRequirement: 'OPTIONAL',
       minimumDocumentCount: 0,
       priceRequirement: 'REQUIRED',

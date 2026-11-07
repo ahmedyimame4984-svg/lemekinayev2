@@ -27,7 +27,7 @@ describe('Seller invitation and tracking link origin', () => {
     expect(() => resolveSellerEmailOrigin(undefined, 'production'))
       .toThrow('SELLER_APP_ORIGIN');
     expect(resolveSellerEmailOrigin(undefined, 'development'))
-      .toBe('http://127.0.0.1:3002');
+      .toBe('http://127.0.0.1:5002');
     expect(() => resolveSellerEmailOrigin('http://localhost:3002', 'production'))
       .toThrow('SELLER_APP_ORIGIN');
   });

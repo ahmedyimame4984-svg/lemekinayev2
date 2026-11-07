@@ -1,29 +1,23 @@
 import type { Metadata } from 'next';
-import { VehicleBuilder } from '@/components/vehicle-builder';
+import { CanonicalVehicleLibrary } from '@/components/canonical-vehicle-library';
 
-export const metadata: Metadata = {
-  title: 'Configured Vehicles Library',
-};
+export const metadata: Metadata = { title: 'Synced Vehicle Library' };
 
 export default async function VehicleConfigurationsPage({
   searchParams,
 }: {
   searchParams: Promise<{
-    modelId?: string;
-    generationId?: string;
-    trimId?: string;
     search?: string;
     configurationId?: string;
+    modelId?: string;
   }>;
 }) {
   const params = await searchParams;
   return (
-    <VehicleBuilder
+    <CanonicalVehicleLibrary
+      initialSearch={params.search ?? ''}
+      initialConfigurationId={params.configurationId ?? ''}
       initialModelId={params.modelId ?? ''}
-      initialGenerationId={params.generationId ?? ''}
-      initialTrimId={params.trimId ?? ''}
-      initialLibrarySearch={params.search ?? ''}
-      initialLibraryConfigurationId={params.configurationId ?? ''}
     />
   );
 }

@@ -33,6 +33,9 @@ describe('pre-Draft Article numbers', () => {
     }, type, true)).toMatch(/13 digits/);
     expect(pendingIdentifierError({
       ...emptyPendingArticleIdentifiers, gtin: 'ABCDEFGHIJKLM',
+    }, type, true)).toMatch(/only digits/);
+    expect(pendingIdentifierError({
+      ...emptyPendingArticleIdentifiers, gtin: '001234567890',
     }, type, true)).toMatch(/13 digits/);
     expect(pendingIdentifierError({
       ...emptyPendingArticleIdentifiers, oeReference: 'x'.repeat(161),

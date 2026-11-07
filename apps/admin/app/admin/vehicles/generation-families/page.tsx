@@ -1,8 +1,5 @@
-import type { Metadata } from 'next';
-import { GenerationFamilyManagement } from '@/components/generation-family-management';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Generation Families' };
-
-export default function GenerationFamiliesPage() {
-  return <GenerationFamilyManagement />;
+export default function ReadOnlyVehicleReferenceRedirect() {
+  redirect('/admin/vehicles/configurations');
 }

@@ -31,16 +31,6 @@ export const VEHICLE_ADMIN_NAV_ITEMS: ReadonlyArray<{
     label: 'Models',
     href: '/admin/vehicles/models',
   },
-  {
-    key: 'generation-families',
-    label: 'Generation Families',
-    href: '/admin/vehicles/generation-families',
-  },
-  {
-    key: 'advanced-masters',
-    label: 'Advanced masters',
-    href: '/admin/vehicles/configurations/masters',
-  },
 ];
 
 export function VehicleAdminNav({

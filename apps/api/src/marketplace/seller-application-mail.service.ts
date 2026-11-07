@@ -39,7 +39,7 @@ export class SellerApplicationMailService implements OnModuleInit, OnModuleDestr
       this.sellerOrigin = null;
       this.logger.error(
         'Seller notification delivery disabled: SELLER_APP_ORIGIN must be a complete URL, ' +
-        'such as http://localhost:3002 for development or HTTPS in production.',
+        'such as http://localhost:5002 for development or HTTPS in production.',
       );
     }
   }

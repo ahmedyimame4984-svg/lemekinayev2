@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
-import { VehiclesManagement } from '@/components/vehicles-management';
+import { CanonicalVehicleMakesModels } from '@/components/canonical-vehicle-makes-models';
 
-export const metadata: Metadata = {
-  title: 'Vehicle Models',
-};
+export const metadata: Metadata = { title: 'Synchronized Vehicle Models' };
 
-export default function VehicleModelsPage() {
-  return <VehiclesManagement view="models" />;
+export default function Page() {
+  return <CanonicalVehicleMakesModels view="models" />;
 }

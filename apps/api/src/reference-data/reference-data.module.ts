@@ -1,3 +1,4 @@
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import { Module } from '@nestjs/common';
 import { AdminReferenceDataController } from './admin-reference-data.controller.js';
 import { MasterReferenceBootstrapService } from './master-reference-bootstrap.service.js';
@@ -7,6 +8,7 @@ import { StrategicVehicleCoverageService } from './strategic-vehicle-coverage.se
 @Module({
   controllers: [AdminReferenceDataController],
   providers: [
+    CanonicalReferenceReadOnlyGuard,
     MasterReferenceService,
     MasterReferenceBootstrapService,
     StrategicVehicleCoverageService,

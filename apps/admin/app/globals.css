@@ -15699,3 +15699,13 @@ button.admin-library-table__row.is-selected {
 .assigned-attributes-advanced summary { color: var(--muted); cursor: pointer; margin-top: .3rem; }
 .assigned-attributes-advanced label { align-items: center; display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
 .assigned-attributes-advanced select { max-width: 100%; }
+
+/* Canonical vehicle libraries retain their existing density without action columns. */
+@media (min-width: 901px) {
+  .vehicle-list--read-only .vehicle-row {
+    grid-template-columns: minmax(220px, 1.4fr) auto minmax(100px, auto) auto;
+  }
+  .vehicle-list--read-only .vehicle-row--model {
+    grid-template-columns: minmax(220px, 1.4fr) minmax(130px, auto) auto auto auto;
+  }
+}
