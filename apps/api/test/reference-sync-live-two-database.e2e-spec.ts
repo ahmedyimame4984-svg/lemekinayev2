@@ -1,9 +1,10 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createServer } from 'node:http';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { vi } from 'vitest';
 import type { DatabaseService } from '../src/database/database.service.js';
-import { AutotechdocSyncClient } from '../src/reference-sync/autotechdoc-sync-client.js';
+import { AutotechdocSyncClient, SnapshotExpiredError } from '../src/reference-sync/autotechdoc-sync-client.js';
 import { ReferenceDataUpserter } from '../src/reference-sync/reference-data-upserter.js';
 import { DEFAULT_CHECKPOINT_ID, ReferenceSyncService } from '../src/reference-sync/reference-sync.service.js';
 import { SYNCHRONIZATION_ORDER, type CanonicalSyncEntityType } from '../src/reference-sync/reference-sync.types.js';
@@ -340,6 +341,94 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       where: { id: DEFAULT_CHECKPOINT_ID },
     })).snapshotStatus).toBe('COMPLETED');
   }, 180_000);
+
+  it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
+    'retries real 503/429 HTTP, preserves checkpoint on outage and converges after recovery', async () => {
+      // Explicit local-only proxy; the upstream remains the real authenticated
+      // AutotechDoc Nest API, and the consumer uses its real PostgreSQL DB.
+      const origin = new URL(producerUrl!).origin;
+      const injected: number[] = [503, 429];
+      let requests = 0;
+      const proxy = createServer(async (req, res) => {
+        if (req.method !== 'GET' || !req.url?.startsWith('/api/v1/reference-data/export/v2/')) {
+          res.writeHead(405).end();
+          return;
+        }
+        requests++;
+        if (injected.length) {
+          res.writeHead(injected.shift()!, { 'Content-Type': 'application/json' });
+          res.end('{"code":"DISPOSABLE_TRANSIENT_FAILURE"}');
+          return;
+        }
+        try {
+          const upstream = await fetch(origin + req.url, {
+            headers: { Authorization: req.headers.authorization ?? '' },
+            redirect: 'error',
+          });
+          res.writeHead(upstream.status, { 'Content-Type': 'application/json' });
+          res.end(await upstream.text());
+        } catch {
+          res.writeHead(502).end();
+        }
+      });
+      await new Promise<void>((resolve, reject) =>
+        proxy.listen(0, '127.0.0.1', resolve).once('error', reject));
+      try {
+        const address = proxy.address();
+        if (!address || typeof address === 'string') throw new Error('Missing local test proxy port');
+        const baseUrl = `http://127.0.0.1:${address.port}/api/v1`;
+        const before = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+          where: { id: DEFAULT_CHECKPOINT_ID },
+        });
+        const retry = new AutotechdocSyncClient({
+          baseUrl, token: producerToken, maxRetries: 3, timeoutMs: 3000,
+        });
+        const healthy = await retry.fetchChangeFeed(before.feedCursor, null, 20);
+        expect(healthy.contractVersion).toBe('2.0.0');
+        expect(requests).toBe(3); // Real HTTP: 503 -> 429 -> authenticated 200.
+
+        const unavailable = randomUUID();
+        await expect(retry.fetchSnapshotPage(unavailable, 'Brand', null, 10))
+          .rejects.toThrow(SnapshotExpiredError); // 410 is never retried.
+
+        const market = await source.vehicleMarket.findFirstOrThrow({
+          where: { name: 'Africa regional test', status: 'ACTIVE' },
+        });
+        await source.vehicleMarket.update({
+          where: { id: market.id },
+          data: {
+            name: 'ATD-07 HTTP outage recovery verified',
+            version: { increment: 1 },
+          },
+        });
+        const noRetry = new AutotechdocSyncClient({
+          baseUrl, token: producerToken, maxRetries: 1, timeoutMs: 3000,
+        });
+        const service = new ReferenceSyncService(
+          consumer as unknown as DatabaseService, noRetry, new ReferenceDataUpserter(),
+        );
+        injected.push(503);
+        await expect(service.executeIncrementalSync({ batchSize: 10 }))
+          .rejects.toThrow(/temporary HTTP 503/u);
+        const blocked = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+          where: { id: DEFAULT_CHECKPOINT_ID },
+        });
+        expect(blocked.feedCursor).toBe(before.feedCursor);
+        expect((await consumer.vehicleMarket.findUniqueOrThrow({
+          where: { id: market.id },
+        })).name).toBe('Africa regional test');
+        const recovered = await service.executeIncrementalSync({ batchSize: 10 });
+        expect(recovered.status).toBe('SUCCESS');
+        expect(BigInt(recovered.cursorAfter!)).toBeGreaterThan(BigInt(before.feedCursor!));
+        expect((await consumer.vehicleMarket.findUniqueOrThrow({
+          where: { id: market.id },
+        })).name).toBe('ATD-07 HTTP outage recovery verified');
+      } finally {
+        proxy.closeAllConnections();
+        await new Promise<void>(resolve => proxy.close(() => resolve()));
+      }
+    }, 180_000,
+  );
 
   it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
     'rejects an altered frozen producer payload before modifying the local identity', async () => {
