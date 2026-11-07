@@ -14,18 +14,28 @@ Required source operations (all under /api/v1, with a B2B key issued by
 AutotechDoc Admin with reference:read + reference:snapshot scopes):
 
 - POST /reference-data/export/v2/snapshots creates the immutable 12-hour
-  bootstrap (snapshotId, through, expiresAt, entityTypes, recordCount).
+  bootstrap (snapshotId, through, expiresAt, entityTypes, recordCount,
+  contentSha256).
 - GET /reference-data/export/v2/snapshots/:snapshotId/:entityType?cursor=&limit=
-  returns source-owned records in strict UUID order, frozen to the same snapshot.
+  returns source-owned records in strict UUID order, frozen to the same snapshot,
+  with itemSha256[] aligned to items[] for per-record pre-write verification.
 - GET /reference-data/export/v2/changes?after=N&through=M&limit=100
   returns monotonically increasing, replayable committed sequence positions.
 
 Never call legacy /manifest, /feed?since, /entities or timestamp-based v1.
-Before completion, the consumer verifies that the active, source-managed
-imported-identity count exactly equals the producer's frozen recordCount.
-Any mismatch fails closed without advancing the replay cursor. No upstream
-signed checksum exists in v2, so a checksum cannot yet be independently
-compared; this remains a producer contract review gate.
+Each frozen record has a source-stored SHA-256 of its canonical allowlisted
+wire projection. The consumer validates itemSha256 before each page mutation.
+Its rolling snapshotAppliedDigest is persisted in the same PostgreSQL
+transaction as the page cursor, and must match source contentSha256 after
+all 29 entity streams finish. The imported record count must also match.
+Neither a false same-count dataset nor a corrupted row may advance the
+published feed cursor or trigger source-owned record archival. A failure
+preserves the last previously completed feedCursor, and a restarted worker
+continues from the durable page digest and cursor.
+
+The source SHA-256 is delivered over authenticated HTTPS; it is **not a
+separately signed manifest**. Independent signing-key governance, provenance,
+licensing and large-scale data integrity validation remain release gates.
 
 After the last snapshot entity has completed, checkpoint feedCursor is set to
 snapshot.through in one database transaction. Each incremental page commits
@@ -168,9 +178,13 @@ Disposable CI has now exercised real post-snapshot revisions/archives,
 on-the-wire key scope/rotation/revocation/expiry, and real consumer HTTP HMAC
 replay and positive source-to-mirror convergence. Remaining release gates:
 independent human Admin desktop/mobile operation, larger snapshot performance,
-full dual-process crash/failure recovery and missed-hint/outage fault injection,
-source licensing/provenance approval, and an independently verifiable signed
-snapshot checksum. No production key action, migration, deployment or merge
+additional multi-page and prolonged intermittent-failure testing,
+source licensing/provenance approval, independent producer cryptographic
+signatures and browser/mobile acceptance. Real producer SIGTERM/restart,
+independent consumer worker retry, HMAC replay, 429/503/410 and a corrupt
+frozen row were verified on the isolated cross-project CI
+[42318379860](https://github.com/ahmedyimame4984-svg/autotechdoc/actions/runs/42318379860).
+No production key action, migration, deployment or merge
 is authorized by these test passes.
 
 ## Active vehicle powertrain identity parity
