@@ -2711,6 +2711,8 @@ model ReferenceSyncCheckpoint {
   snapshotId        String?                    @map("snapshot_id") @db.VarChar(60)
   snapshotThrough   String?                    @map("snapshot_through") @db.VarChar(30)
   snapshotRecordCount Int?                    @map("snapshot_record_count")
+  snapshotContentSha256 String?             @map("snapshot_content_sha256") @db.VarChar(64)
+  snapshotAppliedDigest String?             @map("snapshot_applied_digest") @db.VarChar(64)
   snapshotExpiresAt DateTime?                  @map("snapshot_expires_at")
   batchThrough      String?                    @map("batch_through") @db.VarChar(30)
   importedRecords   ReferenceSyncImportedRecord[]
