@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { vi } from 'vitest';
 import type { DatabaseService } from '../src/database/database.service.js';
 import { AutotechdocSyncClient } from '../src/reference-sync/autotechdoc-sync-client.js';
 import { ReferenceDataUpserter } from '../src/reference-sync/reference-data-upserter.js';
@@ -339,6 +340,70 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       where: { id: DEFAULT_CHECKPOINT_ID },
     })).snapshotStatus).toBe('COMPLETED');
   }, 180_000);
+
+  it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
+    'rejects an altered frozen producer payload before modifying the local identity', async () => {
+      const make = await source.vehicleMake.findFirstOrThrow({
+        where: { name: 'Test EV manufacturer', status: 'ACTIVE' },
+        select: { id: true },
+      });
+      const localBefore = await consumer.vehicleMake.findUniqueOrThrow({
+        where: { id: make.id },
+        select: { name: true, status: true },
+      });
+      const checkpointBefore = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+        where: { id: DEFAULT_CHECKPOINT_ID },
+      });
+      const frozen = await remote.createSnapshot();
+      const copies = await source.$queryRaw<Array<{ payload: Record<string, unknown> }>>`
+        SELECT "payload" FROM "canonical_publication_snapshot_items"
+        WHERE "snapshot_id" = ${frozen.snapshotId}::uuid
+          AND "entity_type" = 'VehicleMake' AND "entity_id" = ${make.id}::uuid
+      `;
+      expect(copies).toHaveLength(1);
+      const original = copies[0].payload;
+      const corrupted = JSON.stringify({ ...original, name: 'Unexpected frozen payload replacement' });
+      await source.$executeRaw`
+        UPDATE "canonical_publication_snapshot_items" SET "payload" = ${corrupted}::jsonb
+        WHERE "snapshot_id" = ${frozen.snapshotId}::uuid
+          AND "entity_type" = 'VehicleMake' AND "entity_id" = ${make.id}::uuid
+      `;
+
+      // Snapshot creation remains real HTTP; the only override pins a snapshot
+      // deliberately corrupted in disposable producer PostgreSQL.
+      const pinned = new AutotechdocSyncClient({
+        baseUrl: producerUrl, token: producerToken, maxRetries: 1,
+      });
+      const create = vi.spyOn(pinned, 'createSnapshot').mockResolvedValueOnce(frozen);
+      const isolated = new ReferenceSyncService(
+        consumer as unknown as DatabaseService, pinned, new ReferenceDataUpserter(),
+      );
+      try {
+        await expect(isolated.executeSnapshot({ forceFull: true }))
+          .rejects.toThrow('AutotechDoc returned an inconsistent v2 snapshot page');
+        expect((await consumer.vehicleMake.findUniqueOrThrow({
+          where: { id: make.id },
+        }))).toMatchObject(localBefore);
+        const blocked = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
+          where: { id: DEFAULT_CHECKPOINT_ID },
+        });
+        expect(blocked.feedCursor).toBe(checkpointBefore.feedCursor);
+        expect(blocked.snapshotStatus).toBe('IN_PROGRESS');
+      } finally {
+        create.mockRestore();
+        const restored = JSON.stringify(original);
+        await source.$executeRaw`
+          UPDATE "canonical_publication_snapshot_items" SET "payload" = ${restored}::jsonb
+          WHERE "snapshot_id" = ${frozen.snapshotId}::uuid
+            AND "entity_type" = 'VehicleMake' AND "entity_id" = ${make.id}::uuid
+        `;
+        // Restore the consumer to a healthy checkpoint from a fresh, verified
+        // real producer snapshot; never reuse the corrupted in-progress ID.
+        const healed = await sync.executeSnapshot({ forceFull: true });
+        expect(healed.status).toBe('SUCCESS');
+      }
+    }, 180_000,
+  );
 
   it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
     'rejects revoked, expired and wrong-scope machine keys through real source HTTP', async () => {
