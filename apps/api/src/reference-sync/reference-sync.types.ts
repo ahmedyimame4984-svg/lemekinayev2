@@ -58,6 +58,7 @@ export interface CanonicalSnapshotPageResponse<T = Record<string, unknown>> {
   snapshotId: string;
   entityType: CanonicalSyncEntityType;
   items: T[];
+  itemSha256: string[];
   nextCursor: string | null;
   hasMore: boolean;
   through: string;
