@@ -1,4 +1,14 @@
 import 'dotenv/config';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { config as dotenvConfig } from 'dotenv';
+
+// Also load apps/api/.env if executed from repository root or another directory
+const localApiEnv = resolve(process.cwd(), 'apps/api/.env');
+if (existsSync(localApiEnv)) {
+  dotenvConfig({ path: localApiEnv, override: false });
+}
+
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';

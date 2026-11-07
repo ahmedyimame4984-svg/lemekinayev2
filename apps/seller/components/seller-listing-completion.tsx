@@ -64,7 +64,11 @@ export function SellerListingCompletion({
   }, [listingId]);
 
   async function submit() {
-    if (submitting || submitted || mediaPending || editOpen) return;
+    if (submitting || submitted || editOpen) return;
+    if (mediaPending) {
+      setError('Please wait for files to finish uploading or resolve failed uploads before submitting.');
+      return;
+    }
     setError('');
     setNotice('');
     if (issues.length) {

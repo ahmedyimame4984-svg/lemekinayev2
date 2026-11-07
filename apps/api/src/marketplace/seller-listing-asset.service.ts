@@ -120,6 +120,14 @@ export class SellerListingAssetService {
     const uploadUrl = this.storage.sign(fileKey, 'PUT', 300, input.mimeType);
     const record = await this.database.$transaction(async tx => {
       const staging = await this.assertUploadMutable(tx, listingId, listing.sellerId);
+      // Clean up stale abandoned draft intents older than 5 minutes so they don't block retries
+      await tx.sellerListingAsset.updateMany({
+        where: {
+          listingId, type: kind.type, status: MasterDataStatus.DRAFT,
+          createdAt: { lt: new Date(Date.now() - 5 * 60_000) },
+        },
+        data: { status: MasterDataStatus.ARCHIVED },
+      }).catch(() => undefined);
       const count = await tx.sellerListingAsset.count({
         where: {
           listingId, type: kind.type,
@@ -127,7 +135,7 @@ export class SellerListingAssetService {
           OR: [
             { status: MasterDataStatus.ACTIVE },
             { status: MasterDataStatus.DRAFT,
-              createdAt: { gte: new Date(Date.now() - 15 * 60_000) } },
+              createdAt: { gte: new Date(Date.now() - 5 * 60_000) } },
           ],
         },
       });

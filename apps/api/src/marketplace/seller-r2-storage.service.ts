@@ -116,8 +116,12 @@ export class SellerR2StorageService {
       : false;
     if (!looksLike) throw new Error('File contents do not match the declared type.');
     if (mimeType === 'image/webp') {
-      if (signature.length < 12 ||
-          new DataView(signature.buffer, signature.byteOffset + 4, 4).getUint32(0, true) !== expectedSize - 8) {
+      if (signature.length < 12) {
+        throw new Error('WebP RIFF length does not match the object.');
+      }
+      const riffPayloadSize = new DataView(signature.buffer, signature.byteOffset + 4, 4).getUint32(0, true);
+      // In RIFF, payload is expectedSize - 8, but if payload was odd, a 1-byte 0x00 pad is added to expectedSize.
+      if (riffPayloadSize !== expectedSize - 8 && riffPayloadSize !== expectedSize - 9) {
         throw new Error('WebP RIFF length does not match the object.');
       }
     }
@@ -127,9 +131,14 @@ export class SellerR2StorageService {
     });
     if (tailResponse.status !== 206) throw new Error('R2 did not return bounded object footer.');
     const tail = new Uint8Array(await tailResponse.arrayBuffer());
-    const last = tail.length - 1;
+    const hasJpegEoi = (bytes: Uint8Array) => {
+      for (let i = bytes.length - 2; i >= 0; i--) {
+        if (bytes[i] === 0xff && bytes[i + 1] === 0xd9) return true;
+      }
+      return false;
+    };
     const footerValid = mimeType === 'image/jpeg'
-      ? last >= 1 && tail[last - 1] === 255 && tail[last] === 217
+      ? hasJpegEoi(tail)
       : mimeType === 'image/png'
       ? tail.length >= 12 &&
         Buffer.from(tail.slice(-12)).toString('hex') === '0000000049454e44ae426082'

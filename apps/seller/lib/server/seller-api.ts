@@ -65,6 +65,10 @@ export async function requestSellerApi<T>(
       signal: AbortSignal.timeout(options.timeoutMs ?? 10_000),
     });
   } catch (error) {
+    console.error(
+      `[Seller API Error] ${options.method ?? 'GET'} ${path} - Network error:`,
+      error,
+    );
     // Do not automatically retry a write: the API might have committed it.
     if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
       throw new SellerApiError(
@@ -105,6 +109,9 @@ export async function requestSellerApi<T>(
     } catch {
       // Reduce upstream errors to safe Seller responses at the BFF boundary.
     }
+    console.error(
+      `[Seller API Error] ${options.method ?? 'GET'} ${path} - Status ${response.status}${apiCode ? ` [${apiCode}]` : ''}${apiMessage ? `: ${apiMessage}` : ''}`,
+    );
     throw new SellerApiError(
       response.status,
       response.headers.get('retry-after'),
@@ -113,6 +120,10 @@ export async function requestSellerApi<T>(
       apiIssues,
     );
   }
+
+  console.log(
+    `[Seller API Success] ${options.method ?? 'GET'} ${path} - Status ${response.status}`,
+  );
 
   if (response.status === 204) return undefined as T;
   try {

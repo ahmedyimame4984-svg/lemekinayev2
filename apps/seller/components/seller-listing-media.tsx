@@ -144,6 +144,17 @@ export function SellerListingMedia({
     setPending(rows => rows.map(row => row.id === id ? { ...row, ...changes } : row));
   }
 
+function safeRandomId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
   function enqueue(files: File[]) {
     if (!policy || busy || readOnly || !files.length) return;
     const rejected: string[] = [];
@@ -159,16 +170,19 @@ export function SellerListingMedia({
         rejected.push(`${file.name}: maximum ${max} ${result.kind === 'IMAGE' ? 'images' : 'documents'} per Listing.`);
         continue;
       }
-      const id = crypto.randomUUID();
+      const id = safeRandomId();
       const previewUrl = result.kind === 'IMAGE' ? URL.createObjectURL(file) : undefined;
       if (previewUrl) previews.current.set(id, previewUrl);
       const row: PendingFile = { id, file, kind: result.kind, previewUrl, status: 'queued', percent: 0 };
       queued.push(row);
       added.push(row);
     }
-    if (added.length) setPending(current => [...current, ...added]);
+    if (added.length) {
+      setPending(queued);
+      setNotice(`${added.length} file(s) selected. Starting upload…`);
+      void uploadFiles(queued.filter(row => row.status === 'queued' || row.status === 'failed'));
+    }
     setError(rejected.join(' '));
-    setNotice(added.length ? `${added.length} file(s) ready. Click Upload files to save them.` : '');
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
@@ -187,9 +201,9 @@ export function SellerListingMedia({
     return reload();
   }
 
-  async function uploadFiles() {
+  async function uploadFiles(overrideEntries?: PendingFile[]) {
     if (busy || readOnly || !loaded) return;
-    const entries = pending.filter(row => row.status === 'queued' || row.status === 'failed');
+    const entries = overrideEntries ?? pending.filter(row => row.status === 'queued' || row.status === 'failed');
     if (!entries.length) return;
     setBusy(true);
     setError('');
@@ -227,6 +241,9 @@ export function SellerListingMedia({
       }
 
       if (completed.length) {
+        for (const id of completed) discardPreview(id);
+        setPending(rows => rows.filter(row => !completed.includes(row.id)));
+        setNotice(`${completed.length} file(s) saved and verified on this Listing.`);
         try {
           const verified = await reload();
           if (reviewMode) {
@@ -236,12 +253,8 @@ export function SellerListingMedia({
           } else {
             await selectPrimaryIfMissing(verified);
           }
-          for (const id of completed) discardPreview(id);
-          setPending(rows => rows.filter(row => !completed.includes(row.id)));
-          setNotice(`${completed.length} file(s) saved and verified on this Listing.`);
         } catch (cause) {
           setError(mediaError('Files were uploaded, but refresh or primary image selection failed', cause));
-          // Keep the saved queue entries visible. Do not re-upload them blindly.
         }
       }
       if (failures) {
