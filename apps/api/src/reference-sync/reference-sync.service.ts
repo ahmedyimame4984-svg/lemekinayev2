@@ -204,6 +204,12 @@ export class ReferenceSyncService {
         page.recordCount !== snapshot.recordCount ||
         page.contentSha256 !== snapshot.contentSha256 ||
         page.entityType !== entityType || !Array.isArray(page.items) ||
+        !Array.isArray(page.itemSha256) ||
+        page.itemSha256.length !== page.items.length ||
+        page.items.some((item, index) =>
+          page.itemSha256[index] !== extendSnapshotDigest(
+            INITIAL_SNAPSHOT_DIGEST, entityType, item,
+          )) ||
         !Array.isArray(snapshot.entityTypes) ||
         page.items.some(item => !item || typeof item !== 'object' ||
           typeof (item as { id?: unknown }).id !== 'string') ||
