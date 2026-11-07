@@ -9,6 +9,7 @@ import {
 import { DatabaseService } from '../database/database.service.js';
 import { AutotechdocSyncClient, SnapshotExpiredError } from './autotechdoc-sync-client.js';
 import { ReferenceDataUpserter } from './reference-data-upserter.js';
+import { INITIAL_SNAPSHOT_DIGEST, extendSnapshotDigest } from './canonical-snapshot-integrity.js';
 import {
   CanonicalSnapshotCheckpoint,
   CanonicalSnapshotPageResponse,
@@ -152,6 +153,8 @@ export class ReferenceSyncService {
       snapshotId: checkpoint.snapshotId,
       snapshotThrough: checkpoint.snapshotThrough,
       snapshotRecordCount: checkpoint.snapshotRecordCount,
+      snapshotContentSha256: checkpoint.snapshotContentSha256,
+      snapshotAppliedDigest: checkpoint.snapshotAppliedDigest,
       snapshotExpiresAt: checkpoint.snapshotExpiresAt,
       batchThrough: checkpoint.batchThrough,
       feedCursor: checkpoint.feedCursor,
@@ -182,7 +185,8 @@ export class ReferenceSyncService {
         !Array.isArray(snapshot.entityTypes) ||
         snapshot.entityTypes.join(',') !== SYNCHRONIZATION_ORDER.join(',') ||
         !/^(?:0|[1-9][0-9]*)$/u.test(snapshot.through) ||
-        !snapshot.snapshotId || !Number.isSafeInteger(snapshot.recordCount) ||
+        !snapshot.snapshotId || !/^[a-f0-9]{64}$/u.test(snapshot.contentSha256 ?? '') ||
+        !Number.isSafeInteger(snapshot.recordCount) ||
         snapshot.recordCount < 0 || !Number.isFinite(Date.parse(snapshot.expiresAt)) ||
         Date.parse(snapshot.expiresAt) <= Date.now()) {
       throw new ServiceUnavailableException('Incompatible or expired ATD-06 v2 frozen snapshot contract');
@@ -197,7 +201,9 @@ export class ReferenceSyncService {
   ): void {
     if (page.contractVersion !== '2.0.0' || page.productTypeSchemaContract !== 3 ||
         page.snapshotId !== snapshot.snapshotId || page.through !== snapshot.through ||
-        page.recordCount !== snapshot.recordCount || page.entityType !== entityType || !Array.isArray(page.items) ||
+        page.recordCount !== snapshot.recordCount ||
+        page.contentSha256 !== snapshot.contentSha256 ||
+        page.entityType !== entityType || !Array.isArray(page.items) ||
         !Array.isArray(snapshot.entityTypes) ||
         page.items.some(item => !item || typeof item !== 'object' ||
           typeof (item as { id?: unknown }).id !== 'string') ||
@@ -288,6 +294,8 @@ export class ReferenceSyncService {
           checkpoint.snapshotStatus === 'IN_PROGRESS' &&
           checkpoint.snapshotId && checkpoint.snapshotThrough && checkpoint.snapshotExpiresAt &&
           checkpoint.snapshotRecordCount !== null &&
+          /^[a-f0-9]{64}$/u.test(checkpoint.snapshotContentSha256 ?? '') &&
+          /^[a-f0-9]{64}$/u.test(checkpoint.snapshotAppliedDigest ?? '') &&
           checkpoint.snapshotExpiresAt.getTime() > Date.now();
         if (resume) {
           snapshot = {
@@ -298,6 +306,7 @@ export class ReferenceSyncService {
             productTypeSchemaContract: 3,
             entityTypes: [...SYNCHRONIZATION_ORDER],
             recordCount: checkpoint.snapshotRecordCount!,
+            contentSha256: checkpoint.snapshotContentSha256!,
           };
         } else {
           snapshot = await this.syncClient.createSnapshot();
@@ -314,6 +323,8 @@ export class ReferenceSyncService {
                 snapshotId: snapshot.snapshotId,
                 snapshotThrough: snapshot.through,
                 snapshotRecordCount: snapshot.recordCount,
+                snapshotContentSha256: snapshot.contentSha256,
+                snapshotAppliedDigest: INITIAL_SNAPSHOT_DIGEST,
                 snapshotExpiresAt: new Date(snapshot.expiresAt),
                 // Keep the last healthy feed cursor until the full import commits.
                 batchThrough: null,
@@ -322,6 +333,10 @@ export class ReferenceSyncService {
           });
         }
         this.validateSnapshot(snapshot);
+        // Resume the exact persisted chain alongside page cursors; a failed
+        // transaction never advances the digest independently of imported rows.
+        let appliedDigest = resume
+          ? checkpoint.snapshotAppliedDigest! : INITIAL_SNAPSHOT_DIGEST;
         try {
           for (const entityType of SYNCHRONIZATION_ORDER) {
             let state = await this.database.referenceSyncEntityState.findUnique({
@@ -339,6 +354,10 @@ export class ReferenceSyncService {
             while (true) {
               const page = await this.syncClient.fetchSnapshotPage(snapshot.snapshotId, entityType, cursor, batchSize);
               this.assertPage(snapshot, entityType, cursor, page);
+              const nextDigest = page.items.reduce(
+                (hash, item) => extendSnapshotDigest(hash, entityType, item),
+                appliedDigest,
+              );
               await this.database.$transaction(async tx => {
                 await this.renewLease(tx, workerId);
                 for (const item of page.items) {
@@ -369,7 +388,12 @@ export class ReferenceSyncService {
                     status: 'IN_PROGRESS',
                   },
                 });
+                await tx.referenceSyncCheckpoint.update({
+                  where: { id: DEFAULT_CHECKPOINT_ID },
+                  data: { snapshotAppliedDigest: nextDigest },
+                });
               }, { timeout: 60_000 });
+              appliedDigest = nextDigest;
               if (!page.hasMore) break;
               cursor = page.nextCursor;
             }
@@ -397,6 +421,12 @@ export class ReferenceSyncService {
             throw new ServiceUnavailableException(
               'Frozen snapshot count mismatch: expected ' + snapshot.recordCount +
               ', paged ' + frozenPageCount + '; existing references were not archived',
+            );
+          }
+
+          if (appliedDigest !== snapshot.contentSha256) {
+            throw new ServiceUnavailableException(
+              'Frozen snapshot content SHA-256 mismatch; refusing archival and feed checkpoint advancement',
             );
           }
 
