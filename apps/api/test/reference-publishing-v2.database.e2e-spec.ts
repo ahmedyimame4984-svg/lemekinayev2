@@ -70,6 +70,8 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
           snapshotId, through: watermark, expiresAt: contract().expiresAt,
           recordCount: contract().recordCount,
           contentSha256: contract().contentSha256,
+          itemSha256: items.map(item =>
+            extendSnapshotDigest(INITIAL_SNAPSHOT_DIGEST, type, item)),
           entityType: type, items, hasMore,
           nextCursor: hasMore ? items[items.length - 1].id : null,
         });
