@@ -7,6 +7,7 @@ import { AutotechdocSyncClient } from '../src/reference-sync/autotechdoc-sync-cl
 import { ReferenceDataUpserter } from '../src/reference-sync/reference-data-upserter.js';
 import { ReferenceSyncService, DEFAULT_CHECKPOINT_ID } from '../src/reference-sync/reference-sync.service.js';
 import { SYNCHRONIZATION_ORDER } from '../src/reference-sync/reference-sync.types.js';
+import { INITIAL_SNAPSHOT_DIGEST, extendSnapshotDigest } from '../src/reference-sync/canonical-snapshot-integrity.js';
 
 // Explicit disposable database only: never read DATABASE_URL as a fallback.
 const url = process.env.REFERENCE_SYNC_TEST_DATABASE_URL;
@@ -27,6 +28,10 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
   const contract = () => ({
     contractVersion: '2.0.0', productTypeSchemaContract: 3,
     snapshotId, through: watermark, recordCount: advertisedRecordCount ?? rows.length,
+    contentSha256: rows.reduce(
+      (digest, row) => extendSnapshotDigest(digest, 'Brand', row),
+      INITIAL_SNAPSHOT_DIGEST,
+    ),
     expiresAt: new Date(Date.now() + 3600_000).toISOString(),
     entityTypes: [...SYNCHRONIZATION_ORDER],
   });
@@ -63,7 +68,9 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
         return response({
           contractVersion: '2.0.0', productTypeSchemaContract: 3,
           snapshotId, through: watermark, expiresAt: contract().expiresAt,
-          recordCount: contract().recordCount, entityType: type, items, hasMore,
+          recordCount: contract().recordCount,
+          contentSha256: contract().contentSha256,
+          entityType: type, items, hasMore,
           nextCursor: hasMore ? items[items.length - 1].id : null,
         });
       }
