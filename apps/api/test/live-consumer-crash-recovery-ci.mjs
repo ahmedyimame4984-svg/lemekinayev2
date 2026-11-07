@@ -54,7 +54,7 @@ const checkpointId = 'autotechdoc-canonical-sync';
 async function checkpoint() {
   const r = await db.query(
     'SELECT "snapshot_status", "snapshot_id", "snapshot_record_count", ' +
-    '"snapshot_applied_digest", "snapshot_content_sha256", "feed_cursor", ' +
+    '"snapshot_applied_digest", "snapshot_content_sha256", "snapshot_through", "feed_cursor", ' +
     '"worker_id", "locked_until" FROM "reference_sync_checkpoints" WHERE "id" = $1',
     [checkpointId],
   );
@@ -154,7 +154,7 @@ try {
   const completeBrand = await brandPage();
   if (final.snapshot_status !== 'COMPLETED' ||
       final.snapshot_id !== crashed.snapshot_id ||
-      final.feed_cursor !== final.snapshot_id && !final.feed_cursor ||
+      final.feed_cursor !== final.snapshot_through ||
       final.snapshot_applied_digest !== final.snapshot_content_sha256 ||
       !/^[a-f0-9]{64}$/u.test(final.snapshot_content_sha256 ?? '') ||
       completeBrand?.record_count !== brandCount ||
