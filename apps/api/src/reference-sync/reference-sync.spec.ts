@@ -3,18 +3,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReferenceSyncService, DEFAULT_CHECKPOINT_ID } from './reference-sync.service.js';
 import { SnapshotExpiredError } from './autotechdoc-sync-client.js';
 import { SYNCHRONIZATION_ORDER } from './reference-sync.types.js';
+import { INITIAL_SNAPSHOT_DIGEST, extendSnapshotDigest } from './canonical-snapshot-integrity.js';
 
 const expire = () => new Date(Date.now() + 3600_000).toISOString();
 const snapshot = (id = 'snapshot-A', through = '12') => ({
   contractVersion: '2.0.0', productTypeSchemaContract: 3,
   snapshotId: id, through, expiresAt: expire(), recordCount: 0,
+  contentSha256: INITIAL_SNAPSHOT_DIGEST,
   entityTypes: [...SYNCHRONIZATION_ORDER],
 });
 const page = (s: ReturnType<typeof snapshot>, type: string, items: any[] = [],
   nextCursor: string | null = null) => ({
     contractVersion: '2.0.0', productTypeSchemaContract: 3,
     snapshotId: s.snapshotId, through: s.through, expiresAt: s.expiresAt,
-    entityType: type, items, nextCursor, hasMore: nextCursor !== null, recordCount: s.recordCount,
+    entityType: type, items, nextCursor, hasMore: nextCursor !== null,
+    recordCount: s.recordCount, contentSha256: s.contentSha256,
 });
 const feed = (after: string, through = '15', changes: any[] = [], hasMore = false,
   nextCursor = changes.length ? changes[changes.length - 1].sequence : after) => ({
@@ -33,7 +36,9 @@ const change = (sequence: string, id: string, operation: 'UPSERT' | 'ARCHIVE' = 
 function harness() {
   const cp: any = {
     id: DEFAULT_CHECKPOINT_ID, snapshotStatus: 'NOT_STARTED', snapshotId: null,
-    snapshotThrough: null, snapshotRecordCount: null, snapshotExpiresAt: null, batchThrough: null, feedCursor: null,
+    snapshotThrough: null, snapshotRecordCount: null,
+    snapshotContentSha256: null, snapshotAppliedDigest: null,
+    snapshotExpiresAt: null, batchThrough: null, feedCursor: null,
     scheduleEnabled: true, intervalMinutes: 5, lastSnapshotAt: null, lastIncrementalAt: null,
     lastSuccessAt: null, lastFailureAt: null, lastError: null, appliedCount: 0,
     skippedCount: 0, failedCount: 0, workerId: null, lockedUntil: null,
@@ -133,10 +138,12 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
   });
 
   it('creates exactly one immutable snapshot and starts incremental replay at its through', async () => {
-    const s = { ...snapshot('s-initial', '27'), recordCount: 1 };
+    const b1 = { id: 'b1', code: 'BMW', name: 'BMW' };
+    const s = { ...snapshot('s-initial', '27'), recordCount: 1,
+      contentSha256: extendSnapshotDigest(INITIAL_SNAPSHOT_DIGEST, 'Brand', b1) };
     h.client.createSnapshot.mockResolvedValue(s);
     h.client.fetchSnapshotPage.mockImplementation(async (_id: string, type: string) =>
-      page(s, type, type === 'Brand' ? [{ id: 'b1', code: 'BMW', name: 'BMW' }] : []));
+      page(s, type, type === 'Brand' ? [b1] : []));
     const result = await h.sync.executeSnapshot();
     expect(result.cursorAfter).toBe('27');
     expect(h.cp.feedCursor).toBe('27');
@@ -147,11 +154,15 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
   });
 
   it('keeps one snapshot across pages and resumes after restart without a new source snapshot', async () => {
-    const s = { ...snapshot('frozen', '9'), recordCount: 2 };
+    const firstDigest = extendSnapshotDigest(INITIAL_SNAPSHOT_DIGEST, 'Brand', { id: 'b1' });
+    const s = { ...snapshot('frozen', '9'), recordCount: 2,
+      contentSha256: extendSnapshotDigest(firstDigest, 'Brand', { id: 'b2' }) };
     h.cp.snapshotId = s.snapshotId;
     h.cp.snapshotStatus = 'IN_PROGRESS';
     h.cp.snapshotThrough = s.through;
     h.cp.snapshotRecordCount = s.recordCount;
+    h.cp.snapshotContentSha256 = s.contentSha256;
+    h.cp.snapshotAppliedDigest = firstDigest;
     h.cp.snapshotExpiresAt = new Date(s.expiresAt);
     h.imported.set('Brand:b1', {
       checkpointId: DEFAULT_CHECKPOINT_ID, entityType: 'Brand', entityId: 'b1',
@@ -170,6 +181,31 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
     expect(h.client.createSnapshot).not.toHaveBeenCalled();
     expect(h.cp.feedCursor).toBe('9');
     expect(h.entityStates.get('Brand').recordCount).toBe(2);
+    expect(h.cp.snapshotAppliedDigest).toBe(s.contentSha256);
+  });
+
+  it('detects a substituted row even if the producer page count still matches', async () => {
+    h.cp.snapshotStatus = 'COMPLETED';
+    h.cp.feedCursor = '11';
+    h.imported.set('Brand:retained', {
+      checkpointId: DEFAULT_CHECKPOINT_ID, entityType: 'Brand',
+      entityId: 'retained', snapshotId: 'previous', active: true,
+    });
+    h.local.set('Brand:retained', { id: 'retained', status: 'ACTIVE' });
+    const signed = { id: 'b1', code: 'BMW', name: 'BMW' };
+    const altered = { ...signed, name: 'Tampered but same count' };
+    const s = { ...snapshot('corrupt', '20'), recordCount: 1,
+      contentSha256: extendSnapshotDigest(INITIAL_SNAPSHOT_DIGEST, 'Brand', signed) };
+    h.client.createSnapshot.mockResolvedValue(s);
+    h.client.fetchSnapshotPage.mockImplementation(async (_id: string, type: string) =>
+      page(s, type, type === 'Brand' ? [altered] : []));
+    await expect(h.sync.executeSnapshot({ forceFull: true }))
+      .rejects.toThrow('Frozen snapshot content SHA-256 mismatch');
+    expect(h.cp.feedCursor).toBe('11');
+    expect(h.cp.snapshotStatus).toBe('IN_PROGRESS');
+    expect(h.local.get('Brand:retained').status).toBe('ACTIVE');
+    expect(h.imported.get('Brand:retained').active).toBe(true);
+    expect(h.upserter.archiveRecord).not.toHaveBeenCalled();
   });
 
   it('restarts only an expired pending snapshot when the source returns 410', async () => {
