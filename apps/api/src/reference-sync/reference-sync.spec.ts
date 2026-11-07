@@ -17,6 +17,7 @@ const page = (s: ReturnType<typeof snapshot>, type: string, items: any[] = [],
     contractVersion: '2.0.0', productTypeSchemaContract: 3,
     snapshotId: s.snapshotId, through: s.through, expiresAt: s.expiresAt,
     entityType: type, items, nextCursor, hasMore: nextCursor !== null,
+    itemSha256: items.map(item => extendSnapshotDigest(INITIAL_SNAPSHOT_DIGEST, type, item)),
     recordCount: s.recordCount, contentSha256: s.contentSha256,
 });
 const feed = (after: string, through = '15', changes: any[] = [], hasMore = false,
@@ -182,6 +183,30 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
     expect(h.cp.feedCursor).toBe('9');
     expect(h.entityStates.get('Brand').recordCount).toBe(2);
     expect(h.cp.snapshotAppliedDigest).toBe(s.contentSha256);
+  });
+
+  it('rejects a modified row before any consumer page writes', async () => {
+    const authentic = { id: 'verified', name: 'Approved source' };
+    const corrupt = { ...authentic, name: 'Altered in transit' };
+    const s = { ...snapshot('immutable', '25'), recordCount: 1,
+      contentSha256: extendSnapshotDigest(INITIAL_SNAPSHOT_DIGEST, 'Brand', authentic) };
+    h.client.createSnapshot.mockResolvedValue(s);
+    h.client.fetchSnapshotPage.mockImplementation(async (_id: string, type: string) => {
+      const response = page(s, type, type === 'Brand' ? [corrupt] : []);
+      if (type === 'Brand') {
+        // The record digest is frozen when AutotechDoc materializes the page.
+        response.itemSha256 = [
+          extendSnapshotDigest(INITIAL_SNAPSHOT_DIGEST, 'Brand', authentic),
+        ];
+      }
+      return response;
+    });
+    await expect(h.sync.executeSnapshot()).rejects.toThrow(
+      'AutotechDoc returned an inconsistent v2 snapshot page',
+    );
+    expect(h.upserter.upsertRecord).not.toHaveBeenCalled();
+    expect(h.cp.feedCursor).toBeNull();
+    expect(h.cp.snapshotAppliedDigest).toBe(INITIAL_SNAPSHOT_DIGEST);
   });
 
   it('detects a substituted row even if the producer page count still matches', async () => {
