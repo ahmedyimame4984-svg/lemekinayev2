@@ -38,6 +38,7 @@ export interface CanonicalSnapshotCheckpoint {
   snapshotId: string;
   through: string;
   recordCount: number;
+  contentSha256: string;
   expiresAt: string;
   entityTypes: CanonicalSyncEntityType[];
 }
@@ -61,6 +62,7 @@ export interface CanonicalSnapshotPageResponse<T = Record<string, unknown>> {
   hasMore: boolean;
   through: string;
   recordCount: number;
+  contentSha256: string;
   expiresAt: string;
 }
 
@@ -107,6 +109,8 @@ export interface SyncStatusReport {
   snapshotId: string | null;
   snapshotThrough: string | null;
   snapshotRecordCount: number | null;
+  snapshotContentSha256: string | null;
+  snapshotAppliedDigest: string | null;
   snapshotExpiresAt: Date | null;
   batchThrough: string | null;
   feedCursor: string | null;
