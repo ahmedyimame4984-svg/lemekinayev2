@@ -412,6 +412,9 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     const motorBId = randomUUID();
     const driveId = randomUUID();
     const configId = randomUUID();
+    const motorLinkAId = randomUUID();
+    const motorLinkBId = randomUUID();
+    const driveLinkId = randomUUID();
     const code = (prefix: string, id: string) =>
       prefix + '_' + id.replaceAll('-', '').slice(0, 20);
     await db.$transaction(async tx => {
@@ -476,11 +479,11 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
         batteryPackId: batteryId, chargingSystemId: chargingId,
         status: 'ACTIVE', version: 1,
         electricMotors: [{
-          electricMotorId: motorAId, position: 'REAR_AXLE',
+          id: motorLinkAId, electricMotorId: motorAId, position: 'REAR_AXLE',
           quantity: 2, functionRoles: ['TRACTION'],
         }],
         driveUnits: [{
-          driveUnitId: driveId, position: 'REAR_AXLE',
+          id: driveLinkId, driveUnitId: driveId, position: 'REAR_AXLE',
           quantity: 1, functionRoles: ['TRACTION'],
         }],
       });
@@ -522,9 +525,33 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     });
     expect(before.electricMotors).toHaveLength(1);
     expect(before.electricMotors[0]).toMatchObject({
-      electricMotorId: motorAId, quantity: 2,
+      id: motorLinkAId, electricMotorId: motorAId, quantity: 2,
     });
-    expect(before.driveUnits[0]).toMatchObject({ driveUnitId: driveId });
+    expect(before.driveUnits[0]).toMatchObject({ id: driveLinkId, driveUnitId: driveId });
+
+    // Reapplying a source revision must preserve link IDs and creation times.
+    await db.$transaction(async tx => {
+      await upserter.upsertRecord(tx, 'VehicleConfiguration', {
+        id: configId, identityCode: 'VC-' + configId.replaceAll('-', '').toUpperCase(),
+        makeId, modelId, generationId, trimId, bodyTypeId, marketId,
+        powertrainType: 'BEV', propulsionTopology: 'ELECTRIC_ONLY',
+        energyStorageRole: 'PROPULSION', externalChargingCapability: 'PLUG_IN',
+        batteryPackId: batteryId, chargingSystemId: chargingId,
+        status: 'ACTIVE', version: 1,
+        electricMotors: [{ id: motorLinkAId, electricMotorId: motorAId,
+          position: 'REAR_AXLE', quantity: 2, functionRoles: ['TRACTION'] }],
+        driveUnits: [{ id: driveLinkId, driveUnitId: driveId,
+          position: 'REAR_AXLE', quantity: 1, functionRoles: ['TRACTION'] }],
+      });
+    });
+    const repeated = await db.vehicleConfiguration.findUniqueOrThrow({
+      where: { id: configId },
+      include: { electricMotors: true, driveUnits: true },
+    });
+    expect(repeated.electricMotors[0].id).toBe(motorLinkAId);
+    expect(repeated.electricMotors[0].createdAt).toEqual(before.electricMotors[0].createdAt);
+    expect(repeated.driveUnits[0].id).toBe(driveLinkId);
+    expect(repeated.driveUnits[0].createdAt).toEqual(before.driveUnits[0].createdAt);
 
     // A canonical EV revision publishes the entire relation set. Replacements
     // must delete prior motors/drive units atomically, never append duplicates.
@@ -539,7 +566,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
         batteryPackId: batteryId, chargingSystemId: chargingId,
         status: 'ACTIVE', version: 2,
         electricMotors: [{
-          electricMotorId: motorBId, position: 'FRONT_AXLE',
+          id: motorLinkBId, electricMotorId: motorBId, position: 'FRONT_AXLE',
           quantity: 1, functionRoles: ['TRACTION'],
         }],
         driveUnits: [],
@@ -551,7 +578,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
     });
     expect(after.electricMotors).toHaveLength(1);
     expect(after.electricMotors[0]).toMatchObject({
-      electricMotorId: motorBId, quantity: 1,
+      id: motorLinkBId, electricMotorId: motorBId, quantity: 1,
     });
     expect(after.driveUnits).toHaveLength(0);
     expect(after.version).toBe(2);
