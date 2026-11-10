@@ -59,6 +59,7 @@ const DELEGATES: Record<CanonicalSyncEntityType, string> = {
 };
 
 type TechnicalLink = {
+  id?: string;
   electricMotorId?: string;
   driveUnitId?: string;
   position?: string;
@@ -71,6 +72,7 @@ function technicalLinkSignatures(
   idKey: 'electricMotorId' | 'driveUnitId',
 ): string[] {
   return links.map(link => JSON.stringify([
+    link.id,
     link[idKey],
     link.position ?? 'UNKNOWN',
     link.quantity ?? 1,
@@ -210,8 +212,8 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
             }
           }
           if (entityType === 'VehicleConfiguration') {
-            // Verify actual imported technical junctions, not just parent IDs.
-            // A source motor/drive revision must replace its complete local set.
+            // Verify canonical UUID identity as well as technical field equality.
+            // Replays must not recreate different consumer-only junction IDs.
             const sourceMotors: TechnicalLink[] = Array.isArray(record.electricMotors)
               ? record.electricMotors : [];
             const sourceDrives: TechnicalLink[] = Array.isArray(record.driveUnits)
@@ -219,13 +221,13 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
             const localMotors = await consumer.vehicleConfigurationElectricMotor.findMany({
               where: { configurationId: record.id },
               select: {
-                electricMotorId: true, position: true, quantity: true, functionRoles: true,
+                id: true, electricMotorId: true, position: true, quantity: true, functionRoles: true,
               },
             });
             const localDrives = await consumer.vehicleConfigurationDriveUnit.findMany({
               where: { configurationId: record.id },
               select: {
-                driveUnitId: true, position: true, quantity: true, functionRoles: true,
+                id: true, driveUnitId: true, position: true, quantity: true, functionRoles: true,
               },
             });
             expect(technicalLinkSignatures(localMotors, 'electricMotorId'))
