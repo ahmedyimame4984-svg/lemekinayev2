@@ -101,10 +101,12 @@ export class SellerListingAssetService {
 
   async begin(
     listingId: string, userId: string,
-    input: { mimeType: string; sizeBytes: number; fileName: string },
+    input: { mimeType: string; sizeBytes: number; fileName: string; replaceDraftAssetId?: string },
   ) {
     const listing = await this.owned(listingId, userId, true);
-    const kind = SELLER_MEDIA_MIME_TYPES[input.mimeType];
+    const rawMime = (input.mimeType || '').trim().toLowerCase();
+    const normalizedMime = rawMime === 'image/jpg' || rawMime === 'image/pjpeg' ? 'image/jpeg' : rawMime;
+    const kind = SELLER_MEDIA_MIME_TYPES[normalizedMime];
     if (!kind) throw new BadRequestException('Only JPG, PNG, WebP and PDF files are permitted.');
     if (!Number.isInteger(input.sizeBytes) || input.sizeBytes < 1 || input.sizeBytes > MAX_ASSET_SIZE) {
       throw new BadRequestException('Files must be between 1 byte and 8 MB.');
@@ -117,9 +119,27 @@ export class SellerListingAssetService {
     const fileKey = `seller-listings/${listing.sellerId}/${listingId}/${randomUUID()}.${kind.extension}`;
     const filename = input.fileName.split(/[\\/]/u).pop()?.trim().slice(0, 180) || 'Seller media';
     // Fail before writing a pending row if R2 configuration is unavailable.
-    const uploadUrl = this.storage.sign(fileKey, 'PUT', 300, input.mimeType);
+    const uploadUrl = this.storage.sign(fileKey, 'PUT', 300, normalizedMime);
     const record = await this.database.$transaction(async tx => {
       const staging = await this.assertUploadMutable(tx, listingId, listing.sellerId);
+      // Clean up stale abandoned draft intents older than 5 minutes so they don't block retries
+      await tx.sellerListingAsset.updateMany({
+        where: {
+          listingId, type: kind.type, status: MasterDataStatus.DRAFT,
+          createdAt: { lt: new Date(Date.now() - 5 * 60_000) },
+        },
+        data: { status: MasterDataStatus.ARCHIVED },
+      }).catch(() => undefined);
+      if (input.replaceDraftAssetId) {
+        await tx.sellerListingAsset.updateMany({
+          where: {
+            id: input.replaceDraftAssetId,
+            listingId,
+            status: MasterDataStatus.DRAFT,
+          },
+          data: { status: MasterDataStatus.ARCHIVED },
+        });
+      }
       const count = await tx.sellerListingAsset.count({
         where: {
           listingId, type: kind.type,
@@ -127,7 +147,7 @@ export class SellerListingAssetService {
           OR: [
             { status: MasterDataStatus.ACTIVE },
             { status: MasterDataStatus.DRAFT,
-              createdAt: { gte: new Date(Date.now() - 15 * 60_000) } },
+              createdAt: { gte: new Date(Date.now() - 5 * 60_000) } },
           ],
         },
       });
@@ -147,7 +167,7 @@ export class SellerListingAssetService {
       return tx.sellerListingAsset.create({
         data: {
           listingId, type: kind.type, storageKey: fileKey,
-          mimeType: input.mimeType, sizeBytes: input.sizeBytes,
+          mimeType: normalizedMime, sizeBytes: input.sizeBytes,
           originalName: filename, status: MasterDataStatus.DRAFT,
           isPublished: !staging,
           createdById: userId,
@@ -163,7 +183,7 @@ export class SellerListingAssetService {
       }
       throw error;
     });
-    return { assetId: record.id, uploadUrl, mimeType: input.mimeType, expiresInSeconds: 300 };
+    return { assetId: record.id, uploadUrl, mimeType: normalizedMime, expiresInSeconds: 300 };
   }
 
   async complete(listingId: string, assetId: string, userId: string) {
@@ -212,15 +232,29 @@ export class SellerListingAssetService {
     try {
       await this.database.$transaction(async tx => {
         await this.assertUploadMutable(tx, listingId, owner.sellerId);
+        const hasPrimary = await tx.sellerListingAsset.findFirst({
+          where: {
+            listingId,
+            type: ProductAssetType.IMAGE,
+            status: MasterDataStatus.ACTIVE,
+            isPrimary: true,
+          },
+          select: { id: true },
+        });
+        const isPrimary = !hasPrimary && asset.type === ProductAssetType.IMAGE;
         const result = await tx.sellerListingAsset.updateMany({
           where: { id: assetId, listingId, status: MasterDataStatus.DRAFT },
-          data: { status: MasterDataStatus.ACTIVE, storageKey: sealedKey },
+          data: {
+            status: MasterDataStatus.ACTIVE,
+            storageKey: sealedKey,
+            isPrimary,
+          },
         });
         if (result.count !== 1) throw new ConflictException('This upload has already been completed.');
         await tx.auditLog.create({ data: {
           actorId: userId, action: 'SELLER_LISTING_ASSET_VERIFIED',
           entityType: 'SellerListingAsset', entityId: assetId,
-          metadata: { listingId, type: asset.type, mimeType: asset.mimeType },
+          metadata: { listingId, type: asset.type, mimeType: asset.mimeType, isPrimary },
         } });
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
@@ -373,6 +407,23 @@ export class SellerListingAssetService {
         data: { status: MasterDataStatus.ARCHIVED, isPrimary: false },
       });
       if (updated.count !== 1) throw new ConflictException('Media was already removed.');
+      const remainingPrimary = await tx.sellerListingAsset.findFirst({
+        where: { listingId, type: ProductAssetType.IMAGE, status: MasterDataStatus.ACTIVE, isPrimary: true },
+        select: { id: true },
+      });
+      if (!remainingPrimary) {
+        const nextImage = await tx.sellerListingAsset.findFirst({
+          where: { listingId, type: ProductAssetType.IMAGE, status: MasterDataStatus.ACTIVE },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+          select: { id: true },
+        });
+        if (nextImage) {
+          await tx.sellerListingAsset.update({
+            where: { id: nextImage.id },
+            data: { isPrimary: true },
+          });
+        }
+      }
       await tx.auditLog.create({ data: {
         actorId: userId, action: 'SELLER_LISTING_ASSET_REMOVED',
         entityType: 'SellerListingAsset', entityId: assetId,

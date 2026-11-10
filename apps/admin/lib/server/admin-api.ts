@@ -84,6 +84,9 @@ export async function requestAdminApi<T>(
       // Upstream errors are intentionally reduced to safe Admin responses below.
     }
 
+    console.error(
+      `[Admin API Error] ${options.method ?? 'GET'} ${path} - Status ${response.status}${apiCode ? ` [${apiCode}]` : ''}${apiMessage ? `: ${apiMessage}` : ''}`,
+    );
     throw new AdminApiError(
       response.status,
       response.headers.get('retry-after'),
@@ -92,6 +95,10 @@ export async function requestAdminApi<T>(
       apiIssues,
     );
   }
+
+  console.log(
+    `[Admin API Success] ${options.method ?? 'GET'} ${path} - Status ${response.status}`,
+  );
 
   if (response.status === 204) {
     return undefined as T;
@@ -113,7 +120,9 @@ export async function requestAdminApiFile(
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) {
+    console.error(`[Admin API File Error] GET ${path} - Status ${response.status}`);
     throw new AdminApiError(response.status, response.headers.get('retry-after'));
   }
+  console.log(`[Admin API File Success] GET ${path} - Status ${response.status}`);
   return response;
 }

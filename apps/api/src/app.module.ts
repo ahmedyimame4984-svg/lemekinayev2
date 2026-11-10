@@ -18,6 +18,7 @@ import { ReferenceSyncModule } from './reference-sync/reference-sync.module.js';
 import { SearchModule } from './search/search.module.js';
 import { SourcingModule } from './sourcing/sourcing.module.js';
 import { VehicleModule } from './vehicle/vehicle.module.js';
+import { UploadModule } from './upload/upload.module.js';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { VehicleModule } from './vehicle/vehicle.module.js';
     SourcingModule,
     CompatibilityModule,
     VehicleModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

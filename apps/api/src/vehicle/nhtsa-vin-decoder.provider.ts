@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
 import type { NormalizedVinVehicleDto } from './dto/vin.dto.js';
 import type {
   VinDecodeResult,
@@ -32,6 +32,7 @@ const TRANSMISSION_ALIASES = new Map([
 @Injectable()
 export class NhtsaVinDecoderProvider implements VinDecoderProvider {
   readonly name = 'nhtsa-vpic';
+  private readonly logger = new Logger(NhtsaVinDecoderProvider.name);
 
   async decode(vin: string, modelYear?: number): Promise<VinDecodeResult> {
     const encodedVin = encodeURIComponent(vin);
@@ -51,11 +52,16 @@ export class NhtsaVinDecoderProvider implements VinDecoderProvider {
       );
 
       if (!response.ok) {
+        this.logger.error(
+          `NHTSA VPIC API call returned error status ${response.status} for VIN ${vin}`,
+        );
         throw new BadGatewayException({
           code: 'VIN_PROVIDER_UNAVAILABLE',
           message: 'The VIN decoder provider is currently unavailable',
         });
       }
+
+      this.logger.log(`NHTSA VPIC API call succeeded for VIN ${vin}`);
 
       const body = (await response.json()) as NhtsaDecodeResponse;
       const result = body.Results?.[0];
@@ -106,6 +112,9 @@ export class NhtsaVinDecoderProvider implements VinDecoderProvider {
       };
     } catch (error) {
       if (error instanceof BadGatewayException) throw error;
+      this.logger.error(
+        `NHTSA VPIC API call failed for VIN ${vin}: ${error instanceof Error ? error.message : error}`,
+      );
       throw new BadGatewayException({
         code: 'VIN_PROVIDER_REQUEST_FAILED',
         message: 'The VIN decoder provider could not be reached',

@@ -23,17 +23,32 @@ export function listingMediaLimit(kind: ListingMediaKind, policy: ListingMediaPo
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const documentTypes = new Set(['application/pdf']);
 
-export function kindOfMedia(mimeType: string): ListingMediaKind | null {
-  if (imageTypes.has(mimeType)) return 'IMAGE';
-  if (documentTypes.has(mimeType)) return 'DOCUMENT';
+export function normalizeMediaMimeType(mimeType: string, fileName?: string): string {
+  const normalized = (mimeType ?? '').trim().toLowerCase();
+  if (normalized === 'image/jpg' || normalized === 'image/pjpeg') return 'image/jpeg';
+  if (imageTypes.has(normalized) || documentTypes.has(normalized)) return normalized;
+  if ((!normalized || normalized === 'application/octet-stream') && fileName) {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+    if (ext === 'png') return 'image/png';
+    if (ext === 'webp') return 'image/webp';
+    if (ext === 'pdf') return 'application/pdf';
+  }
+  return normalized;
+}
+
+export function kindOfMedia(mimeType: string, fileName?: string): ListingMediaKind | null {
+  const normalized = normalizeMediaMimeType(mimeType, fileName);
+  if (imageTypes.has(normalized)) return 'IMAGE';
+  if (documentTypes.has(normalized)) return 'DOCUMENT';
   return null;
 }
 
 export function validateListingFile(
-  file: Pick<File, 'size' | 'type'>,
+  file: Pick<File, 'size' | 'type'> & { name?: string },
   policy: ListingMediaPolicy,
 ): { kind: ListingMediaKind } | { error: string } {
-  const kind = kindOfMedia(file.type);
+  const kind = kindOfMedia(file.type, file.name);
   if (!kind) return { error: 'Use JPG, PNG or WebP images, or PDF documents. GIF is not supported.' };
   if (file.size < 1 || file.size > MAX_LISTING_MEDIA_BYTES) {
     return { error: 'Each file must be larger than zero and at most 8 MB.' };
@@ -75,7 +90,7 @@ export function putFileToR2(
   url: string,
   file: File,
   mimeType: string,
-  onProgress: (percent: number) => void,
+  onProgress?: (percent: number) => void,
 ): Promise<void> {
   assertR2SignedUploadUrl(url);
   return new Promise((resolve, reject) => {
@@ -86,12 +101,12 @@ export function putFileToR2(
     xhr.setRequestHeader('Content-Type', mimeType);
     xhr.upload.onprogress = event => {
       if (event.lengthComputable && event.total > 0) {
-        onProgress(Math.min(100, Math.round(100 * event.loaded / event.total)));
+        onProgress?.(Math.min(100, Math.round(100 * event.loaded / event.total)));
       }
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        onProgress(100);
+        onProgress?.(100);
         resolve();
       } else {
         reject(new Error(r2UploadFailure(xhr.status)));
@@ -100,6 +115,7 @@ export function putFileToR2(
     xhr.onerror = () => reject(new Error(r2UploadFailure(0)));
     xhr.ontimeout = () => reject(new Error('Cloudflare R2 upload timed out. Retry the file.'));
     xhr.onabort = () => reject(new Error('The file upload was cancelled.'));
-    xhr.send(file);
+    const payload = file.type === mimeType ? file : file.slice(0, file.size, mimeType);
+    xhr.send(payload);
   });
 }

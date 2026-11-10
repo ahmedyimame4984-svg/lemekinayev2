@@ -48,4 +48,94 @@ describe('Cloudflare R2 SigV4 signed upload contract', () => {
     vi.stubEnv('CLOUDFLARE_SECRET_ACCESS_KEY', '');
     expect(() => storage.sign(key, 'PUT', 60, 'image/webp')).toThrow('not configured');
   });
+
+  describe('verifyUploaded', () => {
+    it('verifies WebP with odd-byte RIFF chunk padding', async () => {
+      const expectedSize = 1001; // odd length
+      const riffPayloadSize = expectedSize - 9; // odd payload excludes trailing 1-byte padding
+      const sigBuf = Buffer.alloc(32);
+      sigBuf.write('RIFF', 0, 'ascii');
+      sigBuf.writeUInt32LE(riffPayloadSize, 4);
+      sigBuf.write('WEBP', 8, 'ascii');
+
+      const tailBuf = Buffer.alloc(64);
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+        const method = (init as any)?.method || 'GET';
+        if (method === 'HEAD') {
+          return new Response(null, {
+            status: 200,
+            headers: {
+              'content-type': 'image/webp; charset=binary',
+              'content-length': String(expectedSize),
+            },
+          });
+        }
+        const range = (init as any)?.headers?.Range || '';
+        if (range === 'bytes=0-31') {
+          return new Response(sigBuf, { status: 206 });
+        }
+        return new Response(tailBuf, { status: 206 });
+      });
+
+      await expect(storage.verifyUploaded(key, 'image/webp', expectedSize)).resolves.toBeUndefined();
+      fetchMock.mockRestore();
+    });
+
+    it('verifies JPEG with trailing padding bytes after EOI marker', async () => {
+      const expectedSize = 2048;
+      const sigBuf = Buffer.from([0xff, 0xd8, 0xff, 0xe0, ...Array(28).fill(0)]);
+      // Tail has FF D9 followed by trailing null and newline padding bytes
+      const tailBuf = Buffer.from([...Array(30).fill(0), 0xff, 0xd9, 0x00, 0x0a]);
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+        const method = (init as any)?.method || 'GET';
+        if (method === 'HEAD') {
+          return new Response(null, {
+            status: 200,
+            headers: {
+              'content-type': 'IMAGE/JPEG',
+              'content-length': String(expectedSize),
+            },
+          });
+        }
+        const range = (init as any)?.headers?.Range || '';
+        if (range === 'bytes=0-31') {
+          return new Response(sigBuf, { status: 206 });
+        }
+        return new Response(tailBuf, { status: 206 });
+      });
+
+      await expect(storage.verifyUploaded(key, 'image/jpeg', expectedSize)).resolves.toBeUndefined();
+      fetchMock.mockRestore();
+    });
+
+    it('verifies PNG with trailing padding bytes after IEND chunk', async () => {
+      const expectedSize = 2048;
+      const sigBuf = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, ...Array(24).fill(0)]);
+      const iend = Buffer.from('0000000049454e44ae426082', 'hex');
+      const tailBuf = Buffer.concat([Buffer.alloc(20), iend, Buffer.from([0x00, 0x00])]);
+
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+        const method = (init as any)?.method || 'GET';
+        if (method === 'HEAD') {
+          return new Response(null, {
+            status: 200,
+            headers: {
+              'content-type': 'image/png',
+              'content-length': String(expectedSize),
+            },
+          });
+        }
+        const range = (init as any)?.headers?.Range || '';
+        if (range === 'bytes=0-31') {
+          return new Response(sigBuf, { status: 206 });
+        }
+        return new Response(tailBuf, { status: 206 });
+      });
+
+      await expect(storage.verifyUploaded(key, 'image/png', expectedSize)).resolves.toBeUndefined();
+      fetchMock.mockRestore();
+    });
+  });
 });

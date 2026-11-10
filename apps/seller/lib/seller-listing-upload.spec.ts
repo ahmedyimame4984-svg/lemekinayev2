@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  assertR2SignedUploadUrl, kindOfMedia, listingMediaLimit, r2UploadFailure, validateListingFile, putFileToR2,
+  assertR2SignedUploadUrl, kindOfMedia, listingMediaLimit, normalizeMediaMimeType, r2UploadFailure, validateListingFile, putFileToR2,
   type ListingMediaPolicy,
 } from './seller-listing-upload';
 
@@ -26,6 +26,18 @@ describe('Seller Listing multi-file validation', () => {
     }
     expect(validateListingFile({ type: 'application/pdf', size: 1024 }, policy))
       .toEqual({ kind: 'DOCUMENT' });
+  });
+
+  it('normalizes image/jpg, uppercase, and extension fallbacks', () => {
+    expect(normalizeMediaMimeType('image/jpg')).toBe('image/jpeg');
+    expect(normalizeMediaMimeType('IMAGE/JPEG ')).toBe('image/jpeg');
+    expect(normalizeMediaMimeType('', 'photo.jpg')).toBe('image/jpeg');
+    expect(normalizeMediaMimeType('application/octet-stream', 'photo.png')).toBe('image/png');
+    expect(normalizeMediaMimeType('', 'photo.webp')).toBe('image/webp');
+    expect(normalizeMediaMimeType('', 'manual.pdf')).toBe('application/pdf');
+
+    expect(validateListingFile({ type: 'image/jpg', size: 1024 }, policy)).toEqual({ kind: 'IMAGE' });
+    expect(validateListingFile({ type: '', name: 'photo.jpeg', size: 1024 }, policy)).toEqual({ kind: 'IMAGE' });
   });
 
   it('rejects GIF, empty or oversized files, and NOT_APPLICABLE media types', () => {
@@ -91,6 +103,29 @@ describe('Direct signed Cloudflare R2 upload', () => {
     expect(instance.send).toHaveBeenCalledWith(file);
     expect(instance.withCredentials).toBe(false);
     expect(progress).toEqual([50, 100]);
+  });
+
+  it('slices file with the normalized MIME type when file.type differs', async () => {
+    class FakeXHR {
+      static last: FakeXHR;
+      constructor() { FakeXHR.last = this; }
+      upload: { onprogress?: (e: { lengthComputable: boolean; total: number; loaded: number }) => void } = {};
+      onload?: () => void;
+      onerror?: () => void;
+      ontimeout?: () => void;
+      onabort?: () => void;
+      status = 200;
+      open = vi.fn();
+      setRequestHeader = vi.fn();
+      send = vi.fn((_payload?: any) => { this.onload?.(); });
+    }
+    vi.stubGlobal('XMLHttpRequest', FakeXHR);
+    const file = new File(['test-bytes'], 'photo.jpg', { type: 'image/jpg' });
+    await putFileToR2(signedUrl, file, 'image/jpeg');
+    const instance = FakeXHR.last;
+    expect(instance.setRequestHeader).toHaveBeenCalledWith('Content-Type', 'image/jpeg');
+    const sent = instance.send.mock.calls[0]?.[0] as Blob | undefined;
+    expect(sent?.type).toBe('image/jpeg');
   });
 
   it('reports a failed R2 upload rather than claiming the image was saved', async () => {

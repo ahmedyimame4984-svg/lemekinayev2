@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 import { AlertCircle, CheckCircle2, FileText, ImagePlus, Loader2, UploadCloud, X } from 'lucide-react';
 import { ClientApiError, getJson, patchJson, postJson } from '@/lib/client-api';
 import { optimizeListingImage } from '@/lib/optimize-listing-image';
+import type { ListingMediaReadiness } from '@/lib/seller-listing-readiness';
 import {
   listingMediaLimit,
+  normalizeMediaMimeType,
   putFileToR2, validateListingFile,
   type ListingMediaKind, type ListingMediaPolicy,
 } from '@/lib/seller-listing-upload';
@@ -30,6 +32,7 @@ type PendingFile = {
   status: PendingStatus;
   percent: number;
   error?: string;
+  assetId?: string;
 };
 
 const control = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a71920] disabled:cursor-not-allowed disabled:opacity-50';
@@ -54,11 +57,13 @@ export function SellerListingMediaEmptyState({ loaded, loading, count }: {
 
 export type ProposedMediaSelection = { assetIds: string[]; primaryId: string | null; changed: boolean };
 export function SellerListingMedia({
-  listingId, readOnly = false, reviewMode = false, onPendingChange, onSelectionChange,
+  listingId, readOnly = false, reviewMode = false,
+  onPendingChange, onSelectionChange, onReadinessChange,
 }: {
   listingId: string; readOnly?: boolean; reviewMode?: boolean;
   onPendingChange?: (hasUnuploadedFiles: boolean) => void;
   onSelectionChange?: (selection: ProposedMediaSelection) => void;
+  onReadinessChange?: (readiness: ListingMediaReadiness | null) => void;
 }) {
   const base = `/api/seller/listings/${listingId}/assets`;
   const fileInputId = useId();
@@ -141,6 +146,17 @@ export function SellerListingMedia({
     setPending(rows => rows.map(row => row.id === id ? { ...row, ...changes } : row));
   }
 
+function safeRandomId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
   function enqueue(files: File[]) {
     if (!policy || busy || readOnly || !files.length) return;
     const rejected: string[] = [];
@@ -156,16 +172,19 @@ export function SellerListingMedia({
         rejected.push(`${file.name}: maximum ${max} ${result.kind === 'IMAGE' ? 'images' : 'documents'} per Listing.`);
         continue;
       }
-      const id = crypto.randomUUID();
+      const id = safeRandomId();
       const previewUrl = result.kind === 'IMAGE' ? URL.createObjectURL(file) : undefined;
       if (previewUrl) previews.current.set(id, previewUrl);
       const row: PendingFile = { id, file, kind: result.kind, previewUrl, status: 'queued', percent: 0 };
       queued.push(row);
       added.push(row);
     }
-    if (added.length) setPending(current => [...current, ...added]);
+    if (added.length) {
+      setPending(queued);
+      setNotice(`${added.length} file(s) selected. Starting upload…`);
+      void uploadFiles(queued.filter(row => row.status === 'queued' || row.status === 'failed'));
+    }
     setError(rejected.join(' '));
-    setNotice(added.length ? `${added.length} file(s) ready. Click Upload files to save them.` : '');
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
@@ -184,9 +203,9 @@ export function SellerListingMedia({
     return reload();
   }
 
-  async function uploadFiles() {
+  async function uploadFiles(overrideEntries?: PendingFile[]) {
     if (busy || readOnly || !loaded) return;
-    const entries = pending.filter(row => row.status === 'queued' || row.status === 'failed');
+    const entries = overrideEntries ?? pending.filter(row => row.status === 'queued' || row.status === 'failed');
     if (!entries.length) return;
     setBusy(true);
     setError('');
@@ -201,12 +220,16 @@ export function SellerListingMedia({
           const uploadFile = row.kind === 'IMAGE' ? await optimizeListingImage(row.file) : row.file;
           const checked = validateListingFile(uploadFile, policy!);
           if ('error' in checked) throw new Error(checked.error);
+          const uploadMimeType = normalizeMediaMimeType(uploadFile.type, uploadFile.name);
           const signed = await postJson<{
             assetId: string; uploadUrl: string; mimeType: string;
           }>(`${base}/presign`, {
-            mimeType: uploadFile.type, sizeBytes: uploadFile.size, fileName: uploadFile.name,
+            mimeType: uploadMimeType,
+            sizeBytes: uploadFile.size,
+            fileName: uploadFile.name,
+            ...(row.assetId ? { replaceDraftAssetId: row.assetId } : {}),
           });
-          stage(row.id, { status: 'uploading', percent: 0 });
+          stage(row.id, { assetId: signed.assetId, status: 'uploading', percent: 0 });
           await putFileToR2(signed.uploadUrl, uploadFile, signed.mimeType, percent => {
             stage(row.id, { percent });
           });
@@ -224,6 +247,9 @@ export function SellerListingMedia({
       }
 
       if (completed.length) {
+        for (const id of completed) discardPreview(id);
+        setPending(rows => rows.filter(row => !completed.includes(row.id)));
+        setNotice(`${completed.length} file(s) saved and verified on this Listing.`);
         try {
           const verified = await reload();
           if (reviewMode) {
@@ -233,12 +259,8 @@ export function SellerListingMedia({
           } else {
             await selectPrimaryIfMissing(verified);
           }
-          for (const id of completed) discardPreview(id);
-          setPending(rows => rows.filter(row => !completed.includes(row.id)));
-          setNotice(`${completed.length} file(s) saved and verified on this Listing.`);
         } catch (cause) {
           setError(mediaError('Files were uploaded, but refresh or primary image selection failed', cause));
-          // Keep the saved queue entries visible. Do not re-upload them blindly.
         }
       }
       if (failures) {
@@ -320,6 +342,10 @@ export function SellerListingMedia({
 
   function removeSelected(id: string) {
     if (busy) return;
+    const item = pending.find(row => row.id === id);
+    if (item?.assetId) {
+      postJson(`${base}/${item.assetId}/remove`, {}).catch(() => {});
+    }
     discardPreview(id);
     setPending(rows => rows.filter(row => row.id !== id));
   }
@@ -346,8 +372,27 @@ export function SellerListingMedia({
     (policy === null || images.length <= listingMediaLimit('IMAGE', policy)) &&
     documents.length >= neededDocuments &&
     (images.length === 0 || (reviewMode
-      ? images.some(asset => asset.id === selectedPrimaryId)
-      : images.some(asset => asset.isPrimary)));
+      ? images.filter(asset => asset.id === selectedPrimaryId).length === 1
+      : images.filter(asset => asset.isPrimary).length === 1));
+  const hasPrimaryImage = images.filter(asset => reviewMode
+    ? asset.id === selectedPrimaryId : asset.isPrimary).length === 1;
+  const readiness = useMemo<ListingMediaReadiness | null>(() => {
+    if (!loaded || !policy) return null;
+    return {
+      imageApplicable: policy.image !== 'NOT_APPLICABLE',
+      documentApplicable: policy.document !== 'NOT_APPLICABLE',
+      imageCount: images.length,
+      minimumImages: neededImages,
+      maximumImages: listingMediaLimit('IMAGE', policy),
+      documentCount: documents.length,
+      minimumDocuments: neededDocuments,
+      hasPrimaryImage,
+      complete,
+    };
+  }, [loaded, policy, images.length, documents.length, neededImages, neededDocuments, hasPrimaryImage, complete]);
+  useEffect(() => {
+    onReadinessChange?.(readiness);
+  }, [onReadinessChange, readiness]);
   const waiting = pending.filter(row => row.status === 'queued' || row.status === 'failed').length;
   const published = assets.filter(asset => asset.isPublished);
   const proposedChanged = reviewMode && (
@@ -365,8 +410,8 @@ export function SellerListingMedia({
     onPendingChange?.(busy || pending.some(row => row.status !== 'saved'));
   }, [busy, pending, onPendingChange]);
   const fileAccept = [
-    ...(policy?.image !== 'NOT_APPLICABLE' ? ['image/jpeg', 'image/png', 'image/webp'] : []),
-    ...(policy?.document !== 'NOT_APPLICABLE' ? ['application/pdf'] : []),
+    ...(policy?.image !== 'NOT_APPLICABLE' ? ['image/jpeg', 'image/png', 'image/webp', '.jpg', '.jpeg', '.png', '.webp'] : []),
+    ...(policy?.document !== 'NOT_APPLICABLE' ? ['application/pdf', '.pdf'] : []),
   ].join(',');
 
   return (
@@ -375,15 +420,19 @@ export function SellerListingMedia({
       <div className="space-y-1">
         <h3 className="text-base font-semibold text-slate-900">Listing images and documents</h3>
         <p className="text-sm text-slate-600">
-          Upload actual Seller product photos. Multiple images are supported.
-          Each file is saved only after private Cloudflare R2 verification.
+          Upload clear photos of the actual part: main view, other angles, visible part number,
+          and packaging. For used or refurbished parts, show wear and defects.
+          Files are saved only after private Cloudflare R2 verification.
         </p>
       </div>
       {loading ? <p role="status" className="text-sm text-slate-600">Loading Listing media…</p> : null}
       {policy ? (
         <p className="text-sm text-slate-700">
-          Images: <strong>{policy.image}</strong> ({images.length} uploaded, minimum {neededImages}, maximum {listingMediaLimit('IMAGE', policy)}).
+          Images: <strong>{policy.image}</strong> ({images.length} verified, minimum {neededImages}, maximum {listingMediaLimit('IMAGE', policy)}).
           {' '}Documents: <strong>{policy.document}</strong> ({documents.length}/{neededDocuments} minimum).
+          {neededImages > 0 ? <span className="ml-1 font-medium">
+            {Math.min(images.length, neededImages)} of {neededImages} required images ready.
+          </span> : null}
         </p>
       ) : null}
 
@@ -527,8 +576,8 @@ export function SellerListingMedia({
       ) : null}
       {policy ? (
         <p role="status" className={complete ? 'text-sm text-green-800' : 'text-sm text-amber-800'}>
-          {complete ? (reviewMode ? 'Proposed media meets requirements. Save Listing to submit for Admin review.' : 'Verified media requirements satisfied. You can Create Listing.') :
-            'Upload required files and select a primary image before creating the Listing.'}
+          {complete ? (reviewMode ? 'Proposed media meets requirements. Save Listing to submit for Admin review.' : 'Verified media requirements satisfied. You can submit the Listing for review.') :
+            'Upload required files and select a primary image before submitting the Listing.'}
         </p>
       ) : null}
     </section>

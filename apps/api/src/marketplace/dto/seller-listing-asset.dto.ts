@@ -13,6 +13,10 @@ export class PresignSellerListingAssetDto {
   @ApiProperty({ maxLength: 180 })
   @IsString() @MaxLength(180)
   fileName!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional() @IsUUID('4')
+  replaceDraftAssetId?: string;
 }
 
 export class OrderSellerListingAssetsDto {

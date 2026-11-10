@@ -15,13 +15,36 @@ export function assertSameOrigin(request: Request): void {
   // Next.js for this request, while retaining an explicit override and checking
   // Origin plus Fetch Metadata below to reject cross-site browser writes.
   const configuredOrigin = process.env.SELLER_APP_ORIGIN?.trim();
-  const requestOrigin = new URL(configuredOrigin || request.url).origin;
+  const requestUrlOrigin = new URL(request.url).origin;
+  const configuredUrlOrigin = configuredOrigin ? new URL(configuredOrigin).origin : null;
   const origin = request.headers.get('origin');
   const fetchSite = request.headers.get('sec-fetch-site');
 
+  const matchesOrigin = (cand: string) => {
+    if (cand === requestUrlOrigin) return true;
+    if (configuredUrlOrigin && cand === configuredUrlOrigin) return true;
+    try {
+      const u1 = new URL(cand);
+      const isLoopback = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
+      if (isLoopback(u1.hostname)) {
+        const u2 = new URL(requestUrlOrigin);
+        if (isLoopback(u2.hostname) && (u1.port === u2.port || (!u1.port && !u2.port))) {
+          return true;
+        }
+        if (configuredUrlOrigin) {
+          const u3 = new URL(configuredUrlOrigin);
+          if (isLoopback(u3.hostname) && (u1.port === u3.port || (!u1.port && !u3.port))) {
+            return true;
+          }
+        }
+      }
+    } catch {}
+    return false;
+  };
+
   if (
-    (origin ? origin !== requestOrigin : fetchSite !== 'same-origin') ||
-    (fetchSite && fetchSite !== 'same-origin')
+    (origin ? !matchesOrigin(origin) : fetchSite !== 'same-origin') ||
+    (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'same-site')
   ) {
     throw new RequestInputError(403, 'Cross-site request rejected');
   }

@@ -23,6 +23,9 @@ export async function getJson<T>(path: string): Promise<T> {
   if (!response.ok) {
     let payload: ApiErrorPayload | undefined;
     try { payload = (await response.json()) as ApiErrorPayload; } catch { payload = undefined; }
+    console.error(
+      `[Client API Error] GET ${path} - Status ${response.status}${payload?.error?.code ? ` [${payload.error.code}]` : ''}${payload?.error?.message ? `: ${payload.error.message}` : ''}`,
+    );
     throw new ClientApiError(
       payload?.error?.message ?? 'The request could not be completed.',
       payload?.error?.code ?? 'REQUEST_FAILED',
@@ -30,6 +33,7 @@ export async function getJson<T>(path: string): Promise<T> {
       payload?.error?.retryAfterSeconds,
     );
   }
+  console.log(`[Client API Success] GET ${path} - Status ${response.status}`);
   return response.json() as Promise<T>;
 }
 
@@ -49,6 +53,10 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
       payload = undefined;
     }
 
+    console.error(
+      `[Client API Error] POST ${path} - Status ${response.status}${payload?.error?.code ? ` [${payload.error.code}]` : ''}${payload?.error?.message ? `: ${payload.error.message}` : ''}`,
+    );
+
     throw new ClientApiError(
       payload?.error?.message ?? 'The request could not be completed.',
       payload?.error?.code ?? 'REQUEST_FAILED',
@@ -56,6 +64,8 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
       payload?.error?.retryAfterSeconds,
     );
   }
+
+  console.log(`[Client API Success] POST ${path} - Status ${response.status}`);
 
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -75,6 +85,9 @@ export async function patchJson<T>(path: string, body: unknown): Promise<T> {
     } catch {
       payload = undefined;
     }
+    console.error(
+      `[Client API Error] PATCH ${path} - Status ${response.status}${payload?.error?.code ? ` [${payload.error.code}]` : ''}${payload?.error?.message ? `: ${payload.error.message}` : ''}`,
+    );
     throw new ClientApiError(
       payload?.error?.message ?? 'The request could not be completed.',
       payload?.error?.code ?? 'REQUEST_FAILED',
@@ -82,6 +95,7 @@ export async function patchJson<T>(path: string, body: unknown): Promise<T> {
       payload?.error?.retryAfterSeconds,
     );
   }
+  console.log(`[Client API Success] PATCH ${path} - Status ${response.status}`);
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
@@ -113,6 +127,10 @@ async function sendFormData<T>(
       payload = undefined;
     }
 
+    console.error(
+      `[Client API Error] ${method} ${path} - Status ${response.status}${payload?.error?.code ? ` [${payload.error.code}]` : ''}${payload?.error?.message ? `: ${payload.error.message}` : ''}`,
+    );
+
     throw new ClientApiError(
       payload?.error?.message ?? 'The request could not be completed.',
       payload?.error?.code ?? 'REQUEST_FAILED',
@@ -120,6 +138,8 @@ async function sendFormData<T>(
       payload?.error?.retryAfterSeconds,
     );
   }
+
+  console.log(`[Client API Success] ${method} ${path} - Status ${response.status}`);
 
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
