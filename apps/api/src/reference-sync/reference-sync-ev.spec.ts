@@ -9,6 +9,8 @@ const ids = {
   charger: '00000000-0000-4000-8000-000000000003',
   motor: '00000000-0000-4000-8000-000000000004',
   drive: '00000000-0000-4000-8000-000000000005',
+  motorLink: '00000000-0000-4000-8000-000000000007',
+  driveLink: '00000000-0000-4000-8000-000000000008',
 };
 
 function fixture() {
@@ -75,11 +77,11 @@ describe('AutotechDoc EV v1.1 reference import', () => {
       batteryPackId: ids.battery, chargingSystemId: ids.charger,
       engineRole: null, status: 'ACTIVE', version: 5,
       electricMotors: [{
-        electricMotorId: ids.motor, position: 'REAR_AXLE',
+        id: ids.motorLink, electricMotorId: ids.motor, position: 'REAR_AXLE',
         quantity: 2, functionRoles: ['TRACTION'],
       }],
       driveUnits: [{
-        driveUnitId: ids.drive, position: 'FRONT_AXLE',
+        id: ids.driveLink, driveUnitId: ids.drive, position: 'FRONT_AXLE',
         quantity: 1, functionRoles: ['TRACTION'],
       }],
     };
@@ -90,22 +92,45 @@ describe('AutotechDoc EV v1.1 reference import', () => {
         powertrainType: 'BEV', engineId: null, transmissionId: null,
         batteryPackId: ids.battery, chargingSystemId: ids.charger,
         electricMotors: { create: [{
-          electricMotorId: ids.motor, position: 'REAR_AXLE',
+          id: ids.motorLink, electricMotorId: ids.motor, position: 'REAR_AXLE',
           quantity: 2, functionRoles: ['TRACTION'],
         }] },
       }),
       update: expect.objectContaining({
         batteryPackId: ids.battery,
-        electricMotors: { deleteMany: {}, create: [{
-          electricMotorId: ids.motor, position: 'REAR_AXLE',
-          quantity: 2, functionRoles: ['TRACTION'],
-        }] },
-        driveUnits: { deleteMany: {}, create: [{
-          driveUnitId: ids.drive, position: 'FRONT_AXLE',
-          quantity: 1, functionRoles: ['TRACTION'],
-        }] },
+        electricMotors: {
+          deleteMany: { id: { notIn: [ids.motorLink] } },
+          upsert: [{
+            where: { id: ids.motorLink },
+            create: { id: ids.motorLink, electricMotorId: ids.motor,
+              position: 'REAR_AXLE', quantity: 2, functionRoles: ['TRACTION'] },
+            update: { electricMotorId: ids.motor,
+              position: 'REAR_AXLE', quantity: 2, functionRoles: ['TRACTION'] },
+          }],
+        },
+        driveUnits: {
+          deleteMany: { id: { notIn: [ids.driveLink] } },
+          upsert: [{
+            where: { id: ids.driveLink },
+            create: { id: ids.driveLink, driveUnitId: ids.drive,
+              position: 'FRONT_AXLE', quantity: 1, functionRoles: ['TRACTION'] },
+            update: { driveUnitId: ids.drive,
+              position: 'FRONT_AXLE', quantity: 1, functionRoles: ['TRACTION'] },
+          }],
+        },
       }),
     }));
+  });
+
+  it('rejects EV links without canonical UUIDs instead of fabricating consumer IDs', async () => {
+    const { tx, upserter } = fixture();
+    await expect(upserter.upsertRecord(tx as unknown as Prisma.TransactionClient,
+      'VehicleConfiguration', {
+        id: ids.config, identityCode: 'VC-BEV-MISSING-LINK-ID',
+        makeId: ids.battery, modelId: ids.charger, status: 'ACTIVE',
+        electricMotors: [{ electricMotorId: ids.motor, position: 'REAR_AXLE' }],
+      })).rejects.toThrow(/canonical UUID/u);
+    expect(tx.vehicleConfiguration.upsert).not.toHaveBeenCalled();
   });
 
   it('does not clear local hardware associations for an older publisher response', async () => {
