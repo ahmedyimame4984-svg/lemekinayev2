@@ -534,6 +534,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
       await upserter.upsertRecord(tx, 'VehicleConfiguration', {
         id: configId, identityCode: 'VC-' + configId.replaceAll('-', '').toUpperCase(),
         makeId, modelId, generationId, trimId, bodyTypeId, marketId,
+        steeringSide: 'LHD', productionStartYear: 2025,
         powertrainType: 'BEV', propulsionTopology: 'ELECTRIC_ONLY',
         energyStorageRole: 'PROPULSION', externalChargingCapability: 'PLUG_IN',
         batteryPackId: batteryId, chargingSystemId: chargingId,
