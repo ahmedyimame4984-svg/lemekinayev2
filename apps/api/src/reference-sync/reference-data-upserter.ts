@@ -30,6 +30,18 @@ import { CanonicalSyncEntityType } from './reference-sync.types.js';
 
 export const SYSTEM_SYNC_USER_EMAIL = 'system-sync@lemekinaye.internal';
 
+// V2 publishes stable source UUIDs for every motor/drive-unit assignment.
+// Reject incomplete relations before any nested write can generate local-only IDs.
+function requireCanonicalEvLinkId(id: unknown, kind: string): string {
+  if (typeof id !== 'string' ||
+      !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(id)) {
+    throw new ServiceUnavailableException(
+      'AutotechDoc v2 ' + kind + ' assignment is missing its canonical UUID',
+    );
+  }
+  return id;
+}
+
 @Injectable()
 export class ReferenceDataUpserter {
   private cachedActorId: string | null = null;
@@ -920,10 +932,11 @@ export class ReferenceDataUpserter {
         return 'APPLIED';
       }
       case 'VehicleConfiguration': {
-        // An independently approved ACTIVE revision owns its component links.
-        // Replacing associations transactionally avoids mixed old/new motors.
+        // The published ACTIVE revision owns the complete technical link set.
+        // Reconcile by canonical link UUID rather than regenerating local identities.
         const electricMotors = Array.isArray(record.electricMotors)
           ? record.electricMotors.map((item: Record<string, any>) => ({
+            id: requireCanonicalEvLinkId(item.id, 'electric-motor'),
             electricMotorId: item.electricMotorId,
             position: (item.position as VehicleElectricMotorPosition) ??
               VehicleElectricMotorPosition.UNKNOWN,
@@ -932,6 +945,7 @@ export class ReferenceDataUpserter {
           })) : undefined;
         const driveUnits = Array.isArray(record.driveUnits)
           ? record.driveUnits.map((item: Record<string, any>) => ({
+            id: requireCanonicalEvLinkId(item.id, 'drive-unit'),
             driveUnitId: item.driveUnitId,
             position: (item.position as VehicleElectricMotorPosition) ??
               VehicleElectricMotorPosition.UNKNOWN,
@@ -992,8 +1006,18 @@ export class ReferenceDataUpserter {
             engineRole: (record.engineRole as VehicleCombustionEngineRole) ?? null,
             ...(record.batteryPackId !== undefined ? { batteryPackId: record.batteryPackId } : {}),
             ...(record.chargingSystemId !== undefined ? { chargingSystemId: record.chargingSystemId } : {}),
-            ...(electricMotors ? { electricMotors: { deleteMany: {}, create: electricMotors } } : {}),
-            ...(driveUnits ? { driveUnits: { deleteMany: {}, create: driveUnits } } : {}),
+            ...(electricMotors ? { electricMotors: {
+              deleteMany: { id: { notIn: electricMotors.map(item => item.id) } },
+              upsert: electricMotors.map(({ id, ...fields }) => ({
+                where: { id }, create: { id, ...fields }, update: fields,
+              })),
+            } } : {}),
+            ...(driveUnits ? { driveUnits: {
+              deleteMany: { id: { notIn: driveUnits.map(item => item.id) } },
+              upsert: driveUnits.map(({ id, ...fields }) => ({
+                where: { id }, create: { id, ...fields }, update: fields,
+              })),
+            } } : {}),
             energyStorageRole: (record.energyStorageRole as VehicleEnergyStorageRole) ?? null,
             externalChargingCapability:
               (record.externalChargingCapability as VehicleExternalChargingCapability) ?? null,
