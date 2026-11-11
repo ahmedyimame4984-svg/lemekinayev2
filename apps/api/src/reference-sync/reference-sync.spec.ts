@@ -36,7 +36,8 @@ const change = (sequence: string, id: string, operation: 'UPSERT' | 'ARCHIVE' = 
  * Disposable PostgreSQL E2E separately verifies actual transactional persistence. */
 function harness() {
   const cp: any = {
-    id: DEFAULT_CHECKPOINT_ID, snapshotStatus: 'NOT_STARTED', snapshotId: null,
+    id: DEFAULT_CHECKPOINT_ID, contractVersion: '2.1.0',
+    snapshotStatus: 'NOT_STARTED', snapshotId: null,
     snapshotThrough: null, snapshotRecordCount: null,
     snapshotContentSha256: null, snapshotAppliedDigest: null,
     snapshotExpiresAt: null, batchThrough: null, feedCursor: null,
@@ -152,6 +153,35 @@ describe('ATD-07 v2 consumer: frozen snapshots, journal replay and recovery', ()
     expect(h.cp.snapshotStatus).toBe('COMPLETED');
     expect(h.imported.get('Brand:b1').active).toBe(true);
     expect(h.client.fetchSnapshotPage).toHaveBeenCalledTimes(SYNCHRONIZATION_ORDER.length);
+  });
+
+  it('upgrades a completed v2.0 checkpoint through a complete v2.1 snapshot before any feed replay', async () => {
+    h.cp.contractVersion = '2.0.0';
+    h.cp.snapshotStatus = 'COMPLETED';
+    h.cp.feedCursor = '12';
+    const result = await h.sync.executeIncrementalSync();
+    expect(result.syncType).toBe('SNAPSHOT');
+    expect(h.client.fetchChangeFeed).not.toHaveBeenCalled();
+    expect(h.client.createSnapshot).toHaveBeenCalledTimes(1);
+    expect(h.cp.contractVersion).toBe('2.1.0');
+    expect(h.cp.snapshotStatus).toBe('COMPLETED');
+    expect(h.client.fetchSnapshotPage).toHaveBeenCalledTimes(SYNCHRONIZATION_ORDER.length);
+  });
+
+  it('abandons a legacy v2.0 incomplete snapshot instead of mislabeling it v2.1', async () => {
+    h.cp.contractVersion = '2.0.0';
+    h.cp.snapshotStatus = 'IN_PROGRESS';
+    h.cp.snapshotId = 'legacy-v20-frozen';
+    h.cp.snapshotThrough = '8';
+    h.cp.snapshotRecordCount = 0;
+    h.cp.snapshotContentSha256 = INITIAL_SNAPSHOT_DIGEST;
+    h.cp.snapshotAppliedDigest = INITIAL_SNAPSHOT_DIGEST;
+    h.cp.snapshotExpiresAt = new Date(expire());
+    await h.sync.executeSnapshot();
+    expect(h.client.createSnapshot).toHaveBeenCalledTimes(1);
+    expect(h.cp.snapshotId).toBe('snapshot-A');
+    expect(h.cp.contractVersion).toBe('2.1.0');
+    expect(h.cp.snapshotStatus).toBe('COMPLETED');
   });
 
   it('keeps one snapshot across pages and resumes after restart without a new source snapshot', async () => {

@@ -2708,6 +2708,7 @@ model VehicleCompatibility {
 
 model ReferenceSyncCheckpoint {
   id                String                     @id @map("id") @db.VarChar(60)
+  contractVersion   String                     @default("2.0.0") @map("contract_version") @db.VarChar(12)
   snapshotStatus    String                     @default("NOT_STARTED") @map("snapshot_status") @db.VarChar(30)
   scheduleEnabled   Boolean                    @default(true) @map("schedule_enabled")
   intervalMinutes   Int                        @default(5) @map("interval_minutes")

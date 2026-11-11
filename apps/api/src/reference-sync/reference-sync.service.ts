@@ -149,6 +149,7 @@ export class ReferenceSyncService {
       scheduleEnabled: checkpoint.scheduleEnabled,
       intervalMinutes: checkpoint.intervalMinutes,
       checkpointId: checkpoint.id,
+      contractVersion: checkpoint.contractVersion,
       snapshotStatus: checkpoint.snapshotStatus,
       snapshotId: checkpoint.snapshotId,
       snapshotThrough: checkpoint.snapshotThrough,
@@ -298,6 +299,7 @@ export class ReferenceSyncService {
         let snapshot: CanonicalSnapshotCheckpoint;
         const resume = !options?.forceFull && renewalAttempt === 0 &&
           checkpoint.snapshotStatus === 'IN_PROGRESS' &&
+          checkpoint.contractVersion === '2.1.0' &&
           checkpoint.snapshotId && checkpoint.snapshotThrough && checkpoint.snapshotExpiresAt &&
           checkpoint.snapshotRecordCount !== null &&
           /^[a-f0-9]{64}$/u.test(checkpoint.snapshotContentSha256 ?? '') &&
@@ -326,6 +328,7 @@ export class ReferenceSyncService {
               where: { id: DEFAULT_CHECKPOINT_ID },
               data: {
                 snapshotStatus: 'IN_PROGRESS',
+                contractVersion: snapshot.contractVersion,
                 snapshotId: snapshot.snapshotId,
                 snapshotThrough: snapshot.through,
                 snapshotRecordCount: snapshot.recordCount,
@@ -557,12 +560,20 @@ export class ReferenceSyncService {
       const checkpoint = await this.database.referenceSyncCheckpoint.findUniqueOrThrow({
         where: { id: DEFAULT_CHECKPOINT_ID },
       });
-      if (checkpoint.snapshotStatus !== 'COMPLETED' || !checkpoint.feedCursor ||
+      if (checkpoint.contractVersion !== '2.1.0' ||
+          checkpoint.snapshotStatus !== 'COMPLETED' || !checkpoint.feedCursor ||
           !/^(?:0|[1-9][0-9]*)$/u.test(checkpoint.feedCursor)) {
         // Includes pre-v2 timestamp checkpoints: never try to replay them as
         // numeric sequences, and never discard prior marketplace customizations.
         await this.releaseLock(workerId);
-        return this.executeSnapshot({ forceFull: checkpoint.snapshotStatus === 'COMPLETED' });
+        return this.executeSnapshot({
+          // A v2.0.0 29-entity checkpoint is not proof that the v2.1
+          // manufacturer-rule mirror has ever been imported. Rebootstrap
+          // the full 30-entity snapshot before any incremental cursor moves.
+          forceFull: checkpoint.contractVersion !== '2.1.0' ||
+            checkpoint.snapshotStatus === 'COMPLETED',
+          batchSize,
+        });
       }
       let currentCursor = checkpoint.feedCursor;
       const initialCursor = currentCursor;

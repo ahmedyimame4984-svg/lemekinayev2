@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 type State = {
   isConfigured: boolean;
+  contractVersion: string;
   snapshotStatus: string;
   snapshotId: string | null;
   snapshotThrough: string | null;
@@ -136,7 +137,8 @@ export default function ReferenceSyncPage() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 24 }}>
             <div className="card" style={{ padding: 20 }}><strong>Connection</strong><p>{status?.isConfigured ? 'Configured' : 'Not configured'}</p></div>
-            <div className="card" style={{ padding: 20 }}><strong>Snapshot</strong><p>{status?.snapshotStatus ?? 'Unknown'}</p></div>
+            <div className="card" style={{ padding: 20 }}><strong>Snapshot</strong><p>{status?.snapshotStatus ?? 'Unknown'}</p>
+              <small>Contract {status?.contractVersion ?? 'Unknown'}</small></div>
             <div className="card" style={{ padding: 20 }}><strong>Worker</strong><p>{status?.isLocked ? 'Running' : 'Idle'}</p></div>
             <div className="card" style={{ padding: 20 }}><strong>Applied records</strong><p>{status?.totalApplied ?? 0}</p></div>
           </div>

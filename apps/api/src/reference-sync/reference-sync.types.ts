@@ -107,6 +107,7 @@ export interface SyncStatusReport {
   scheduleEnabled: boolean;
   intervalMinutes: number;
   checkpointId: string;
+  contractVersion: string;
   snapshotStatus: string;
   snapshotId: string | null;
   snapshotThrough: string | null;
