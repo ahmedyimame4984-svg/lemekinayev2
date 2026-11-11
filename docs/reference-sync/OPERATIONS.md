@@ -226,3 +226,50 @@ the test key. Check UI at mobile and desktop widths.
 
 No PR merge, deployment, production migration, force-push, destruction,
 or credentials outside test environments without explicit approval.
+
+## ATD-11 v2.1 manufacturer-rule sync and 29→30 upgrade (2026-11-11)
+
+The new consumer uses only `X-ATD-Reference-Contract: 2.1.0` for
+producer snapshot, page and changes requests. The producer retains its
+legacy `2.0.0` default (29 canonical entity types) and v1 (24 types);
+**do not** silently fall back to either version on this consumer.
+The v2.1 30th entity is `VehicleIdentifierRule`, imported after its
+ACTIVE make/model/configuration dependencies.
+
+A producer rule requires independent technical and rights review,
+unchanged approved source fingerprint and `B2B_DISTRIBUTION` scope.
+`PUBLIC_LOOKUP` on its own is **not** a bulk B2B distribution license:
+the consumer rejects such a payload. The mirror stores only allowlisted
+technical prefixes/constraints/source references, not complete VINs,
+rights agreement text, reviewer identities or source evidence URLs.
+Imported rule UUIDs/versions remain stable. Retirement and withdrawal
+become an archived/tombstoned local reference, not hard deletion.
+Never overwrite marketplace Articles, Listings, Inventory, prices,
+customized MANUAL attribute assignments or current approved Product
+Type v3 commercial uses.
+
+**Checkpoint upgrade safety:** an additive `contract_version` field
+defaults existing checkpoints to `2.0.0`. On the first worker cycle
+after the v2.1 application and **approved disposable migration**,
+the service detects an old completed 29-entity checkpoint and
+materializes a new 30-entity snapshot before replaying changes.
+It refuses to resume an old `IN_PROGRESS` v2.0 frozen page set as v2.1.
+The last healthy feed checkpoint is preserved until full count and
+SHA-256 verification and only then replaced with the new frozen
+`through`. Admin monitoring shows the contract version. A failed
+import must not archive previously imported canonical data, clear
+commercial overrides or advance the journal cursor.
+
+**Acceptance before release:** on two independently migrated disposable
+PostgreSQL databases, assert (1) approved rights-cleared synthetic rule
+identity/fields and negative DRAFT/public-only exclusion,
+(2) incremental rule changes and retirement tombstones,
+(3) old v2.0 checkpoint conversion with restart/digest parity,
+(4) authenticated B2B scope and HMAC replay, (5) EV and Product Type
+v3 parity and marketplace ownership, and (6) safe 410/429/503/worker
+crash recovery. Real authorized manufacturer corpus and licensing,
+operator browser proof, high-volume soak, digital-source signatures
+and final security/legal review remain independently BLOCKED.
+Synthetic fixtures are engineering evidence only, not manufacturer's
+approval or a real licensed VIN sample. Keep the consumer draft
+unmerged and undeployed.
