@@ -77,6 +77,8 @@ export class AutotechdocSyncClient {
         const headers = new Headers(options?.headers);
         headers.set('Content-Type', 'application/json');
         headers.set('Accept', 'application/json');
+        // Explicit negotiated 30-entity contract, not a silent v2.0 expansion.
+        headers.set('X-ATD-Reference-Contract', '2.1.0');
         headers.set('Authorization', 'Bearer ' + this.token);
         const response = await fetch(url, {
           ...options,

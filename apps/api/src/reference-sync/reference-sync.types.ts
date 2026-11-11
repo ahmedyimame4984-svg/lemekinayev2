@@ -28,6 +28,7 @@ export const SYNCHRONIZATION_ORDER = [
   'VehicleDriveUnit',
   'VehicleConfiguration',
   'VehicleConfigurationMarketApplicability',
+  'VehicleIdentifierRule',
 ] as const;
 
 export type CanonicalSyncEntityType = (typeof SYNCHRONIZATION_ORDER)[number];

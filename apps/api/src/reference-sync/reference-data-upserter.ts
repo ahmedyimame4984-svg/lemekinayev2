@@ -25,6 +25,7 @@ import {
   VehicleProductionEndStatus,
   VehiclePropulsionTopology,
   VehicleSteeringSide,
+  VehicleIdentificationMethod,
 } from '@prisma/client';
 import { CanonicalSyncEntityType } from './reference-sync.types.js';
 
@@ -95,6 +96,66 @@ export class ReferenceDataUpserter {
     const actorId = await this.resolveActorId(tx);
 
     switch (entityType) {
+      case 'VehicleIdentifierRule': {
+        if (!['VIN', 'CHASSIS', 'FRAME'].includes(record.identifierType) ||
+            !['MANUFACTURER', 'MODEL_FAMILY', 'CONFIGURATION'].includes(record.specificity) ||
+            !['B2B_DISTRIBUTION', 'PUBLIC_LOOKUP'].includes(record.rightsScope) ||
+            !['NOT_REQUIRED', 'REQUIRED'].includes(record.checkDigitPolicy) ||
+            !['NOT_ASSUMED', 'NORTH_AMERICA_30_YEAR'].includes(record.yearCodePolicy) ||
+            record.status !== 'ACTIVE' ||
+            !record.sourceName || !record.sourceReference || !record.evidenceReference ||
+            !record.makeId || !Number.isSafeInteger(record.version) || record.version < 1 ||
+            (record.specificity !== 'MANUFACTURER' && !record.modelId) ||
+            (record.specificity === 'CONFIGURATION' && !record.configurationId)) {
+          throw new ServiceUnavailableException('AutotechDoc 2.1 rule payload lacks verified publication evidence');
+        }
+        const make = await tx.vehicleMake.findUnique({
+          where: { id: record.makeId }, select: { status: true },
+        });
+        const model = record.modelId ? await tx.vehicleModel.findUnique({
+          where: { id: record.modelId }, select: { status: true, makeId: true },
+        }) : null;
+        const configuration = record.configurationId
+          ? await tx.vehicleConfiguration.findUnique({
+            where: { id: record.configurationId },
+            select: { status: true, makeId: true, modelId: true },
+          }) : null;
+        if (!make || make.status !== MasterDataStatus.ACTIVE ||
+            (record.modelId && (!model || model.status !== MasterDataStatus.ACTIVE ||
+              model.makeId !== record.makeId)) ||
+            (record.configurationId && (!configuration ||
+              configuration.status !== MasterDataStatus.ACTIVE ||
+              configuration.makeId !== record.makeId ||
+              configuration.modelId !== record.modelId))) {
+          throw new ServiceUnavailableException('Approved VIN/chassis rule references an unavailable ACTIVE canonical target');
+        }
+        const fields = {
+          identifierType: record.identifierType as VehicleIdentificationMethod,
+          specificity: record.specificity as string,
+          marketCode: record.marketCode ?? null,
+          wmi: record.wmi ?? null,
+          vdsPattern: record.vdsPattern ?? null,
+          plantCode: record.plantCode ?? null,
+          chassisPrefix: record.chassisPrefix ?? null,
+          serialDigits: record.serialDigits ?? null,
+          yearFrom: record.yearFrom ?? null, yearTo: record.yearTo ?? null,
+          checkDigitPolicy: record.checkDigitPolicy as string,
+          yearCodePolicy: record.yearCodePolicy as string,
+          makeId: record.makeId as string, modelId: record.modelId ?? null,
+          configurationId: record.configurationId ?? null,
+          sourceName: record.sourceName as string,
+          sourceReference: record.sourceReference as string,
+          evidenceReference: record.evidenceReference as string,
+          rightsScope: record.rightsScope as string,
+          status: MasterDataStatus.ACTIVE,
+          version: record.version as number,
+        };
+        await tx.referenceSyncVehicleIdentifierRule.upsert({
+          where: { id: record.id }, create: { id: record.id, ...fields },
+          update: fields,
+        });
+        return 'APPLIED';
+      }
       case 'Brand': {
         await tx.brand.upsert({
           where: { id: record.id },
@@ -1245,6 +1306,11 @@ export class ReferenceDataUpserter {
         await tx.vehicleConfiguration.updateMany({
           where: { id },
           data: { status: MasterDataStatus.ARCHIVED, updatedById: actorId },
+        });
+        break;
+      case 'VehicleIdentifierRule':
+        await tx.referenceSyncVehicleIdentifierRule.updateMany({
+          where: { id }, data: { status: MasterDataStatus.DEPRECATED },
         });
         break;
       case 'VehicleConfigurationMarketApplicability':

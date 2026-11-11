@@ -181,7 +181,7 @@ export class ReferenceSyncService {
 
 
   private validateSnapshot(snapshot: CanonicalSnapshotCheckpoint): void {
-    if (snapshot.contractVersion !== '2.0.0' || snapshot.productTypeSchemaContract !== 3 ||
+    if (snapshot.contractVersion !== '2.1.0' || snapshot.productTypeSchemaContract !== 3 ||
         !Array.isArray(snapshot.entityTypes) ||
         snapshot.entityTypes.join(',') !== SYNCHRONIZATION_ORDER.join(',') ||
         !/^(?:0|[1-9][0-9]*)$/u.test(snapshot.through) ||
@@ -199,7 +199,7 @@ export class ReferenceSyncService {
     cursor: string | null,
     page: CanonicalSnapshotPageResponse,
   ): void {
-    if (page.contractVersion !== '2.0.0' || page.productTypeSchemaContract !== 3 ||
+    if (page.contractVersion !== '2.1.0' || page.productTypeSchemaContract !== 3 ||
         page.snapshotId !== snapshot.snapshotId || page.through !== snapshot.through ||
         page.recordCount !== snapshot.recordCount ||
         page.contentSha256 !== snapshot.contentSha256 ||
@@ -308,7 +308,7 @@ export class ReferenceSyncService {
             snapshotId: checkpoint.snapshotId!,
             through: checkpoint.snapshotThrough!,
             expiresAt: checkpoint.snapshotExpiresAt!.toISOString(),
-            contractVersion: '2.0.0',
+            contractVersion: '2.1.0',
             productTypeSchemaContract: 3,
             entityTypes: [...SYNCHRONIZATION_ORDER],
             recordCount: checkpoint.snapshotRecordCount!,
@@ -515,7 +515,7 @@ export class ReferenceSyncService {
   }
 
   private assertFeed(feed: CanonicalChangeFeedResponse, after: string, through: string | null): void {
-    if (feed.contractVersion !== '2.0.0' || feed.productTypeSchemaContract !== 3 ||
+    if (feed.contractVersion !== '2.1.0' || feed.productTypeSchemaContract !== 3 ||
         !/^(?:0|[1-9][0-9]*)$/u.test(feed.nextCursor) ||
         !/^(?:0|[1-9][0-9]*)$/u.test(feed.through) ||
         (through !== null && through !== feed.through) ||
@@ -725,6 +725,8 @@ export class ReferenceSyncService {
         return this.database.vehicleMarket.count();
       case 'VehicleConfiguration':
         return this.database.vehicleConfiguration.count();
+      case 'VehicleIdentifierRule':
+        return this.database.referenceSyncVehicleIdentifierRule.count();
       default:
         return 0;
     }
