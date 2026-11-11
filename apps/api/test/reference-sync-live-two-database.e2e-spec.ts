@@ -168,6 +168,40 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
     expect(records).toBe(checkpoint.snapshotRecordCount);
     expect(records).toBeGreaterThan(0);
 
+    // The 30th entity must mirror ONLY source-approved/rights-cleared rules.
+    // These test records are synthetic and are not legal manufacturer evidence.
+    const approvedRule = await source.vehicleIdentifierRule.findFirst({
+      where: { sourceReference: 'SYNTHETIC-CI-NOT-LICENSED',
+        status: 'ACTIVE', reviewStatus: 'APPROVED' },
+    });
+    expect(approvedRule, 'Missing approved synthetic ATD-11 source rule').not.toBeNull();
+    const importedRule = await consumer.referenceSyncVehicleIdentifierRule.findUnique({
+      where: { id: approvedRule!.id },
+    });
+    expect(importedRule).toMatchObject({
+      id: approvedRule!.id, status: 'ACTIVE',
+      rightsScope: 'B2B_DISTRIBUTION',
+      makeId: approvedRule!.makeId, modelId: approvedRule!.modelId,
+      chassisPrefix: approvedRule!.chassisPrefix,
+      sourceReference: approvedRule!.sourceReference,
+      evidenceReference: approvedRule!.evidenceReference,
+      version: approvedRule!.version,
+    });
+    expect(JSON.stringify(importedRule)).not.toContain(approvedRule!.rightsReference!);
+    expect(JSON.stringify(importedRule)).not.toContain(approvedRule!.approvedById!);
+    const draftRule = await source.vehicleIdentifierRule.findFirst({
+      where: { chassisPrefix: 'CIATD12', status: 'DRAFT' },
+    });
+    expect(draftRule).not.toBeNull();
+    expect(await consumer.referenceSyncVehicleIdentifierRule.findUnique({
+      where: { id: draftRule!.id },
+    })).toBeNull();
+    expect(await consumer.referenceSyncImportedRecord.findUnique({
+      where: { entityType_entityId: {
+        entityType: 'VehicleIdentifierRule', entityId: draftRule!.id,
+      } },
+    })).toBeNull();
+
     // Unlike transport-only ACTIVE fixture seeding, this Brand must traverse
     // the real source DRAFT -> independent SUBMIT/APPROVE -> ACTIVE services.
     // Review metadata proves governance execution, not a third-party data license.
@@ -367,6 +401,33 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
     }, 180_000,
   );
 
+  it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
+    'tombstones an approved manufacturer-rule identity without deleting seller state', async () => {
+      const before = await source.vehicleIdentifierRule.findFirstOrThrow({
+        where: { sourceReference: 'SYNTHETIC-CI-NOT-LICENSED',
+          status: 'ACTIVE', reviewStatus: 'APPROVED' },
+      });
+      await source.vehicleIdentifierRule.update({
+        where: { id: before.id },
+        data: { status: 'DEPRECATED', version: { increment: 1 } },
+      });
+      const result = await sync.executeIncrementalSync({ batchSize: 10 });
+      expect(result.status).toBe('SUCCESS');
+      expect(await consumer.referenceSyncVehicleIdentifierRule.findUniqueOrThrow({
+        where: { id: before.id },
+      })).toMatchObject({ status: 'DEPRECATED' });
+      expect(await consumer.referenceSyncImportedRecord.findUniqueOrThrow({
+        where: { entityType_entityId: {
+          entityType: 'VehicleIdentifierRule', entityId: before.id,
+        } },
+      })).toMatchObject({ active: false });
+      // The mirror is local technical reference data only; never a listing.
+      expect(await consumer.referenceSyncVehicleIdentifierRule.count({
+        where: { status: 'ACTIVE' },
+      })).toBe(0);
+    }, 180_000,
+  );
+
   it('replays the live feed, restarts the consumer service and reconciles a new snapshot', async () => {
     const initial = await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
       where: { id: DEFAULT_CHECKPOINT_ID },
@@ -410,7 +471,10 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
         }
         try {
           const upstream = await fetch(origin + req.url, {
-            headers: { Authorization: req.headers.authorization ?? '' },
+            headers: {
+              Authorization: req.headers.authorization ?? '',
+              'X-ATD-Reference-Contract': req.headers['x-atd-reference-contract']?.toString() ?? '2.1.0',
+            },
             redirect: 'error',
           });
           res.writeHead(upstream.status, { 'Content-Type': 'application/json' });
