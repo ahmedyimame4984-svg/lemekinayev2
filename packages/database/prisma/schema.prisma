@@ -2106,6 +2106,7 @@ model VehicleMake {
   createdBy   User             @relation("VehicleMakeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy   User             @relation("VehicleMakeUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   models      VehicleModel[]
+  syncedIdentifierRules ReferenceSyncVehicleIdentifierRule[] @relation("SyncedRuleMake")
   configurations VehicleConfiguration[]
   compatibilities VehicleCompatibility[]
 
@@ -2130,6 +2131,7 @@ model VehicleModel {
   derivatives VehicleModelDerivative[]
   generationFamilies VehicleGenerationFamily[]
   generations VehicleGeneration[]
+  syncedIdentifierRules ReferenceSyncVehicleIdentifierRule[] @relation("SyncedRuleModel")
   configurations VehicleConfiguration[]
   compatibilities VehicleCompatibility[]
 
@@ -2520,6 +2522,7 @@ model VehicleConfiguration {
   compatibilities     VehicleCompatibility[]
   productArticles      ProductVehicleArticle[]
   vehicleProfiles     VehicleProfile[]
+  syncedIdentifierRules ReferenceSyncVehicleIdentifierRule[] @relation("SyncedRuleConfig")
   identifierMappings  VehicleIdentifierMapping[]
 
   @@index([makeId, modelId, status])
@@ -2810,6 +2813,44 @@ model ReferenceSyncCanonicalProductTypeSchema {
 /** Signed webhook event IDs are kept across worker processes to prevent
  * repeated authenticated hints from amplifying synchronization requests.
  */
+
+/// Read-only, source-owned, independently reviewed manufacturer VIN/chassis rules.
+/// Never create local seller listings, prices or automotive identity from these rows.
+model ReferenceSyncVehicleIdentifierRule {
+  id                String                      @id @db.Uuid
+  identifierType    VehicleIdentificationMethod @map("identifier_type")
+  specificity       String                      @db.VarChar(32)
+  marketCode        String?                     @map("market_code") @db.VarChar(16)
+  wmi               String?                     @db.VarChar(3)
+  vdsPattern        String?                     @map("vds_pattern") @db.VarChar(5)
+  plantCode         String?                     @map("plant_code") @db.VarChar(1)
+  chassisPrefix     String?                     @map("chassis_prefix") @db.VarChar(32)
+  serialDigits      Int?                        @map("serial_digits")
+  yearFrom          Int?                        @map("year_from")
+  yearTo            Int?                        @map("year_to")
+  checkDigitPolicy  String                      @map("check_digit_policy") @db.VarChar(32)
+  yearCodePolicy    String                      @map("year_code_policy") @db.VarChar(32)
+  makeId            String                      @map("make_id") @db.Uuid
+  modelId           String?                     @map("model_id") @db.Uuid
+  configurationId   String?                     @map("configuration_id") @db.Uuid
+  sourceName        String                      @map("source_name") @db.VarChar(160)
+  sourceReference   String                      @map("source_reference") @db.VarChar(255)
+  evidenceReference String                      @map("evidence_reference") @db.VarChar(255)
+  rightsScope       String                      @map("rights_scope") @db.VarChar(32)
+  status            MasterDataStatus            @default(DRAFT)
+  version           Int
+  createdAt         DateTime                    @default(now()) @map("created_at")
+  updatedAt         DateTime                    @updatedAt @map("updated_at")
+  make              VehicleMake                 @relation("SyncedRuleMake", fields: [makeId], references: [id], onDelete: Restrict)
+  model             VehicleModel?               @relation("SyncedRuleModel", fields: [modelId], references: [id], onDelete: Restrict)
+  configuration     VehicleConfiguration?       @relation("SyncedRuleConfig", fields: [configurationId], references: [id], onDelete: Restrict)
+
+  @@index([identifierType, wmi, status])
+  @@index([identifierType, chassisPrefix, status])
+  @@index([makeId, modelId, status])
+  @@map("reference_sync_vehicle_identifier_rules")
+}
+
 model ReferenceSyncNotificationReceipt {
   eventId     String   @id @map("event_id") @db.Uuid
   receivedAt  DateTime @default(now()) @map("received_at")
