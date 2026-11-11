@@ -167,6 +167,51 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
     expect(records).toBe(checkpoint.snapshotRecordCount);
     expect(records).toBeGreaterThan(0);
 
+    // Unlike transport-only ACTIVE fixture seeding, this Brand must traverse
+    // the real source DRAFT -> independent SUBMIT/APPROVE -> ACTIVE services.
+    // Review metadata proves governance execution, not a third-party data license.
+    const governed = await source.brand.findFirst({
+      where: { code: { startsWith: 'GOVERNED_CI_' }, status: 'ACTIVE' },
+      select: { id: true, code: true, name: true, version: true },
+    });
+    expect(governed, 'Source independent-review fixture must be ACTIVE').not.toBeNull();
+    const reviewEvents = await source.auditLog.findMany({
+      where: {
+        action: 'CANONICAL_REVIEW_TRANSITIONED',
+        entityType: 'BRAND',
+        entityId: governed!.id,
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { actorId: true, metadata: true },
+    });
+    expect(reviewEvents).toHaveLength(2);
+    expect(reviewEvents.map(event =>
+      (event.metadata as Record<string, unknown>)?.decision))
+      .toEqual(['SUBMIT', 'APPROVE']);
+    expect(reviewEvents[0].actorId).not.toBe(reviewEvents[1].actorId);
+    expect(await source.masterDataProvenance.findFirst({
+      where: { entityType: 'BRAND', entityId: governed!.id },
+      select: { sourceName: true },
+    })).toMatchObject({ sourceName: 'Synthetic CI governance fixture' });
+    expect(await consumer.referenceSyncImportedRecord.findUnique({
+      where: { entityType_entityId: { entityType: 'Brand', entityId: governed!.id } },
+    })).toMatchObject({ active: true });
+    expect(await consumer.brand.findUnique({ where: { id: governed!.id } }))
+      .toMatchObject({ code: governed!.code, name: governed!.name, version: governed!.version, status: 'ACTIVE' });
+
+    // A researched DRAFT lacking independent approval must not appear in
+    // either the imported source-ID mapping or the consumer canonical mirror.
+    const unapproved = await source.brand.findFirst({
+      where: { code: { startsWith: 'UNAPPROVED_CI_' }, status: 'DRAFT' },
+      select: { id: true },
+    });
+    expect(unapproved, 'Source negative draft fixture must exist').not.toBeNull();
+    expect(await consumer.referenceSyncImportedRecord.findUnique({
+      where: { entityType_entityId: { entityType: 'Brand', entityId: unapproved!.id } },
+    })).toBeNull();
+    expect(await consumer.brand.findUnique({ where: { id: unapproved!.id } }))
+      .toBeNull();
+
     const observed = new Map<CanonicalSyncEntityType, number>();
     let sourceTotal = 0;
     let bevConfigurations = 0;
