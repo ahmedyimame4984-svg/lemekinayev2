@@ -286,6 +286,7 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
     let sourceTotal = 0;
     let bevConfigurations = 0;
     let completeBevConfigurations = 0;
+    const verifiedClassFixtures = new Set<string>();
     let verifiedSuggestedSchemas = 0;
     for (const entityType of SYNCHRONIZATION_ORDER) {
       let cursor: string | undefined;
@@ -321,7 +322,13 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
               VehicleModelDerivative: ['modelId'],
               VehicleGeneration: ['derivativeId'],
               VehicleConfigurationMarketApplicability: ['configurationId', 'marketId', 'role'],
-              VehicleConfiguration: ['makeId', 'modelId', 'batteryPackId', 'chargingSystemId'],
+              VehicleConfiguration: [
+                'makeId', 'modelId', 'generationId', 'trimId', 'bodyTypeId', 'marketId',
+                'powertrainType', 'propulsionTopology', 'engineId', 'engineRole',
+                'transmissionId', 'batteryPackId', 'energyStorageRole',
+                'chargingSystemId', 'externalChargingCapability',
+                'driveType', 'materialMarketVariant', 'steeringSide',
+              ],
             } as Record<string, string[]>)[entityType] ?? []) {
               expect(local?.[relation]).toEqual(record[relation]);
             }
@@ -349,6 +356,47 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
               .toEqual(technicalLinkSignatures(sourceMotors, 'electricMotorId'));
             expect(technicalLinkSignatures(localDrives, 'driveUnitId'))
               .toEqual(technicalLinkSignatures(sourceDrives, 'driveUnitId'));
+            if (typeof record.code === 'string' && record.code.startsWith('ATD04_')) {
+              const type = String(record.powertrainType);
+              expect(verifiedClassFixtures.has(type),
+                'Duplicate synthetic powertrain fixture: ' + type).toBe(false);
+              verifiedClassFixtures.add(type);
+              expect(record.makeId).toBeTruthy();
+              expect(record.modelId).toBeTruthy();
+              expect(record.generationId).toBeTruthy();
+              expect(record.trimId).toBeTruthy();
+              if (type === 'ICE') {
+                expect(record.engineId).toBeTruthy();
+                expect(record.transmissionId).toBeTruthy();
+                expect(record.batteryPackId).toBeNull();
+                expect(record.chargingSystemId).toBeNull();
+                expect(sourceMotors).toHaveLength(0);
+                expect(sourceDrives).toHaveLength(0);
+              } else {
+                expect(record.batteryPackId).toBeTruthy();
+                expect(sourceMotors.length + sourceDrives.length).toBeGreaterThan(0);
+                expect(record.energyStorageRole).toBe(
+                  type === 'MHEV' ? 'HYBRID_SUPPORT' : 'PROPULSION');
+                if (type === 'BEV') {
+                  expect(record.engineId).toBeNull();
+                  expect(record.transmissionId).toBeNull();
+                } else {
+                  expect(record.engineId).toBeTruthy();
+                }
+                if (type === 'EREV') {
+                  expect(record.engineRole).toBe('GENERATOR_ONLY');
+                  expect(record.transmissionId).toBeNull();
+                }
+                if (type === 'MHEV') {
+                  expect(sourceMotors).toContainEqual(expect.objectContaining({
+                    functionRoles: ['ENGINE_START', 'GENERATION'],
+                  }));
+                }
+              }
+              const plugs = ['BEV', 'PHEV', 'EREV'].includes(type);
+              expect(record.externalChargingCapability).toBe(plugs ? 'PLUG_IN' : 'NONE');
+              expect(Boolean(record.chargingSystemId)).toBe(plugs);
+            }
             if (record.powertrainType === 'BEV') {
               bevConfigurations++;
               expect(local?.powertrainType).toBe('BEV');
@@ -392,6 +440,12 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
     expect(completeBevConfigurations,
       'No published BEV with battery, charging, electric motor and drive-unit junctions')
       .toBeGreaterThan(0);
+    // Source sends exactly one distinct technical configuration per class.
+    // All six source/local field identities and motor/drive junction UUIDs
+    // above must match, not merely the count of imported BEV fixtures.
+    expect([...verifiedClassFixtures].sort()).toEqual(
+      ['ICE', 'BEV', 'HEV', 'PHEV', 'MHEV', 'EREV'].sort(),
+    );
   }, 180_000);
 
   it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
