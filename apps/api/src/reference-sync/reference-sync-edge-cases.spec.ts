@@ -22,7 +22,7 @@ describe('ATD-06 v2 HTTP contract, machine security and retry boundaries', () =>
   it('uses only the approved v2 endpoints with bearer machine credentials', async () => {
     const fetcher = vi.fn(async (_url: string, _options: any) => ok({
       snapshotId: 'id', through: '40', recordCount: 0, expiresAt: new Date().toISOString(),
-      contractVersion: '2.0.0', entityTypes: [...SYNCHRONIZATION_ORDER],
+      contractVersion: '2.1.0', entityTypes: [...SYNCHRONIZATION_ORDER],
     }));
     vi.stubGlobal('fetch', fetcher);
     const client = make();

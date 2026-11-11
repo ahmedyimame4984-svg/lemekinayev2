@@ -26,7 +26,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
   const response = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
   const contract = () => ({
-    contractVersion: '2.0.0', productTypeSchemaContract: 3,
+    contractVersion: '2.1.0', productTypeSchemaContract: 3,
     snapshotId, through: watermark, recordCount: advertisedRecordCount ?? rows.length,
     contentSha256: rows.reduce(
       (digest, row) => extendSnapshotDigest(digest, 'Brand', row),
@@ -66,7 +66,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
         const hasMore = type === 'Brand' && items.length > 0 &&
           rows.some(row => row.id > items[items.length - 1].id);
         return response({
-          contractVersion: '2.0.0', productTypeSchemaContract: 3,
+          contractVersion: '2.1.0', productTypeSchemaContract: 3,
           snapshotId, through: watermark, expiresAt: contract().expiresAt,
           recordCount: contract().recordCount,
           contentSha256: contract().contentSha256,
@@ -88,7 +88,7 @@ describe.skipIf(!url)('ATD-07 v2 HTTP contract against consumer PostgreSQL', () 
           BigInt(event.sequence) > after && BigInt(event.sequence) <= through);
         const page = matching.slice(0, limit);
         return response({
-          contractVersion: '2.0.0', productTypeSchemaContract: 3,
+          contractVersion: '2.1.0', productTypeSchemaContract: 3,
           through: through.toString(), changes: page, hasMore: matching.length > limit,
           nextCursor: page.length ? page[page.length - 1].sequence : after.toString(),
         });

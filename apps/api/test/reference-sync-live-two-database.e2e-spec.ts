@@ -56,6 +56,7 @@ const DELEGATES: Record<CanonicalSyncEntityType, string> = {
   VehicleDriveUnit: 'vehicleDriveUnit',
   VehicleConfiguration: 'vehicleConfiguration',
   VehicleConfigurationMarketApplicability: 'vehicleConfigurationMarketApplicability',
+  VehicleIdentifierRule: 'referenceSyncVehicleIdentifierRule',
 };
 
 type TechnicalLink = {
@@ -431,7 +432,7 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
           baseUrl, token: producerToken, maxRetries: 3, timeoutMs: 3000,
         });
         const healthy = await retry.fetchChangeFeed(before.feedCursor, null, 20);
-        expect(healthy.contractVersion).toBe('2.0.0');
+        expect(healthy.contractVersion).toBe('2.1.0');
         expect(requests).toBe(3); // Real HTTP: 503 -> 429 -> authenticated 200.
 
         const unavailable = randomUUID();
@@ -653,7 +654,7 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
         where: { id: DEFAULT_CHECKPOINT_ID },
       });
       expect((await readonly.fetchChangeFeed(checkpoint.feedCursor, null, 10))
-        .contractVersion).toBe('2.0.0');
+        .contractVersion).toBe('2.1.0');
       await expect(readonly.createSnapshot()).rejects.toThrow();
 
       // A separate replacement key must continue to work after the original
@@ -674,7 +675,7 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       const replacement = new AutotechdocSyncClient({
         baseUrl: producerUrl, token: replacementToken, maxRetries: 1,
       });
-      expect((await replacement.createSnapshot()).contractVersion).toBe('2.0.0');
+      expect((await replacement.createSnapshot()).contractVersion).toBe('2.1.0');
 
       await source.$executeRaw`
         UPDATE "b2b_api_keys"
@@ -684,7 +685,7 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       `;
       await expect(remote.createSnapshot()).rejects.toThrow();
       expect((await replacement.fetchChangeFeed(checkpoint.feedCursor, null, 10))
-        .contractVersion).toBe('2.0.0');
+        .contractVersion).toBe('2.1.0');
 
       await source.$executeRaw`
         UPDATE "b2b_api_keys"

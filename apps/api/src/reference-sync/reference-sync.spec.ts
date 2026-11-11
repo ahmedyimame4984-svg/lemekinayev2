@@ -7,14 +7,14 @@ import { INITIAL_SNAPSHOT_DIGEST, extendSnapshotDigest } from './canonical-snaps
 
 const expire = () => new Date(Date.now() + 3600_000).toISOString();
 const snapshot = (id = 'snapshot-A', through = '12') => ({
-  contractVersion: '2.0.0', productTypeSchemaContract: 3,
+  contractVersion: '2.1.0', productTypeSchemaContract: 3,
   snapshotId: id, through, expiresAt: expire(), recordCount: 0,
   contentSha256: INITIAL_SNAPSHOT_DIGEST,
   entityTypes: [...SYNCHRONIZATION_ORDER],
 });
 const page = (s: ReturnType<typeof snapshot>, type: string, items: any[] = [],
   nextCursor: string | null = null) => ({
-    contractVersion: '2.0.0', productTypeSchemaContract: 3,
+    contractVersion: '2.1.0', productTypeSchemaContract: 3,
     snapshotId: s.snapshotId, through: s.through, expiresAt: s.expiresAt,
     entityType: type, items, nextCursor, hasMore: nextCursor !== null,
     itemSha256: items.map(item => extendSnapshotDigest(INITIAL_SNAPSHOT_DIGEST, type, item)),
@@ -22,7 +22,7 @@ const page = (s: ReturnType<typeof snapshot>, type: string, items: any[] = [],
 });
 const feed = (after: string, through = '15', changes: any[] = [], hasMore = false,
   nextCursor = changes.length ? changes[changes.length - 1].sequence : after) => ({
-    contractVersion: '2.0.0', productTypeSchemaContract: 3,
+    contractVersion: '2.1.0', productTypeSchemaContract: 3,
     changes, nextCursor, hasMore, through,
 });
 const change = (sequence: string, id: string, operation: 'UPSERT' | 'ARCHIVE' = 'UPSERT') => ({
