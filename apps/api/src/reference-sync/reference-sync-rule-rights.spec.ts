@@ -30,7 +30,7 @@ describe('ATD v2.1 governed manufacturer-rule mirror rights', () => {
         makeId: '22222222-2222-4222-8222-222222222222',
       }) },
       vehicleConfiguration: { findUnique: vi.fn() },
-      referenceSyncVehicleIdentifierRule: { upsert: vi.fn().mockResolvedValue({}) },
+      referenceSyncVehicleIdentifierRule: { upsert: vi.fn(async (_args: any) => ({})) },
     };
     return tx;
   }
