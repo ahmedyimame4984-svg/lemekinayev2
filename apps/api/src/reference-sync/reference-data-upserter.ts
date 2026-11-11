@@ -99,7 +99,7 @@ export class ReferenceDataUpserter {
       case 'VehicleIdentifierRule': {
         if (!['VIN', 'CHASSIS', 'FRAME'].includes(record.identifierType) ||
             !['MANUFACTURER', 'MODEL_FAMILY', 'CONFIGURATION'].includes(record.specificity) ||
-            !['B2B_DISTRIBUTION', 'PUBLIC_LOOKUP'].includes(record.rightsScope) ||
+            record.rightsScope !== 'B2B_DISTRIBUTION' ||
             !['NOT_REQUIRED', 'REQUIRED'].includes(record.checkDigitPolicy) ||
             !['NOT_ASSUMED', 'NORTH_AMERICA_30_YEAR'].includes(record.yearCodePolicy) ||
             record.status !== 'ACTIVE' ||

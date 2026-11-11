@@ -24,7 +24,7 @@ CREATE TABLE "reference_sync_vehicle_identifier_rules" (
   "version" INTEGER NOT NULL,
   "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" TIMESTAMP(3) NOT NULL,
-  CONSTRAINT "sync_vin_rule_rights_check" CHECK ("rights_scope" IN ('B2B_DISTRIBUTION','PUBLIC_LOOKUP')),
+  CONSTRAINT "sync_vin_rule_rights_check" CHECK ("rights_scope" = 'B2B_DISTRIBUTION'),
   CONSTRAINT "sync_vin_rule_status_check" CHECK ("status" IN ('ACTIVE','DEPRECATED','ARCHIVED')),
   CONSTRAINT "sync_vin_rule_type_check" CHECK ("identifier_type" IN ('VIN','CHASSIS','FRAME'))
 );
