@@ -332,6 +332,34 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
             } as Record<string, string[]>)[entityType] ?? []) {
               expect(local?.[relation]).toEqual(record[relation]);
             }
+            // The master UUID must point to the exact same technical
+            // specification, not just an ACTIVE placeholder with the
+            // same name. Normalize PostgreSQL Decimal vs JSON number/string
+            // before comparing measured kW, kWh, voltage and ratios.
+            const evHardwareParityFields: Partial<Record<CanonicalSyncEntityType, string[]>> = {
+              VehicleBatteryPack: [
+                'code', 'name', 'storageKind', 'chemistry',
+                'grossCapacityKwh', 'usableCapacityKwh', 'nominalVoltageV',
+                'coolingType', 'version',
+              ],
+              VehicleChargingSystem: [
+                'code', 'name', 'acConnector', 'dcConnector',
+                'maxAcPowerKw', 'maxDcPowerKw', 'version',
+              ],
+              VehicleElectricMotor: [
+                'code', 'name', 'family', 'technology',
+                'ratedPowerKw', 'peakPowerKw', 'torqueNm', 'version',
+              ],
+              VehicleDriveUnit: [
+                'code', 'name', 'integrationKind', 'gearType',
+                'gearCount', 'reductionRatio', 'version',
+              ],
+            };
+            for (const field of evHardwareParityFields[entityType] ?? []) {
+              const normalizeScalar = (value: unknown) =>
+                value === null || value === undefined ? null : String(value);
+              expect(normalizeScalar(local?.[field])).toBe(normalizeScalar(record[field]));
+            }
           }
           if (entityType === 'VehicleConfiguration') {
             // Verify canonical UUID identity as well as technical field equality.
