@@ -437,24 +437,47 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
   );
 
   it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
-    'tombstones an approved manufacturer-rule identity without deleting seller state', async () => {
+    'revokes out-of-band tampered rule evidence and replays retirement without seller mutations', async () => {
       const before = (await readProducerRules(source, true))[0];
       expect(before, 'Synthetic manufacturer rule must be approved').toBeDefined();
+      // A forbidden direct evidence edit would otherwise leave the row
+      // ACTIVE+APPROVED; its immutable reviewedFingerprint no longer agrees.
+      // The producer MUST emit an ARCHIVE tombstone, not a modified UPSERT.
+      const alteredEvidence = 'UNREVIEWED-CONSUMER-CI-' + randomUUID();
       await source.$executeRaw`
         UPDATE "vehicle_identifier_rules"
-        SET "status" = 'DEPRECATED'::"MasterDataStatus", "version" = "version" + 1
+        SET "source_reference" = ${alteredEvidence}, "version" = "version" + 1
         WHERE "id" = ${before.id}::uuid
       `;
-      const result = await sync.executeIncrementalSync({ batchSize: 10 });
-      expect(result.status).toBe('SUCCESS');
-      expect(await consumer.referenceSyncVehicleIdentifierRule.findUniqueOrThrow({
+      const invalidated = await sync.executeIncrementalSync({ batchSize: 10 });
+      expect(invalidated.status).toBe('SUCCESS');
+      const mirrored = await consumer.referenceSyncVehicleIdentifierRule.findUniqueOrThrow({
         where: { id: before.id },
-      })).toMatchObject({ status: 'DEPRECATED' });
+      });
+      expect(mirrored).toMatchObject({
+        status: 'DEPRECATED', sourceReference: before.sourceReference,
+      });
+      expect(JSON.stringify(mirrored)).not.toContain(alteredEvidence);
       expect(await consumer.referenceSyncImportedRecord.findUniqueOrThrow({
         where: { entityType_entityId: {
           entityType: 'VehicleIdentifierRule', entityId: before.id,
         } },
       })).toMatchObject({ active: false });
+
+      // A second ARCHIVE following explicit retirement must not resurrect
+      // a locally revoked rule or advance the checkpoint incorrectly.
+      await source.$executeRaw`
+        UPDATE "vehicle_identifier_rules"
+        SET "status" = 'DEPRECATED'::"MasterDataStatus", "version" = "version" + 1
+        WHERE "id" = ${before.id}::uuid
+      `;
+      const retired = await sync.executeIncrementalSync({ batchSize: 10 });
+      expect(retired.status).toBe('SUCCESS');
+      expect(await consumer.referenceSyncVehicleIdentifierRule.findUniqueOrThrow({
+        where: { id: before.id },
+      })).toMatchObject({
+        status: 'DEPRECATED', sourceReference: before.sourceReference,
+      });
       // The mirror is local technical reference data only; never a listing.
       expect(await consumer.referenceSyncVehicleIdentifierRule.count({
         where: { status: 'ACTIVE' },
