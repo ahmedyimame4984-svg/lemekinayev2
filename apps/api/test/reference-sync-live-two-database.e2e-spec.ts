@@ -59,6 +59,46 @@ const DELEGATES: Record<CanonicalSyncEntityType, string> = {
   VehicleIdentifierRule: 'referenceSyncVehicleIdentifierRule',
 };
 
+type SourceIdentifierRule = {
+  id: string;
+  makeId: string;
+  modelId: string | null;
+  chassisPrefix: string | null;
+  sourceReference: string;
+  evidenceReference: string;
+  rightsReference: string | null;
+  approvedById: string | null;
+  version: number;
+};
+
+/** Consumer Prisma deliberately does not include the producer-owned rule model.
+ * Only the SOURCE disposable CI connection reads that table via typed SQL.
+ * Never add the producer's writable rule model to marketplace Prisma.
+ */
+async function readProducerRules(db: PrismaClient, approved: boolean): Promise<SourceIdentifierRule[]> {
+  if (approved) return db.$queryRaw<SourceIdentifierRule[]>`
+    SELECT "id", "make_id" AS "makeId", "model_id" AS "modelId",
+      "chassis_prefix" AS "chassisPrefix", "source_reference" AS "sourceReference",
+      "evidence_reference" AS "evidenceReference", "rights_reference" AS "rightsReference",
+      "approved_by_id" AS "approvedById", "version"
+    FROM "vehicle_identifier_rules"
+    WHERE "source_reference" = 'SYNTHETIC-CI-NOT-LICENSED'
+      AND "status" = 'ACTIVE'::"MasterDataStatus"
+      AND "review_status" = 'APPROVED'::"VehicleIdentifierRuleReviewStatus"
+    LIMIT 1
+  `;
+  return db.$queryRaw<SourceIdentifierRule[]>`
+    SELECT "id", "make_id" AS "makeId", "model_id" AS "modelId",
+      "chassis_prefix" AS "chassisPrefix", "source_reference" AS "sourceReference",
+      "evidence_reference" AS "evidenceReference", "rights_reference" AS "rightsReference",
+      "approved_by_id" AS "approvedById", "version"
+    FROM "vehicle_identifier_rules"
+    WHERE "chassis_prefix" = 'CIATD12'
+      AND "status" = 'DRAFT'::"MasterDataStatus"
+    LIMIT 1
+  `;
+}
+
 type TechnicalLink = {
   id?: string;
   electricMotorId?: string;
@@ -170,10 +210,7 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
 
     // The 30th entity must mirror ONLY source-approved/rights-cleared rules.
     // These test records are synthetic and are not legal manufacturer evidence.
-    const approvedRule = await source.vehicleIdentifierRule.findFirst({
-      where: { sourceReference: 'SYNTHETIC-CI-NOT-LICENSED',
-        status: 'ACTIVE', reviewStatus: 'APPROVED' },
-    });
+    const approvedRule = (await readProducerRules(source, true))[0] ?? null;
     expect(approvedRule, 'Missing approved synthetic ATD-11 source rule').not.toBeNull();
     const importedRule = await consumer.referenceSyncVehicleIdentifierRule.findUnique({
       where: { id: approvedRule!.id },
@@ -189,9 +226,7 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
     });
     expect(JSON.stringify(importedRule)).not.toContain(approvedRule!.rightsReference!);
     expect(JSON.stringify(importedRule)).not.toContain(approvedRule!.approvedById!);
-    const draftRule = await source.vehicleIdentifierRule.findFirst({
-      where: { chassisPrefix: 'CIATD12', status: 'DRAFT' },
-    });
+    const draftRule = (await readProducerRules(source, false))[0] ?? null;
     expect(draftRule).not.toBeNull();
     expect(await consumer.referenceSyncVehicleIdentifierRule.findUnique({
       where: { id: draftRule!.id },
@@ -403,14 +438,13 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
 
   it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
     'tombstones an approved manufacturer-rule identity without deleting seller state', async () => {
-      const before = await source.vehicleIdentifierRule.findFirstOrThrow({
-        where: { sourceReference: 'SYNTHETIC-CI-NOT-LICENSED',
-          status: 'ACTIVE', reviewStatus: 'APPROVED' },
-      });
-      await source.vehicleIdentifierRule.update({
-        where: { id: before.id },
-        data: { status: 'DEPRECATED', version: { increment: 1 } },
-      });
+      const before = (await readProducerRules(source, true))[0];
+      expect(before, 'Synthetic manufacturer rule must be approved').toBeDefined();
+      await source.$executeRaw`
+        UPDATE "vehicle_identifier_rules"
+        SET "status" = 'DEPRECATED'::"MasterDataStatus", "version" = "version" + 1
+        WHERE "id" = ${before.id}::uuid
+      `;
       const result = await sync.executeIncrementalSync({ batchSize: 10 });
       expect(result.status).toBe('SUCCESS');
       expect(await consumer.referenceSyncVehicleIdentifierRule.findUniqueOrThrow({
