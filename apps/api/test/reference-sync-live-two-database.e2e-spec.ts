@@ -519,6 +519,40 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
   );
 
   it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
+    'retains a valid independently approved manufacturer rule on incremental UPSERT', async () => {
+      const before = (await readProducerRules(source, true))[0];
+      expect(before, 'Approved disposable manufacturer rule fixture is required').toBeDefined();
+      const existing = await consumer.referenceSyncVehicleIdentifierRule.findUniqueOrThrow({
+        where: { id: before.id },
+      });
+      expect(existing.status).toBe('ACTIVE');
+
+      // A version-only revision leaves the independently approved evidence
+      // fingerprint unchanged. The feed must not mistake this UPSERT for a
+      // rights/evidence withdrawal when the private journal was serialized.
+      await source.$executeRaw`
+        UPDATE "vehicle_identifier_rules"
+        SET "version" = "version" + 1
+        WHERE "id" = ${before.id}::uuid
+      `;
+      const result = await sync.executeIncrementalSync({ batchSize: 10 });
+      expect(result.status).toBe('SUCCESS');
+      expect(result.processedCount).toBeGreaterThan(0);
+      expect(await consumer.referenceSyncVehicleIdentifierRule.findUniqueOrThrow({
+        where: { id: before.id },
+      })).toMatchObject({
+        status: 'ACTIVE', version: before.version + 1,
+        sourceReference: before.sourceReference,
+      });
+      expect(await consumer.referenceSyncImportedRecord.findUniqueOrThrow({
+        where: { entityType_entityId: {
+          entityType: 'VehicleIdentifierRule', entityId: before.id,
+        } },
+      })).toMatchObject({ active: true });
+    }, 180_000,
+  );
+
+  it.skipIf(process.env.ATD_LIVE_MUTATE_DISPOSABLE_SOURCE !== '1')(
     'revokes out-of-band tampered rule evidence and replays retirement without seller mutations', async () => {
       const before = (await readProducerRules(source, true))[0];
       expect(before, 'Synthetic manufacturer rule must be approved').toBeDefined();
