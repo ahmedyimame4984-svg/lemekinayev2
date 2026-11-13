@@ -924,11 +924,19 @@ describe.skipIf(!enabled)('ATD-06/07 LIVE producer HTTP + TWO PostgreSQL databas
       expect((await replacement.fetchChangeFeed(checkpoint.feedCursor, null, 10))
         .contractVersion).toBe('2.1.0');
 
+      // expires_at is a timestamp WITHOUT time zone. Prisma/Node treat its
+      // stored value as UTC; PostgreSQL NOW() would write the session-local
+      // wall clock (e.g. Africa/Nairobi, UTC+3), falsely keeping the key valid.
       await source.$executeRaw`
         UPDATE "b2b_api_keys"
-        SET "expires_at" = NOW() - INTERVAL '1 minute'
+        SET "expires_at" = timezone('UTC', clock_timestamp()) - INTERVAL '1 minute'
         WHERE "id" = ${replacementId}::uuid
       `;
+      const expiryCheck = await source.$queryRaw<Array<{ expiredInUtc: boolean }>>`
+        SELECT "expires_at" <= timezone('UTC', clock_timestamp()) AS "expiredInUtc"
+        FROM "b2b_api_keys" WHERE "id" = ${replacementId}::uuid
+      `;
+      expect(expiryCheck).toEqual([{ expiredInUtc: true }]);
       await expect(replacement.createSnapshot()).rejects.toThrow();
       // Consumer state must remain unchanged by failed credential requests.
       expect((await consumer.referenceSyncCheckpoint.findUniqueOrThrow({
