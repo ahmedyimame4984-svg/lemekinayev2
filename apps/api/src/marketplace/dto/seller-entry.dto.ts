@@ -3,10 +3,11 @@ import { ArticleIdentifierType, ProductCondition } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize, ArrayUnique, IsArray, IsEnum, IsInt, IsNumber,
-  IsOptional, IsString, IsUUID, MaxLength, Min, MinLength, ValidateIf,
+  IsOptional, IsString, IsUUID, Matches, MaxLength, Min, MinLength, ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { SubmitSellerArticleDto } from './seller-article.dto.js';
+import { SellerListingCommercialDto } from './seller-listing-commercial.dto.js';
 
 export enum SellerEntryKind {
   INVENTORY = 'INVENTORY',
@@ -80,6 +81,11 @@ export class SaveSellerEntryDto {
   @IsOptional() @IsInt() @Min(1)
   packageQuantity?: number;
 
+  @ApiPropertyOptional({ enum: ['PIECE', 'PAIR', 'SET', 'BOX', 'CARTON'],
+    description: 'Seller selling-unit classification (for example one BOX containing 4 pieces)' })
+  @IsOptional() @IsString() @Matches(/^(PIECE|PAIR|SET|BOX|CARTON)$/u)
+  packageUnit?: string;
+
   @ApiPropertyOptional({ minimum: 0 })
   @IsOptional() @IsInt() @Min(0)
   openingQuantity?: number;
@@ -104,4 +110,8 @@ export class SaveSellerEntryDto {
   @ApiPropertyOptional({ maxLength: 5000 })
   @IsOptional() @IsString() @MaxLength(5000)
   deliveryInformation?: string;
+
+  @ApiPropertyOptional({ type: SellerListingCommercialDto })
+  @IsOptional() @ValidateNested() @Type(() => SellerListingCommercialDto)
+  commercialDetails?: SellerListingCommercialDto;
 }

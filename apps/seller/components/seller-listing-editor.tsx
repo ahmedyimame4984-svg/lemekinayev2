@@ -1,5 +1,8 @@
 'use client';
 
+import { SellerListingCommercialFields } from './seller-listing-commercial-fields';
+import { validateSellerCommercial, DEFAULT_SELLER_COMMERCIAL_POLICY } from '@/lib/seller-commercial';
+import type { SellerCommercialDetails } from '@/lib/seller-commercial';
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { ClientApiError, getJson, patchJson, postJson } from '@/lib/client-api';
 import type { SellerOfferRequirements } from '@/lib/seller-inventory-listing';
@@ -58,6 +61,9 @@ export function SellerListingEditor({
   const [description, setDescription] = useState(listing.sellerDescription ?? '');
   const [warranty, setWarranty] = useState(listing.warrantyInformation ?? '');
   const [delivery, setDelivery] = useState(listing.deliveryInformation ?? '');
+  const [commercialDetails, setCommercialDetails] = useState<SellerCommercialDetails>(
+    listing.commercialDetails ?? {},
+  );
   const [title, setTitle] = useState(listing.sellerTitle ?? '');
   const [price, setPrice] = useState(String(listing.price?.sellingPrice ?? ''));
   const [busy, setBusy] = useState(false);
@@ -118,6 +124,11 @@ export function SellerListingEditor({
       throw new Error('Warranty information is required for this Product Type.');
     }
     const amount = price.trim() ? Number(price) : null;
+    const commercialError = validateSellerCommercial(
+      commercialDetails, offerRules?.commercial ?? DEFAULT_SELLER_COMMERCIAL_POLICY,
+      amount ?? Number(listing.price?.sellingPrice ?? 0),
+    );
+    if (commercialError) throw new Error(commercialError);
     const priceChanged = price.trim() !== String(listing.price?.sellingPrice ?? '');
     if (priceChanged && (amount === null || !/^\d+(?:\.\d{1,2})?$/u.test(price.trim()) || amount <= 0)) {
       throw new Error('Enter a positive selling price with at most two decimal places.');
@@ -128,6 +139,7 @@ export function SellerListingEditor({
       sellerDescription: description.trim() || null,
       ...(offerRules?.warranty !== 'NOT_APPLICABLE' ? { warrantyInformation: warranty.trim() || null } : {}),
       deliveryInformation: delivery.trim() || null,
+      commercialDetails,
       ...(priceChanged && amount !== null
         ? { sellingPrice: amount, ...(listing.price ? { priceVersion: listing.price.version } : {}) } : {}),
       ...(mediaSelection?.changed && !['DRAFT', 'REJECTED'].includes(listing.status) ? {
@@ -287,7 +299,10 @@ export function SellerListingEditor({
                 value={warranty} onChange={event => setWarranty(event.target.value)}/>
             </label>
           ) : null}
-          <label className="block text-sm font-medium">Delivery information
+          <SellerListingCommercialFields value={commercialDetails}
+             onChange={setCommercialDetails} policy={offerRules?.commercial}
+             disabled={busy || pendingReview}/>
+           <label className="block text-sm font-medium">Delivery information
             <textarea className={field} maxLength={5000} rows={2}
               value={delivery} onChange={event => setDelivery(event.target.value)}/>
           </label>

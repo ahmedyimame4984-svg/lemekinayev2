@@ -6,6 +6,7 @@ import {
 } from 'class-validator';
 import { SubmitSellerArticleDto } from './seller-article.dto.js';
 import { SellerEntryIdentifiersDto } from './seller-entry.dto.js';
+import { SellerListingCommercialDto } from './seller-listing-commercial.dto.js';
 
 /** One Save for Seller-facing Listing details; SKU and stock movement stay governed. */
 export class SaveSellerListingEditDto {
@@ -64,6 +65,10 @@ export class SaveSellerListingEditDto {
   @ApiPropertyOptional({ maxLength: 5000, nullable: true })
   @IsOptional() @IsString() @MaxLength(5000)
   deliveryInformation?: string | null;
+
+  @ApiPropertyOptional({ type: SellerListingCommercialDto, nullable: true })
+  @IsOptional() @ValidateNested() @Type(() => SellerListingCommercialDto)
+  commercialDetails?: SellerListingCommercialDto | null;
 }
 
 export class RejectListingEditRevisionDto {

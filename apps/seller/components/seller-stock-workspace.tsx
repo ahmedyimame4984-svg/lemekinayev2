@@ -19,6 +19,10 @@ import { SellerStockTransferPanel } from './seller-stock-transfer-panel';
 import { SellerLocationsPanel } from './seller-locations-panel';
 import { SellerListingEditor } from './seller-listing-editor';
 import { SellerListProductModal } from './seller-list-product-modal';
+import { SellerListingCommercialFields } from './seller-listing-commercial-fields';
+import type { SellerCommercialDetails } from '@/lib/seller-commercial';
+import { SELLING_UNITS } from '@/lib/seller-commercial';
+import { validateSellerCommercial, DEFAULT_SELLER_COMMERCIAL_POLICY } from '@/lib/seller-commercial';
 import { SellerArticleWorkspace } from './seller-article-workspace';
 import { SellerProductDraftCorrections } from './seller-product-draft-corrections';
 import { validateSellerInventoryEntry } from '@/lib/seller-inventory-entry';
@@ -85,12 +89,14 @@ export function SellerStockWorkspace() {
   const [articleToResume, setArticleToResume] = useState<string | null>(null);
   const [condition, setCondition] = useState('NEW');
   const [packageQuantity, setPackageQuantity] = useState('1');
+  const [packageUnit, setPackageUnit] = useState('PIECE');
   const [customSku, setCustomSku] = useState('');
   const [openingQuantity, setOpeningQuantity] = useState('0');
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
   const [warranty, setWarranty] = useState('');
   const [delivery, setDelivery] = useState('');
+  const [commercialDetails, setCommercialDetails] = useState<SellerCommercialDetails>({});
   const [stockProduct, setStockProduct] = useState<SellerProductRow | null>(null);
   const [transferProduct, setTransferProduct] = useState<SellerProductRow | null>(null);
   const [stockLocationId, setStockLocationId] = useState('');
@@ -172,12 +178,14 @@ export function SellerStockWorkspace() {
     setMatchConfirmed(false);
     setCondition('NEW');
     setPackageQuantity('1');
+    setPackageUnit('PIECE');
     setCustomSku('');
     setOpeningQuantity('0');
     setPrice('');
     setDescription('');
     setWarranty('');
     setDelivery('');
+    setCommercialDetails({});
     setMode(null);
     setArticleSource('existing');
     setEntryStep('find');
@@ -220,6 +228,7 @@ export function SellerStockWorkspace() {
     setEntryStep(product ? 'details' : initialProduct ? 'details' : 'find');
     setCondition(product?.condition ?? 'NEW');
     setPackageQuantity(String(product?.packageQuantity ?? 1));
+    setPackageUnit(product?.packageUnit ?? 'PIECE');
     setLocationId(storeId ?? defaultLocation?.id ?? '');
     setMode('listing-from-product');
     setTab('listing');
@@ -319,7 +328,7 @@ export function SellerStockWorkspace() {
       const result = await postJson<{ articleCreated: boolean; record: SellerProductRow }>('/api/seller/entry', {
         kind: 'INVENTORY', ...selection,
         vehicleConfigurationIds, sku: sellerEntrySku(),
-        condition, packageQuantity: quantity, locationId, openingQuantity: opening,
+        condition, packageQuantity: quantity, packageUnit, locationId, openingQuantity: opening,
       });
       resetForm();
       setTab('inventory');
@@ -344,6 +353,9 @@ export function SellerStockWorkspace() {
     if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) {
       setError('Enter a positive online selling price.'); return;
     }
+    const commercialError = validateSellerCommercial(commercialDetails,
+      offerRules.commercial ?? DEFAULT_SELLER_COMMERCIAL_POLICY, sellingPrice);
+    if (commercialError) { setError(commercialError); return; }
     const quantity = Number(packageQuantity);
     const opening = Number(openingQuantity);
     if (!selectedProduct) {
@@ -359,7 +371,7 @@ export function SellerStockWorkspace() {
         kind: 'LISTING', ...selection,
         vehicleConfigurationIds: selectedProduct ? [] : vehicleConfigurationIds,
         ...(selectedProduct ? { sellerProductId: selectedProduct.id, sku: selectedProduct.sku } :
-          { sku: sellerEntrySku(), packageQuantity: quantity, openingQuantity: opening }),
+          { sku: sellerEntrySku(), packageQuantity: quantity, packageUnit, openingQuantity: opening }),
         locationId,
         ...(offerRules.condition !== 'NOT_APPLICABLE' ? { condition } : {}),
         sellingPrice,
@@ -367,6 +379,7 @@ export function SellerStockWorkspace() {
         ...(offerRules.warranty !== 'NOT_APPLICABLE' && warranty.trim()
           ? { warrantyInformation: warranty.trim() } : {}),
         deliveryInformation: delivery.trim() || undefined,
+        commercialDetails,
       });
       resetForm();
       setTab('listing');
@@ -635,7 +648,18 @@ export function SellerStockWorkspace() {
                   disabled={Boolean(selectedProduct)}
                   onChange={event => setPackageQuantity(event.target.value)} className={inputClass}/>
               </label>
-              <ReactSelect label="Stock Location" options={locationOptions} value={locationId}
+              <label className="block text-sm font-medium">Selling unit
+                 <select className={inputClass} value={packageUnit}
+                   disabled={Boolean(selectedProduct)}
+                   onChange={event => setPackageUnit(event.target.value)}>
+                   {SELLING_UNITS.map(option =>
+                     <option key={option.id} value={option.id}>{option.label}</option>)}
+                 </select>
+                 <span className="mt-1 block text-xs font-normal text-slate-600">
+                   The delivery selections apply to one packaged selling unit.
+                 </span>
+               </label>
+               <ReactSelect label="Stock Location" options={locationOptions} value={locationId}
                 onChange={option => setLocationId(String(option?.value ?? ''))}
                 isClearable={false}/>
               {!selectedProduct ? (
@@ -668,7 +692,12 @@ export function SellerStockWorkspace() {
                   <label className="block text-sm font-medium">Delivery information
                     <input maxLength={5000} value={delivery} onChange={event => setDelivery(event.target.value)} className={inputClass}/>
                   </label>
-                  <label className="block text-sm font-medium md:col-span-2">Listing description
+                  <div className="md:col-span-2">
+                     <SellerListingCommercialFields value={commercialDetails}
+                       onChange={setCommercialDetails} policy={offerRules?.commercial}
+                       disabled={busy}/>
+                   </div>
+                   <label className="block text-sm font-medium md:col-span-2">Listing description
                     <textarea maxLength={5000} rows={3} value={description} onChange={event => setDescription(event.target.value)}
                       className={inputClass}/>
                   </label>

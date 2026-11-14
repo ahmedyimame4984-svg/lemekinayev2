@@ -1,4 +1,6 @@
 import type { SellerProductRow } from './seller-stock-contracts';
+import type { SellerCommercialDetails, SellerCommercialPolicy } from './seller-commercial';
+import { DEFAULT_SELLER_COMMERCIAL_POLICY, validateSellerCommercial } from './seller-commercial';
 
 export type OfferRequirement = 'REQUIRED' | 'OPTIONAL' | 'NOT_APPLICABLE';
 
@@ -7,6 +9,7 @@ export interface SellerOfferRequirements {
   stock: OfferRequirement;
   condition: OfferRequirement;
   warranty: OfferRequirement;
+  commercial?: SellerCommercialPolicy;
 }
 
 export interface InventoryListingDetails {
@@ -16,6 +19,7 @@ export interface InventoryListingDetails {
   description: string;
   warranty: string;
   delivery: string;
+  commercialDetails?: SellerCommercialDetails;
 }
 
 /** The Listing is associated with one existing Inventory SKU; no stock is moved. */
@@ -57,6 +61,10 @@ export function validateInventoryListing(
   if (requirements.warranty === 'REQUIRED' && !details.warranty.trim()) {
     return 'Warranty information is required for this Product Type.';
   }
+  const commercialError = validateSellerCommercial(
+    details.commercialDetails ?? {}, requirements.commercial ?? DEFAULT_SELLER_COMMERCIAL_POLICY, amount,
+  );
+  if (commercialError) return commercialError;
   if (details.description.length > 5000 ||
       details.warranty.length > 5000 || details.delivery.length > 5000) {
     return 'Description, warranty and delivery information must each be at most 5,000 characters.';
@@ -79,6 +87,7 @@ export function inventoryListingPayload(
       ? {} : { condition: product.condition }),
     sellerTitle: details.title.trim(),
     sellingPrice: Number(details.sellingPrice),
+    ...(details.commercialDetails ? { commercialDetails: details.commercialDetails } : {}),
     ...(details.description.trim()
       ? { sellerDescription: details.description.trim() } : {}),
     ...(requirements.warranty !== 'NOT_APPLICABLE' && details.warranty.trim()

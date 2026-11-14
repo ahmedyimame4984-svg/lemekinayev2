@@ -33,6 +33,7 @@ import type {
 } from './dto/listing.dto.js';
 import { SellerService } from './seller.service.js';
 import { assertSellerListingMediaReady } from './seller-listing-media-readiness.js';
+import { DEFAULT_COMMERCIAL_POLICY, commercialPolicyForProductType, validateSellerCommercialDetails, discountPrice } from './seller-listing-commercial.js';
 
 const listingSelect = {
   id: true,
@@ -47,6 +48,7 @@ const listingSelect = {
   warrantyInformation: true,
   deliveryInformation: true,
   commercialTerms: true,
+  commercialDetails: true,
   status: true,
   rejectionReason: true,
   version: true,
@@ -153,7 +155,10 @@ export class ListingService {
           },
         ],
       },
-      select: { schemaVersion: { select: { snapshot: true } } },
+      select: { schemaVersion: { select: { snapshot: true } },
+        productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true,
+          discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
+      },
     });
     if (!article) {
       throw new BadRequestException({
@@ -161,7 +166,11 @@ export class ListingService {
         message: 'Select an Active Article or your own Draft Article before listing.',
       });
     }
-    return this.parseOfferRequirements(article.schemaVersion.snapshot);
+    return {
+      ...this.parseOfferRequirements(article.schemaVersion.snapshot),
+      commercial: article.productType
+        ? commercialPolicyForProductType(article.productType) : DEFAULT_COMMERCIAL_POLICY,
+    };
   }
 
   async createForSellerUser(
@@ -188,6 +197,7 @@ export class ListingService {
         articleSource: true,
         sourceSellerId: true,
         schemaVersion: { select: { snapshot: true } },
+            productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
       },
     });
     const canPrepareOffer =
@@ -206,6 +216,15 @@ export class ListingService {
       product.schemaVersion.snapshot,
     );
     const price = this.resolveCreatePrice(input);
+    const details = validateSellerCommercialDetails(input.commercialDetails,
+      product.productType ? commercialPolicyForProductType(product.productType) : DEFAULT_COMMERCIAL_POLICY,
+      false, price?.sellingPrice);
+    if (price && details.discountType) {
+      if (input.promotionalPrice !== undefined) {
+        throw new BadRequestException('Choose a discount or a direct promotional price, not both.');
+      }
+      price.promotionalPrice = discountPrice(price.sellingPrice, details);
+    }
     this.assertOfferFieldsApplicable({
       requirements,
       condition: input.condition ?? null,
@@ -311,6 +330,7 @@ export class ListingService {
               warrantyInformation: input.warrantyInformation?.trim() || null,
               deliveryInformation: input.deliveryInformation?.trim() || null,
               commercialTerms: input.commercialTerms?.trim() || null,
+              commercialDetails: details as Prisma.InputJsonObject,
               status: SellerListingStatus.DRAFT,
               createdById: userId,
               updatedById: userId,
@@ -419,9 +439,12 @@ export class ListingService {
         sellerSku: true,
         condition: true,
         warrantyInformation: true,
+        commercialDetails: true,
+        price: { select: { id: true, version: true, sellingPrice: true } },
         product: {
           select: {
             schemaVersion: { select: { snapshot: true } },
+            productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
           },
         },
       },
@@ -461,6 +484,11 @@ export class ListingService {
     const requirements = this.parseOfferRequirements(
       existing.product.schemaVersion.snapshot,
     );
+    const updatedCommercial = input.commercialDetails === undefined ? undefined
+      : validateSellerCommercialDetails(input.commercialDetails,
+          existing.product.productType
+            ? commercialPolicyForProductType(existing.product.productType) : DEFAULT_COMMERCIAL_POLICY,
+          false, existing.price ? Number(existing.price.sellingPrice) : null);
     this.assertOfferFieldsApplicable({
       requirements,
       condition:
@@ -511,6 +539,8 @@ export class ListingService {
               ...(input.commercialTerms !== undefined
                 ? { commercialTerms: input.commercialTerms?.trim() || null }
                 : {}),
+              ...(updatedCommercial !== undefined
+                ? { commercialDetails: updatedCommercial as Prisma.InputJsonObject } : {}),
               status: existing.status === SellerListingStatus.REJECTED
                 ? SellerListingStatus.DRAFT : existing.status,
               rejectionReason: existing.status === SellerListingStatus.REJECTED ? null : undefined,
@@ -519,6 +549,22 @@ export class ListingService {
             },
           });
           if (result.count !== 1) throw this.versionConflict();
+          if (updatedCommercial !== undefined && existing.price) {
+            const oldDiscount = existing.commercialDetails &&
+              typeof existing.commercialDetails === 'object' &&
+              !Array.isArray(existing.commercialDetails) &&
+              'discountType' in existing.commercialDetails;
+            if (updatedCommercial.discountType || oldDiscount) {
+              const priceUpdated = await transaction.listingPrice.updateMany({
+                where: { id: existing.price.id, version: existing.price.version },
+                data: {
+                  promotionalPrice: discountPrice(Number(existing.price.sellingPrice), updatedCommercial),
+                  version: { increment: 1 },
+                },
+              });
+              if (priceUpdated.count !== 1) throw this.versionConflict();
+            }
+          }
           await transaction.auditLog.create({
             data: {
               actorId: userId,
@@ -552,9 +598,11 @@ export class ListingService {
         id: true,
         version: true,
         status: true,
+        commercialDetails: true,
         product: {
           select: {
             schemaVersion: { select: { snapshot: true } },
+            productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
           },
         },
         price: {
@@ -633,8 +681,15 @@ export class ListingService {
     const sellingPrice =
       input.sellingPrice ??
       (existing.price ? Number(existing.price.sellingPrice) : 0);
-    const promotionalPrice =
-      input.promotionalPrice !== undefined
+    const storedDetails = validateSellerCommercialDetails(existing.commercialDetails,
+      existing.product.productType ? commercialPolicyForProductType(existing.product.productType)
+        : DEFAULT_COMMERCIAL_POLICY, false, sellingPrice);
+    if (storedDetails.discountType && input.promotionalPrice !== undefined) {
+      throw new BadRequestException('Remove the listing discount before setting a direct promotional price.');
+    }
+    const promotionalPrice = storedDetails.discountType
+      ? discountPrice(sellingPrice, storedDetails)
+      : input.promotionalPrice !== undefined
         ? input.promotionalPrice
         : existing.price?.promotionalPrice === null ||
             existing.price?.promotionalPrice === undefined
@@ -665,8 +720,8 @@ export class ListingService {
                 ...(input.sellingPrice !== undefined
                   ? { sellingPrice: input.sellingPrice }
                   : {}),
-                ...(input.promotionalPrice !== undefined
-                  ? { promotionalPrice: input.promotionalPrice }
+                ...(input.promotionalPrice !== undefined || storedDetails.discountType
+                  ? { promotionalPrice }
                   : {}),
                 ...(input.currency !== undefined
                   ? { currency }
@@ -750,6 +805,7 @@ export class ListingService {
       select: {
         id: true, version: true, status: true, reviewIntent: true,
         productId: true, condition: true, warrantyInformation: true,
+        commercialDetails: true,
         price: { select: { sellingPrice: true } },
         inventories: { select: { id: true } },
       },
@@ -766,6 +822,7 @@ export class ListingService {
       select: {
         status: true, sourceSellerId: true, articleSource: true,
         schemaVersion: { select: { snapshot: true } },
+            productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
       },
     });
     if (!product || !(product.status === ProductStatus.ACTIVE ||
@@ -781,6 +838,9 @@ export class ListingService {
       price: existing.price,
       inventoryCount: existing.inventories.length,
     });
+    validateSellerCommercialDetails(existing.commercialDetails,
+      product.productType ? commercialPolicyForProductType(product.productType) : DEFAULT_COMMERCIAL_POLICY,
+      true, existing.price ? Number(existing.price.sellingPrice) : null);
     await assertSellerListingMediaReady(this.database, id);
 
     if (!existing.reviewIntent) {
@@ -820,6 +880,7 @@ export class ListingService {
         status: true,
         condition: true,
         warrantyInformation: true,
+        commercialDetails: true,
         price: { select: { sellingPrice: true } },
         inventories: { select: { id: true } },
       },
@@ -840,6 +901,7 @@ export class ListingService {
       select: {
         id: true,
         schemaVersion: { select: { snapshot: true } },
+            productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
       },
     });
     if (!product) {
@@ -858,6 +920,9 @@ export class ListingService {
       inventoryCount: existing.inventories.length,
     });
 
+    validateSellerCommercialDetails(existing.commercialDetails,
+      product.productType ? commercialPolicyForProductType(product.productType) : DEFAULT_COMMERCIAL_POLICY,
+      true, existing.price ? Number(existing.price.sellingPrice) : null);
     await assertSellerListingMediaReady(this.database, id);
     await this.transition(
       id,
@@ -892,6 +957,7 @@ export class ListingService {
         },
         condition: true,
         warrantyInformation: true,
+        commercialDetails: true,
         price: { select: { sellingPrice: true } },
         inventories: {
           select: {
@@ -926,6 +992,7 @@ export class ListingService {
       select: {
         id: true,
         schemaVersion: { select: { snapshot: true } },
+            productType: { select: { packageDimensionsRequirement: true, packageWeightRequirement: true, discountRequirement: true, transportRequirement: true, specialHandlingRequirement: true } },
       },
     });
     if (!product) {
@@ -943,6 +1010,9 @@ export class ListingService {
       inventoryCount: existing.inventories.length,
     });
 
+    validateSellerCommercialDetails(existing.commercialDetails,
+      product.productType ? commercialPolicyForProductType(product.productType) : DEFAULT_COMMERCIAL_POLICY,
+      true, existing.price ? Number(existing.price.sellingPrice) : null);
     await assertSellerListingMediaReady(this.database, id);
 
     const available = existing.inventories.reduce(
@@ -1355,6 +1425,7 @@ export class ListingService {
       warrantyInformation: record.warrantyInformation,
       deliveryInformation: record.deliveryInformation,
       commercialTerms: record.commercialTerms,
+      commercialDetails: record.commercialDetails as unknown as SellerListingResponseDto['commercialDetails'],
       status: record.status,
       rejectionReason: record.rejectionReason,
       version: record.version,
