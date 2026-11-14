@@ -16,14 +16,13 @@ describe('VehicleAdminNav information architecture', () => {
     ]);
   });
 
-  it('names the deep-maintenance destination Advanced masters', () => {
+  it('excludes retired master-authoring destinations from primary navigation', () => {
     expect(
       VEHICLE_ADMIN_NAV_ITEMS.find((item) => item.key === 'advanced-masters'),
-    ).toEqual({
-      key: 'advanced-masters',
-      label: 'Advanced masters',
-      href: '/admin/vehicles/configurations/masters',
-    });
+    ).toBeUndefined();
+    expect(
+      VEHICLE_ADMIN_NAV_ITEMS.find((item) => item.key === 'generation-families'),
+    ).toBeUndefined();
   });
 
   it('keeps every Vehicle Admin destination unique', () => {

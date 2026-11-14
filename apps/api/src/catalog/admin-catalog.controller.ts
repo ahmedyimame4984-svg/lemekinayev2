@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import {
   Body,
   Controller,
@@ -17,6 +19,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  PickType,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AccountType } from '@prisma/client';
@@ -167,12 +170,15 @@ import {
   PublishProductTypeSchemaDto,
 } from './dto/product-type-schema.dto.js';
 
+export class UpdateMarketplaceProductTypeRulesDto extends PickType(UpdateProductTypeDto, ["version","brandRequirement","identifierRequirement","gtinRequirement","oemReferenceRequirement","crossReferenceRequirement","fitmentRequirement","imageRequirement","minimumImageCount","maximumImageCount","documentRequirement","minimumDocumentCount","priceRequirement","stockRequirement","conditionRequirement","warrantyRequirement"] as const) {}
+
 @ApiTags('Admin catalog')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Authentication is required' })
 @ApiForbiddenResponse({ description: 'catalog.manage is required' })
 @RequireAccountTypes(AccountType.ADMIN)
 @RequirePermissions('catalog.manage')
+@UseGuards(CanonicalReferenceReadOnlyGuard)
 @Controller('admin/catalog')
 export class AdminCatalogController {
   constructor(
@@ -495,6 +501,16 @@ export class AdminCatalogController {
     @CurrentPrincipal() principal: AuthPrincipal,
   ): Promise<ProductTypeResponseDto> {
     return this.catalog.createProductType(input, principal.userId);
+  }
+
+  @Patch('product-types/:id/marketplace-rules')
+  @ApiOperation({ summary: 'Update marketplace-owned Product Type requirements without changing canonical identity' })
+  updateMarketplaceRules(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: UpdateMarketplaceProductTypeRulesDto,
+    @CurrentPrincipal() principal: AuthPrincipal,
+  ): Promise<ProductTypeResponseDto> {
+    return this.catalog.updateProductType(id, input, principal.userId);
   }
 
   @Patch('product-types/:id')

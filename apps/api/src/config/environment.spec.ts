@@ -12,7 +12,7 @@ describe('validateEnvironment', () => {
     ).toEqual({
       databaseUrl: 'postgresql://user:pass@localhost/app',
       nodeEnv: 'development',
-      port: 3000,
+      port: 5000,
       authSessionTtlMinutes: 1440,
       authAdminSessionTtlMinutes: 30,
       authAdminRefreshTtlMinutes: 480,

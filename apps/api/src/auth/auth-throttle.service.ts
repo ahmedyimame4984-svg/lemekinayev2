@@ -74,7 +74,7 @@ export class AuthThrottleService {
       } catch (error) {
         if (!(
           error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2034'
+          (error.code === 'P2034' || error.code === 'P2028')
         )) {
           throw error;
         }

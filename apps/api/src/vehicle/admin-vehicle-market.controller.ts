@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import {
   Body,
   Controller,
@@ -27,6 +29,7 @@ import { VehicleMarketService } from './vehicle-market.service.js';
 @ApiBearerAuth()
 @RequireAccountTypes(AccountType.ADMIN)
 @RequirePermissions('vehicle.manage')
+@UseGuards(CanonicalReferenceReadOnlyGuard)
 @Controller('admin/vehicles')
 export class AdminVehicleMarketController {
   constructor(private readonly markets: VehicleMarketService) {}

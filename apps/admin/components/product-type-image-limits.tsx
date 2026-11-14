@@ -57,11 +57,11 @@ export function ProductTypeImageLimits({ productType, onProductTypeChange }: {
     setMessage('');
     try {
       const updated = await patchJson<ProductTypeRecord>(
-        `/api/admin/catalog/product-types/${productType.id}`,
+        `/api/admin/catalog/product-types/${productType.id}/marketplace-rules`,
         { version: productType.version, ...rules },
       );
       onProductTypeChange(updated);
-      setMessage('Image limits saved. Publish a new Product Type schema version before new Articles use them.');
+      setMessage('Image requirements saved for Lemekinaye marketplace. Canonical Product Type publication is managed in Autotechdoc.');
     } catch (cause) {
       setError(cause instanceof ClientApiError ? cause.message : 'Could not save the image policy. Reload and retry.');
     } finally {
@@ -73,7 +73,7 @@ export function ProductTypeImageLimits({ productType, onProductTypeChange }: {
     <section aria-label="Product Type Seller Listing image policy" className="product-type-requirements">
       <div className="product-type-requirements__group-heading">
         <strong>Seller Listing image requirements</strong>
-        <small>Rules apply to Seller Listing photos and are frozen into new Articles when the Product Type is published.</small>
+        <small>Lemekinaye marketplace-only image rules; canonical Product Type identity and publication are managed in Autotechdoc.</small>
       </div>
       <div className="product-type-requirements__group-grid">
         <fieldset className="field" disabled={saving}>

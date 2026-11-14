@@ -894,6 +894,7 @@ export function SellerStockWorkspace() {
           <SellerListingEditor
             key={editListing.id}
             listing={editListing}
+            article={null}
             onDone={load}
             onClose={() => setEditListing(null)}
           />

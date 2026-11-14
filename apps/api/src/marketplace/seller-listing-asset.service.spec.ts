@@ -13,16 +13,23 @@ function arrange(input: { status?: SellerListingStatus; image?: ProductTypeRequi
   const tx = {
     sellerListing: {
       findUnique: vi.fn().mockResolvedValue({ id: listingId }),
-      findFirst: vi.fn().mockResolvedValue(input.owner === false ? null : {
-        id: listingId, sellerId,
-        status: input.status ?? SellerListingStatus.DRAFT,
-        product: {
-          imageRequirement: input.image ?? ProductTypeRequirementLevel.REQUIRED,
-          minimumImageCount: 1,
-          maximumImageCount: input.maximumImages ?? 20,
-          documentRequirement: ProductTypeRequirementLevel.OPTIONAL,
-          minimumDocumentCount: 0,
-        },
+      findFirst: vi.fn().mockImplementation(({ where }: any = {}) => {
+        if (input.owner === false) return Promise.resolve(null);
+        const currentStatus = input.status ?? SellerListingStatus.DRAFT;
+        if (where?.status?.in && !where.status.in.includes(currentStatus)) {
+          return Promise.resolve(null);
+        }
+        return Promise.resolve({
+          id: listingId, sellerId,
+          status: currentStatus,
+          product: {
+            imageRequirement: input.image ?? ProductTypeRequirementLevel.REQUIRED,
+            minimumImageCount: 1,
+            maximumImageCount: input.maximumImages ?? 20,
+            documentRequirement: ProductTypeRequirementLevel.OPTIONAL,
+            minimumDocumentCount: 0,
+          },
+        });
       }),
     },
     sellerListingRevision: { findFirst: vi.fn().mockResolvedValue(null) },

@@ -85,6 +85,7 @@ export function ProductTypeTechnicalAttributes({
       fitmentRequirement: initialProductType.fitmentRequirement,
       imageRequirement: initialProductType.imageRequirement,
       minimumImageCount: initialProductType.minimumImageCount,
+      maximumImageCount: initialProductType.maximumImageCount,
       documentRequirement: initialProductType.documentRequirement,
       minimumDocumentCount: initialProductType.minimumDocumentCount,
       priceRequirement: initialProductType.priceRequirement,
@@ -114,6 +115,7 @@ export function ProductTypeTechnicalAttributes({
       fitmentRequirement: initialProductType.fitmentRequirement,
       imageRequirement: initialProductType.imageRequirement,
       minimumImageCount: initialProductType.minimumImageCount,
+      maximumImageCount: initialProductType.maximumImageCount,
       documentRequirement: initialProductType.documentRequirement,
       minimumDocumentCount: initialProductType.minimumDocumentCount,
       priceRequirement: initialProductType.priceRequirement,
@@ -632,7 +634,7 @@ export function ProductTypeTechnicalAttributes({
         ...requirements,
       };
       const updated = await patchJson<ProductTypeRecord>(
-        `/api/admin/catalog/product-types/${productType.id}`,
+        `/api/admin/catalog/product-types/${productType.id}/marketplace-rules`,
         input,
       );
       replaceProductType(updated);
@@ -645,6 +647,7 @@ export function ProductTypeTechnicalAttributes({
         fitmentRequirement: updated.fitmentRequirement,
         imageRequirement: updated.imageRequirement,
         minimumImageCount: updated.minimumImageCount,
+        maximumImageCount: updated.maximumImageCount,
         documentRequirement: updated.documentRequirement,
         minimumDocumentCount: updated.minimumDocumentCount,
         priceRequirement: updated.priceRequirement,
@@ -665,7 +668,7 @@ export function ProductTypeTechnicalAttributes({
   async function publishProductType() {
     if (!readiness.publishable) return;
     if (unsavedCount > 0 || bulkSaving) {
-      setActionError('Save All Changes before publishing.');
+      setActionError('Save All Changes before continuing.');
       return;
     }
 
@@ -756,7 +759,7 @@ export function ProductTypeTechnicalAttributes({
       <div className="product-type-technical__heading" id="product-type-definition">
         <div>
           <span className="eyebrow">Technical definition</span>
-          {editingDefinition ? (
+          {false && editingDefinition ? (
             <div className="product-type-definition-edit">
               <label className="field">
                 <span className="field__label">Product Type name</span>
@@ -804,13 +807,7 @@ export function ProductTypeTechnicalAttributes({
             <>
               <div className="product-type-definition-title">
                 <h2>{productType.name}</h2>
-                <button
-                  className="button button--quiet"
-                  type="button"
-                  onClick={() => setEditingDefinition(true)}
-                >
-                  Edit definition
-                </button>
+
               </div>
               <p>{productType.description || 'No description yet.'}</p>
             </>
@@ -1281,7 +1278,7 @@ export function ProductTypeTechnicalAttributes({
         )}
       </section>
 
-      <section className="product-type-publish-panel" id="product-type-publish">
+      <section className="product-type-publish-panel" style={{ display: 'none' }} id="product-type-publish">
         <div>
           <span className="eyebrow">Review & publish</span>
           <h3>Product Type readiness</h3>

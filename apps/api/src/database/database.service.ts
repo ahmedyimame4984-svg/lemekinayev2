@@ -10,7 +10,13 @@ export class DatabaseService
 {
   constructor() {
     const { databaseUrl } = validateEnvironment(process.env);
-    super({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
+    super({
+      adapter: new PrismaPg({ connectionString: databaseUrl }),
+      transactionOptions: {
+        maxWait: 20_000,
+        timeout: 30_000,
+      },
+    });
   }
 
   async onModuleInit(): Promise<void> {

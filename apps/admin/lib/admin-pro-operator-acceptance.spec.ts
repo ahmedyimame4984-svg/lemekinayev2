@@ -7,7 +7,7 @@ const read = (relativePath: string) =>
 describe('Admin Pro operator acceptance — automated evidence', () => {
   it.each([
     ['../app/admin/catalog/product-types/page.tsx', 'ProductTypesManagement'],
-    ['../app/admin/vehicles/configurations/page.tsx', 'VehicleBuilder'],
+    ['../app/admin/vehicles/configurations/page.tsx', 'CanonicalVehicleLibrary'],
     ['../app/admin/marketplace/sellers/page.tsx', 'SellersManagement'],
     ['../app/admin/sourcing/suppliers/page.tsx', 'SupplierMasterManagement'],
     ['../app/admin/audit/page.tsx', 'AuditHistoryManagement'],

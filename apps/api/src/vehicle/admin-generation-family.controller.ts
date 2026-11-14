@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { CanonicalReferenceReadOnlyGuard } from '../reference-sync/canonical-reference-readonly.guard.js';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AccountType } from '@prisma/client';
@@ -16,6 +18,7 @@ import { GenerationFamilyService } from './generation-family.service.js';
 @ApiForbiddenResponse({ description: 'Admin vehicle.manage permission required' })
 @RequireAccountTypes(AccountType.ADMIN)
 @RequirePermissions('vehicle.manage')
+@UseGuards(CanonicalReferenceReadOnlyGuard)
 @Controller('admin/vehicles/generation-families')
 export class AdminGenerationFamilyController {
   constructor(private readonly families: GenerationFamilyService) {}

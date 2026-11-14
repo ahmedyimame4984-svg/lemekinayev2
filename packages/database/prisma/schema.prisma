@@ -896,6 +896,7 @@ model ProductType {
   attributeAssignments ProductTypeAttributeAssignment[]
   criteriaTemplateTargets ProductTypeCriteriaTemplateTarget[]
   schemaVersions ProductTypeSchemaVersion[] @relation("ProductTypeSchemaVersions")
+  canonicalReferenceSchemas ReferenceSyncCanonicalProductTypeSchema[]
   currentSchemaVersion ProductTypeSchemaVersion? @relation("ProductTypeCurrentSchema", fields: [currentSchemaVersionId], references: [id], onDelete: Restrict)
   products Product[]
 
@@ -2105,6 +2106,7 @@ model VehicleMake {
   createdBy   User             @relation("VehicleMakeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy   User             @relation("VehicleMakeUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   models      VehicleModel[]
+  syncedIdentifierRules ReferenceSyncVehicleIdentifierRule[] @relation("SyncedRuleMake")
   configurations VehicleConfiguration[]
   compatibilities VehicleCompatibility[]
 
@@ -2129,6 +2131,7 @@ model VehicleModel {
   derivatives VehicleModelDerivative[]
   generationFamilies VehicleGenerationFamily[]
   generations VehicleGeneration[]
+  syncedIdentifierRules ReferenceSyncVehicleIdentifierRule[] @relation("SyncedRuleModel")
   configurations VehicleConfiguration[]
   compatibilities VehicleCompatibility[]
 
@@ -2519,6 +2522,7 @@ model VehicleConfiguration {
   compatibilities     VehicleCompatibility[]
   productArticles      ProductVehicleArticle[]
   vehicleProfiles     VehicleProfile[]
+  syncedIdentifierRules ReferenceSyncVehicleIdentifierRule[] @relation("SyncedRuleConfig")
   identifierMappings  VehicleIdentifierMapping[]
 
   @@index([makeId, modelId, status])
@@ -2700,4 +2704,158 @@ model VehicleCompatibility {
   @@index([bodyTypeId, marketId])
   @@index([steeringSide, driveType])
   @@map("vehicle_compatibilities")
+}
+
+model ReferenceSyncCheckpoint {
+  id                String                     @id @map("id") @db.VarChar(60)
+  contractVersion   String                     @default("2.0.0") @map("contract_version") @db.VarChar(12)
+  snapshotStatus    String                     @default("NOT_STARTED") @map("snapshot_status") @db.VarChar(30)
+  scheduleEnabled   Boolean                    @default(true) @map("schedule_enabled")
+  intervalMinutes   Int                        @default(5) @map("interval_minutes")
+  snapshotId        String?                    @map("snapshot_id") @db.VarChar(60)
+  snapshotThrough   String?                    @map("snapshot_through") @db.VarChar(30)
+  snapshotRecordCount Int?                    @map("snapshot_record_count")
+  snapshotContentSha256 String?             @map("snapshot_content_sha256") @db.VarChar(64)
+  snapshotAppliedDigest String?             @map("snapshot_applied_digest") @db.VarChar(64)
+  snapshotExpiresAt DateTime?                  @map("snapshot_expires_at")
+  batchThrough      String?                    @map("batch_through") @db.VarChar(30)
+  importedRecords   ReferenceSyncImportedRecord[]
+  feedCursor        String?                    @map("feed_cursor") @db.VarChar(200)
+  lastSnapshotAt    DateTime?                  @map("last_snapshot_at")
+  lastIncrementalAt DateTime?                  @map("last_incremental_at")
+  lastSuccessAt     DateTime?                  @map("last_success_at")
+  lastFailureAt     DateTime?                  @map("last_failure_at")
+  lastError         String?                    @map("last_error")
+  appliedCount      Int                        @default(0) @map("applied_count")
+  skippedCount      Int                        @default(0) @map("skipped_count")
+  failedCount       Int                        @default(0) @map("failed_count")
+  workerId          String?                    @map("worker_id") @db.VarChar(100)
+  lockedUntil       DateTime?                  @map("locked_until")
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
+  entityStates      ReferenceSyncEntityState[]
+
+  @@map("reference_sync_checkpoints")
+}
+
+model ReferenceSyncEntityState {
+  id                  String                  @id @default(uuid()) @db.Uuid
+  checkpointId        String                  @map("checkpoint_id") @db.VarChar(60)
+  entityType          String                  @map("entity_type") @db.VarChar(60)
+  lastCompletedCursor String?                 @map("last_completed_cursor") @db.VarChar(200)
+  status              String                  @default("PENDING") @db.VarChar(30)
+  recordCount         Int                     @default(0) @map("record_count")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+  checkpoint          ReferenceSyncCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@unique([checkpointId, entityType])
+  @@index([checkpointId, status])
+  @@map("reference_sync_entity_states")
+}
+
+model ReferenceSyncLog {
+  id               String    @id @default(uuid()) @db.Uuid
+  syncType         String    @map("sync_type") @db.VarChar(30)
+  status           String    @db.VarChar(30)
+  startedAt        DateTime  @default(now()) @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+  cursorBefore     String?   @map("cursor_before") @db.VarChar(200)
+  cursorAfter      String?   @map("cursor_after") @db.VarChar(200)
+  recordsProcessed Int       @default(0) @map("records_processed")
+  recordsApplied   Int       @default(0) @map("records_applied")
+  recordsSkipped   Int       @default(0) @map("records_skipped")
+  error            String?
+  details          Json?
+
+  @@index([syncType, status, startedAt])
+  @@map("reference_sync_logs")
+}
+
+
+
+// Source-managed identities only. Never touches local articles, listings, stock or
+// consumer-customized Product Type/Attribute policies when a source row retires.
+model ReferenceSyncImportedRecord {
+  entityType   String                     @map("entity_type") @db.VarChar(60)
+  entityId     String                     @map("entity_id") @db.Uuid
+  localEntityId String?                    @map("local_entity_id") @db.Uuid
+  checkpointId String                     @default("autotechdoc-canonical-sync") @map("checkpoint_id") @db.VarChar(60)
+  snapshotId   String?                    @map("snapshot_id") @db.VarChar(60)
+  active       Boolean                    @default(true)
+  lastSequence String?                    @map("last_sequence") @db.VarChar(30)
+  updatedAt    DateTime                   @updatedAt @map("updated_at")
+  checkpoint   ReferenceSyncCheckpoint    @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@id([entityType, entityId])
+  @@index([checkpointId, entityType, snapshotId, active])
+  @@map("reference_sync_imported_records")
+}
+
+
+/** AutotechDoc Product Type v3 suggestions are reference data. They must never
+ * replace marketplace ProductTypeSchemaVersion snapshots bound to Articles.
+ */
+model ReferenceSyncCanonicalProductTypeSchema {
+  id            String      @id @db.Uuid
+  productTypeId String      @map("product_type_id") @db.Uuid
+  schemaVersion Int         @map("schema_version")
+  schemaHash    String      @map("schema_hash") @db.Char(64)
+  snapshot      Json
+  publishedAt   DateTime    @map("published_at")
+  active        Boolean     @default(true)
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  productType   ProductType @relation(fields: [productTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([productTypeId, schemaVersion])
+  @@index([productTypeId, active, schemaVersion])
+  @@map("reference_sync_canonical_product_type_schemas")
+}
+
+/** Signed webhook event IDs are kept across worker processes to prevent
+ * repeated authenticated hints from amplifying synchronization requests.
+ */
+
+/// Read-only, source-owned, independently reviewed manufacturer VIN/chassis rules.
+/// Never create local seller listings, prices or automotive identity from these rows.
+model ReferenceSyncVehicleIdentifierRule {
+  id                String                      @id @db.Uuid
+  identifierType    VehicleIdentificationMethod @map("identifier_type")
+  specificity       String                      @db.VarChar(32)
+  marketCode        String?                     @map("market_code") @db.VarChar(16)
+  wmi               String?                     @db.VarChar(3)
+  vdsPattern        String?                     @map("vds_pattern") @db.VarChar(5)
+  plantCode         String?                     @map("plant_code") @db.VarChar(1)
+  chassisPrefix     String?                     @map("chassis_prefix") @db.VarChar(32)
+  serialDigits      Int?                        @map("serial_digits")
+  yearFrom          Int?                        @map("year_from")
+  yearTo            Int?                        @map("year_to")
+  checkDigitPolicy  String                      @map("check_digit_policy") @db.VarChar(32)
+  yearCodePolicy    String                      @map("year_code_policy") @db.VarChar(32)
+  makeId            String                      @map("make_id") @db.Uuid
+  modelId           String?                     @map("model_id") @db.Uuid
+  configurationId   String?                     @map("configuration_id") @db.Uuid
+  sourceName        String                      @map("source_name") @db.VarChar(160)
+  sourceReference   String                      @map("source_reference") @db.VarChar(255)
+  evidenceReference String                      @map("evidence_reference") @db.VarChar(255)
+  rightsScope       String                      @map("rights_scope") @db.VarChar(32)
+  status            MasterDataStatus            @default(DRAFT)
+  version           Int
+  createdAt         DateTime                    @default(now()) @map("created_at")
+  updatedAt         DateTime                    @updatedAt @map("updated_at")
+  make              VehicleMake                 @relation("SyncedRuleMake", fields: [makeId], references: [id], onDelete: Restrict)
+  model             VehicleModel?               @relation("SyncedRuleModel", fields: [modelId], references: [id], onDelete: Restrict)
+  configuration     VehicleConfiguration?       @relation("SyncedRuleConfig", fields: [configurationId], references: [id], onDelete: Restrict)
+
+  @@index([identifierType, wmi, status])
+  @@index([identifierType, chassisPrefix, status])
+  @@index([makeId, modelId, status])
+  @@map("reference_sync_vehicle_identifier_rules")
+}
+
+model ReferenceSyncNotificationReceipt {
+  eventId     String   @id @map("event_id") @db.Uuid
+  receivedAt  DateTime @default(now()) @map("received_at")
+
+  @@index([receivedAt])
+  @@map("reference_sync_notification_receipts")
 }
